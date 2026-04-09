@@ -73,7 +73,7 @@
 ### 3.5 跨模型信息同步原则（Single Source of Truth）
 为降低跨模型调度的上下文丢失与错位风险，系统必须维护一个共享的单一事实源。
 **要求：**
-* 在 `docs/architecture_state.md` 中记录最新的架构状态、接口契约和阶段里程碑。
+* 在 `docs/architecture/architecture_state.md` 中记录最新的架构状态、接口契约和阶段里程碑。
 * 每次阶段任务完成或发生重大架构调整时，必须更新此文档。
 * 所有 Agent（特别是 Cursor 与 GPT 审计席）在开启新对话任务时，需优先读取该文档以对齐最新上下文。
 
