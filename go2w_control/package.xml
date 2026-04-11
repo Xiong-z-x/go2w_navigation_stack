@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>go2w_control</name>
+  <version>0.0.1</version>
+  <description>Phase 0 scaffold package for locomotion control ownership in the Go2W navigation stack.</description>
+  <maintainer email="3133903229@qq.com">Xiong-z-x</maintainer>
+  <license>Proprietary</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>
