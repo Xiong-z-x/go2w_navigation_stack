@@ -189,7 +189,7 @@ Current contract:
 Stair traversal must use a dedicated behavior-level interface.
 
 Current contract:
-- staircase traversal is requested through a dedicated staircase execution Action or Service
+- staircase traversal is requested through a dedicated staircase execution Action named `stair_exec`
 - it must not be tunneled through generic `cmd_vel`
 
 ### Why this is frozen

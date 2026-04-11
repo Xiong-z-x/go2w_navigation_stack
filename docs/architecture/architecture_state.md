@@ -35,10 +35,10 @@ It records the active phase, the frozen contracts, the open decisions, and the o
 
 ### Stair Traversal Entry
 - Stair traversal command entry name: `stair_exec`
+- Stair traversal command entry type: dedicated staircase execution `Action`
 - Stair traversal must remain a dedicated behavior-level interface and must not be tunneled through `cmd_vel`.
 
 ## Current Unresolved Items
-- `stair_exec` final transport form is not fixed yet: `Action` or `Service` remains undecided.
 - TF authority publisher allocation is not fixed yet and must be assigned explicitly before perception and navigation integration.
 
 ## Current Repository State

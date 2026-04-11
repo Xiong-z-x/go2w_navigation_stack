@@ -46,7 +46,7 @@
 
 ### Phase 0：系统边界与接口契约冻结
 * **核心目标**：冻结系统的 Topic/TF/Action/Service 命名规范与责任边界。
-* **关键任务**：定义 TF 最小闭环（`map -> odom -> base_link`）；定义控制层入口（平地用 `cmd_vel`，楼梯用 `stair_exec` Action）；初始化 `architecture_state.md`。
+* **关键任务**：定义 TF 最小闭环（`map -> odom -> base_link`）；定义控制层入口（平地用 `cmd_vel`，楼梯用 dedicated staircase execution `stair_exec` Action）；初始化 `architecture_state.md`。
 
 ### Phase 1：仿真可控（平地可驱动、可观测）
 * **核心目标**：在 Gazebo Sim + RViz 中让 Go2W 达到最低闭环，能用 `cmd_vel` 驱动轮式移动。
