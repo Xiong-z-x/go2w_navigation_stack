@@ -6,7 +6,7 @@ It records the active phase, the frozen contracts, the open decisions, and the o
 
 ## Current Phase
 - Active Phase: `Phase 1`
-- Phase Status: Phase 1 simulation controllability remains active while TF authority is cleaned up and simulation sensor outputs are made ready for later FAST-LIO integration.
+- Phase Status: The current change set has completed Phase 1 runtime acceptance verification for simulation controllability, TF handoff preparation, and sensor observability. Once this verified baseline is accepted on `main`, Phase 2 may begin.
 
 ## Current Document Status
 
@@ -62,6 +62,6 @@ It records the active phase, the frozen contracts, the open decisions, and the o
 - FAST_LIO integration, Nav2 configuration, mission logic, and staircase behavior implementation do not exist yet.
 
 ## Only Allowed Next Task
-- Active work must stay inside `Phase 1` until the TF handoff policy, LiDAR / IMU outputs, and RViz observability are verified on `main`.
-- After that Phase 1 audit passes, the first Phase 2 task may integrate FAST-LIO2 input/output plumbing without pulling in Nav2 or mission logic.
+- The current change set has completed Phase 1 runtime acceptance verification; once it is accepted as the `main` baseline, the first Phase 2 task may integrate FAST-LIO2 input/output plumbing without pulling in Nav2 or mission logic.
+- Runtime acceptance evidence is recorded in `docs/verification/phase1_runtime_acceptance.md` and can be replayed with `tools/verify_phase1_runtime.sh`.
 - Forbidden in that next task unless explicitly approved: Nav2, `nav2_route`, route graph authoring, mission orchestration, and staircase execution logic.
