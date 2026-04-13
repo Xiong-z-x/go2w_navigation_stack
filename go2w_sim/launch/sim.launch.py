@@ -68,6 +68,43 @@ def generate_launch_description():
         arguments=['/clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock'],
     )
 
+    sensor_bridge = Node(
+        package='ros_gz_bridge',
+        executable='parameter_bridge',
+        output='screen',
+        arguments=[
+            '/lidar/points@sensor_msgs/msg/PointCloud2[gz.msgs.PointCloudPacked',
+            '/imu@sensor_msgs/msg/Imu[gz.msgs.IMU',
+        ],
+        remappings=[
+            ('/lidar/points', '/lidar_points'),
+        ],
+    )
+
+    lidar_sensor_frame_alias = Node(
+        package='tf2_ros',
+        executable='static_transform_publisher',
+        output='screen',
+        arguments=[
+            '--x', '0', '--y', '0', '--z', '0',
+            '--roll', '0', '--pitch', '0', '--yaw', '0',
+            '--frame-id', 'lidar_link',
+            '--child-frame-id', 'go2w_placeholder/base_footprint/lidar_sensor',
+        ],
+    )
+
+    imu_sensor_frame_alias = Node(
+        package='tf2_ros',
+        executable='static_transform_publisher',
+        output='screen',
+        arguments=[
+            '--x', '0', '--y', '0', '--z', '0',
+            '--roll', '0', '--pitch', '0', '--yaw', '0',
+            '--frame-id', 'imu_link',
+            '--child-frame-id', 'go2w_placeholder/base_footprint/imu_sensor',
+        ],
+    )
+
     spawn_robot = Node(
         package='ros_gz_sim',
         executable='create',
@@ -130,7 +167,10 @@ def generate_launch_description():
         SetEnvironmentVariable('MESA_GL_VERSION_OVERRIDE', '3.3', condition=UnlessCondition(use_gpu)),
         SetEnvironmentVariable('MESA_GLSL_VERSION_OVERRIDE', '330', condition=UnlessCondition(use_gpu)),
         clock_bridge,
+        sensor_bridge,
         robot_description,
+        lidar_sensor_frame_alias,
+        imu_sensor_frame_alias,
         gazebo,
         TimerAction(period=3.0, actions=[spawn_robot]),
         RegisterEventHandler(

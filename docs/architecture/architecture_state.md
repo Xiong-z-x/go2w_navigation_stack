@@ -5,8 +5,8 @@ This document is the single source of truth for the current implementation state
 It records the active phase, the frozen contracts, the open decisions, and the only approved next task boundary.
 
 ## Current Phase
-- Active Phase: `Phase 2`
-- Phase Status: Phase 1 simulation controllability is closed on a stable software-rendering baseline; the next approved task is FAST-LIO2 odometry and mapping output integration.
+- Active Phase: `Phase 1`
+- Phase Status: Phase 1 simulation controllability remains active while TF authority is cleaned up and simulation sensor outputs are made ready for later FAST-LIO integration.
 
 ## Current Document Status
 
@@ -39,7 +39,8 @@ It records the active phase, the frozen contracts, the open decisions, and the o
 - Stair traversal must remain a dedicated behavior-level interface and must not be tunneled through `cmd_vel`.
 
 ## Current Unresolved Items
-- TF authority publisher allocation is not fixed yet and must be assigned explicitly before perception and navigation integration.
+- TF authority handoff is now fixed in policy but not yet activated by perception: `diff_drive_controller` must not publish `odom -> base_link`, and FAST-LIO will take that edge when Phase 2 perception integration starts.
+- The placeholder URDF still couples robot geometry, `gz_ros2_control`, and sensor declarations in one file. This is accepted as a Phase 1 technical debt for fast closed-loop progress and must be refactored in Phase 3.
 
 ## Current Repository State
 - The repository is treated as a standalone colcon monorepo root inside an outer workspace `src/`.
@@ -56,10 +57,11 @@ It records the active phase, the frozen contracts, the open decisions, and the o
 - `go2w_description` now provides a minimal diff-drive placeholder URDF, RViz configuration, and a `robot_state_publisher` launch path.
 - `go2w_sim` now provides a minimal empty-world Gazebo Sim launch path, a `ros_gz_sim`-based spawn path, `/clock` bridge startup, and `gz_ros2_control` controller orchestration.
 - `go2w_control`, `go2w_perception`, `go2w_navigation`, and `go2w_mission` remain scaffold-only.
-- A Phase 1 placeholder closed loop is now verified: `/cmd_vel` drives the simulated base, `joint_state_broadcaster` and `diff_drive_controller` are active, RViz can visualize the robot model, and TF remains consistent.
+- Phase 1 uses a software-rendering Gazebo baseline and now reserves `odom -> base_link` for later FAST-LIO ownership by disabling `diff_drive_controller` TF publication.
+- Phase 1 simulation is expected to publish `robot_description`, `/clock`, `/imu`, and `/lidar_points`, while RViz visualizes the robot model, TF sensor frames, and point cloud data without consuming perception outputs.
 - FAST_LIO integration, Nav2 configuration, mission logic, and staircase behavior implementation do not exist yet.
 
 ## Only Allowed Next Task
-- The next allowed task must enter `Phase 2`.
-- Goal: integrate FAST-LIO2 input/output plumbing in simulation and obtain stable odometry plus point-cloud/map output without pulling in Nav2 or mission logic.
+- Active work must stay inside `Phase 1` until the TF handoff policy, LiDAR / IMU outputs, and RViz observability are verified on `main`.
+- After that Phase 1 audit passes, the first Phase 2 task may integrate FAST-LIO2 input/output plumbing without pulling in Nav2 or mission logic.
 - Forbidden in that next task unless explicitly approved: Nav2, `nav2_route`, route graph authoring, mission orchestration, and staircase execution logic.
