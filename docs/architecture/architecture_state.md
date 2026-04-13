@@ -5,8 +5,8 @@ This document is the single source of truth for the current implementation state
 It records the active phase, the frozen contracts, the open decisions, and the only approved next task boundary.
 
 ## Current Phase
-- Active Phase: `Phase 0`
-- Phase Status: architecture boundaries are being frozen first; Phase 0 audit closure is pending explicit acceptance after document review.
+- Active Phase: `Phase 2`
+- Phase Status: Phase 1 simulation controllability is closed on a stable software-rendering baseline; the next approved task is FAST-LIO2 odometry and mapping output integration.
 
 ## Current Document Status
 
@@ -44,17 +44,22 @@ It records the active phase, the frozen contracts, the open decisions, and the o
 ## Current Repository State
 - The repository is treated as a standalone colcon monorepo root inside an outer workspace `src/`.
 - ROS 2 packages are placed directly under the repository root.
-- The following root-level scaffold packages now exist:
+- Environment Constraint: The system strictly uses the official default Gazebo Fortress (ros-humble-ros-gz-*) and ign_ros2_control to ensure compatibility in ROS 2 Humble. Do not use Garden or Harmonic.
+- Environment Constraint: GPU acceleration for Gazebo GUI under WSLg is disabled due to Ogre2 UnimplementedException. System relies on software rendering (`use_gpu:=false`) to guarantee stability.
+- The following root-level packages exist:
   - `go2w_description`
   - `go2w_sim`
   - `go2w_control`
   - `go2w_perception`
   - `go2w_navigation`
   - `go2w_mission`
-- Current package state is scaffold-only; no URDF, Xacro, Gazebo world, bridge configuration, controller code, FAST_LIO integration, Nav2 configuration, mission logic, or staircase behavior implementation exists yet.
+- `go2w_description` now provides a minimal diff-drive placeholder URDF, RViz configuration, and a `robot_state_publisher` launch path.
+- `go2w_sim` now provides a minimal empty-world Gazebo Sim launch path, a `ros_gz_sim`-based spawn path, `/clock` bridge startup, and `gz_ros2_control` controller orchestration.
+- `go2w_control`, `go2w_perception`, `go2w_navigation`, and `go2w_mission` remain scaffold-only.
+- A Phase 1 placeholder closed loop is now verified: `/cmd_vel` drives the simulated base, `joint_state_broadcaster` and `diff_drive_controller` are active, RViz can visualize the robot model, and TF remains consistent.
+- FAST_LIO integration, Nav2 configuration, mission logic, and staircase behavior implementation do not exist yet.
 
 ## Only Allowed Next Task
-- The only allowed next task is the first `Phase 1` task.
-- Scope must remain limited to `go2w_description` and `go2w_sim`.
-- Goal: establish the minimum simulation bootstrap needed for a spawnable robot description path in Gazebo Sim and an observable description or TF chain, without pulling in later-phase subsystems.
-- Forbidden in that task: `gz_ros2_control`, full `cmd_vel` control closure, FAST_LIO, Nav2, `nav2_route`, mission orchestration, and staircase execution logic.
+- The next allowed task must enter `Phase 2`.
+- Goal: integrate FAST-LIO2 input/output plumbing in simulation and obtain stable odometry plus point-cloud/map output without pulling in Nav2 or mission logic.
+- Forbidden in that next task unless explicitly approved: Nav2, `nav2_route`, route graph authoring, mission orchestration, and staircase execution logic.

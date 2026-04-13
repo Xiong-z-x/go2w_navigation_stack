@@ -2,11 +2,16 @@
 <package format="3">
   <name>go2w_description</name>
   <version>0.0.1</version>
-  <description>Phase 0 scaffold package for robot model ownership in the Go2W navigation stack.</description>
+  <description>Phase 1 controllable placeholder robot description package for the Go2W navigation stack.</description>
   <maintainer email="3133903229@qq.com">Xiong-z-x</maintainer>
   <license>Proprietary</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <exec_depend>ament_index_python</exec_depend>
+  <exec_depend>launch</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
+  <exec_depend>robot_state_publisher</exec_depend>
 
   <export>
     <build_type>ament_cmake</build_type>
