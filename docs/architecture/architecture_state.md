@@ -5,8 +5,8 @@ This document is the single source of truth for the current implementation state
 It records the active phase, the frozen contracts, the open decisions, and the only approved next task boundary.
 
 ## Current Phase
-- Active Phase: `Phase 1`
-- Phase Status: The current change set has completed Phase 1 runtime acceptance verification for simulation controllability, TF handoff preparation, and sensor observability. Once this verified baseline is accepted on `main`, Phase 2 may begin.
+- Active Phase: `Phase 2`
+- Phase Status: Phase 1 simulation controllability has completed runtime acceptance and has been accepted on the current `main` baseline. The project now enters Phase 2 for FAST-LIO2 input/output plumbing and perception TF authority activation.
 
 ## Current Document Status
 
@@ -45,7 +45,7 @@ It records the active phase, the frozen contracts, the open decisions, and the o
 ## Current Repository State
 - The repository is treated as a standalone colcon monorepo root inside an outer workspace `src/`.
 - ROS 2 packages are placed directly under the repository root.
-- Environment Constraint: The system strictly uses the official default Gazebo Fortress (ros-humble-ros-gz-*) and ign_ros2_control to ensure compatibility in ROS 2 Humble. Do not use Garden or Harmonic.
+- Environment Constraint: The system strictly uses the official default Gazebo Fortress (`ros-humble-ros-gz-*`) and `gz_ros2_control` to ensure compatibility in ROS 2 Humble. Do not use Garden or Harmonic.
 - Environment Constraint: GPU acceleration for Gazebo GUI under WSLg is disabled due to Ogre2 UnimplementedException. System relies on software rendering (`use_gpu:=false`) to guarantee stability.
 - The following root-level packages exist:
   - `go2w_description`
@@ -62,6 +62,7 @@ It records the active phase, the frozen contracts, the open decisions, and the o
 - FAST_LIO integration, Nav2 configuration, mission logic, and staircase behavior implementation do not exist yet.
 
 ## Only Allowed Next Task
-- The current change set has completed Phase 1 runtime acceptance verification; once it is accepted as the `main` baseline, the first Phase 2 task may integrate FAST-LIO2 input/output plumbing without pulling in Nav2 or mission logic.
+- The current project state is now formally in `Phase 2`.
+- The only allowed next task is the first Phase 2 perception baseline task: FAST-LIO2 input/output plumbing plus `odom -> base_link` TF authority activation.
 - Runtime acceptance evidence is recorded in `docs/verification/phase1_runtime_acceptance.md` and can be replayed with `tools/verify_phase1_runtime.sh`.
 - Forbidden in that next task unless explicitly approved: Nav2, `nav2_route`, route graph authoring, mission orchestration, and staircase execution logic.
