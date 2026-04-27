@@ -157,6 +157,15 @@ docs/verification/phase2_fastlio_input_audit.md
 当前审计结果：`/lidar_points` 具备 `x,y,z,intensity,ring`，但缺少每点时间字段。
 下一步必须先选择 perception adapter 或已验证可容忍该数据形态的 FAST-LIO2 配置。
 
+Phase 2B 已进一步检查外部 FAST_LIO_ROS2 dry-run gate。当前候选 wrapper
+需要 `livox_ros_driver2` 构建依赖，并在源码中存在硬编码 TF 发布路径
+`camera_init -> body`。因此当前不得直接启动 FAST-LIO2 运行时 dry-run；
+必须先处理外部依赖链和 no-TF wrapper/patch 策略。记录见：
+
+```bash
+docs/verification/phase2_fastlio_dryrun.md
+```
+
 禁止顺手推进：
 
 - Nav2 / `nav2_route`

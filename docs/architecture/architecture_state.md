@@ -41,6 +41,7 @@ It records the active phase, the frozen contracts, the open decisions, and the o
 ## Current Unresolved Items
 - TF authority handoff is now fixed in policy but not yet activated by perception: `diff_drive_controller` must not publish `odom -> base_link`, and FAST-LIO will take that edge when Phase 2 perception integration starts.
 - Phase 2A input audit found that `/lidar_points` provides `x,y,z,intensity,ring` but no per-point timing field. The next perception task must choose either a minimal adapter or a validated FAST-LIO2 configuration that can tolerate this simulation data shape.
+- Phase 2B external FAST-LIO2 dry-run gate found that the current candidate ROS 2 wrapper requires `livox_ros_driver2` at build time and contains hard-coded TF publication (`camera_init -> body`). A no-TF runtime dry-run is therefore blocked until the external dependency chain and TF-disable strategy are explicitly handled.
 - The placeholder URDF still couples robot geometry, `gz_ros2_control`, and sensor declarations in one file. This is accepted as a Phase 1 technical debt for fast closed-loop progress and must be refactored in Phase 3.
 
 ## Current Repository State
@@ -66,9 +67,11 @@ It records the active phase, the frozen contracts, the open decisions, and the o
 ## Only Allowed Next Task
 - The current project state is now formally in `Phase 2`.
 - Phase 2A has audited the existing `/lidar_points` and `/imu` simulation outputs against FAST-LIO2 input expectations.
+- Phase 2B has audited the external FAST_LIO_ROS2 build and no-TF dry-run gate.
 - The only allowed Phase 2 direction remains the first perception baseline task: FAST-LIO2 input/output plumbing plus later `odom -> base_link` TF authority activation.
-- The next implementation boundary is Phase 2B: decide and implement either a minimal `go2w_perception` point cloud adapter or a FAST-LIO2 configuration path that is explicitly validated against `/lidar_points` fields `x,y,z,intensity,ring` without per-point timing.
+- The next implementation boundary is Phase 2C: choose one narrow path before runtime launch: close the external `livox_ros_driver2` / Livox SDK dependency chain and add a no-TF FAST-LIO2 wrapper/patch strategy, or implement a minimal `go2w_perception` adapter plus validated FAST-LIO2 config/fork strategy for `/lidar_points` fields `x,y,z,intensity,ring` without per-point timing.
 - `odom -> base_link` remains unclaimed until FAST-LIO2 runtime odometry is verified stable and duplicate TF authority is ruled out.
 - Runtime acceptance evidence is recorded in `docs/verification/phase1_runtime_acceptance.md` and can be replayed with `tools/verify_phase1_runtime.sh`.
 - Phase 2A input-audit evidence is recorded in `docs/verification/phase2_fastlio_input_audit.md`.
+- Phase 2B external FAST-LIO2 dry-run-gate evidence is recorded in `docs/verification/phase2_fastlio_dryrun.md`.
 - Forbidden in that next task unless explicitly approved: Nav2, `nav2_route`, route graph authoring, mission orchestration, and staircase execution logic.
