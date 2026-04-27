@@ -19,8 +19,8 @@ It records the active phase, the frozen contracts, the open decisions, and the o
 - `docs/agent_collaboration_policy.md`
 - `docs/architecture/architecture_state.md`
 
-### Pending Or Incomplete Documentation
-- `README.md` is still minimal and is not a source of truth for architecture or execution status.
+### Non-Canonical Documentation
+- `README.md` is an operator-facing summary and is not a source of truth for architecture or execution status.
 
 ## Current Unique Blueprint File
 - The only canonical blueprint file is `docs/architecture/system_blueprint.md`.
@@ -47,7 +47,7 @@ It records the active phase, the frozen contracts, the open decisions, and the o
 - ROS 2 packages are placed directly under the repository root.
 - Environment Constraint: The repository runtime baseline is now frozen as **Fortress-only** on ROS 2 Humble. The accepted simulator path is `ros_gz_sim` with `gz_version=6`, which launches `ign gazebo-6`, together with `gz_ros2_control`.
 - Environment Constraint: Gazebo Harmonic mixed runtime packages (`gz-sim8`, `libgz-*`, `python3-gz-*`) and the `packages.osrfoundation.org` Gazebo runtime path are not part of the accepted project environment and must remain removed unless the human operator explicitly re-baselines the project.
-- Environment Constraint: GPU acceleration for the Gazebo GUI under WSLg remains unsupported for the accepted project baseline. `use_gpu:=true` is not part of the current runtime contract, and the stable path remains software rendering (`use_gpu:=false`).
+- Environment Constraint: GPU acceleration for Gazebo Fortress rendering under WSLg remains unsupported for the accepted project baseline. The 2026-04-27 GPU re-baseline confirmed that the WSLg/NVIDIA GLX path is visible and RViz can initialize OpenGL 4.2, but `go2w_sim use_gpu:=true` still aborts in Gazebo/Ogre2 sensors/rendering with `GL3PlusTextureGpu::copyTo`. `use_gpu:=true` is not part of the current runtime contract, and the stable Gazebo path remains software rendering (`use_gpu:=false`). See `docs/verification/gazebo_gpu_rebaseline.md`.
 - The following root-level packages exist:
   - `go2w_description`
   - `go2w_sim`

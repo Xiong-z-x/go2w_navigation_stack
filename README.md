@@ -36,9 +36,9 @@ simulation-first 路线推进。
 - `python3-gz*`
 - `packages.osrfoundation.org` Gazebo runtime path
 
-## Gazebo GUI / GPU 说明
+## Gazebo / GPU 说明
 
-当前接受的稳定 GUI 基线是软件渲染：
+当前接受的稳定 Gazebo 基线是软件渲染：
 
 ```bash
 ros2 launch go2w_sim sim.launch.py use_gpu:=false
@@ -46,10 +46,17 @@ ros2 launch go2w_sim sim.launch.py use_gpu:=false
 
 当前 WSLg 能看到 RTX 3050 的 D3D12 OpenGL 加速，但 Gazebo Fortress GUI 的
 `use_gpu:=true` 路径仍会触发 Ogre2 `GL3PlusTextureGpu::copyTo`
-`UnimplementedException`。因此 GPU Gazebo GUI 不属于当前验收合同，也不是
-`Phase 1` 结束阻塞项。
+`UnimplementedException`。2026-04-27 的 re-baseline 进一步确认：
+`go2w_sim use_gpu:=true headless:=true` 也会在 Gazebo sensors/rendering
+线程触发同类异常。因此 Gazebo GPU rendering 不属于当前验收合同，也不是
+`Phase 1` 或首个 `Phase 2` 阻塞项。
 
-如果后续要正式启用 Gazebo GPU 渲染，应作为独立环境 re-baseline 任务处理。
+RViz 可独立使用当前 WSLg/NVIDIA OpenGL 路径；后续 CUDA / FAST-LIO / ML
+用 GPU 需要按各自链路单独验证。完整记录见：
+
+```bash
+docs/verification/gazebo_gpu_rebaseline.md
+```
 
 ## Phase 1 已验收闭环
 
