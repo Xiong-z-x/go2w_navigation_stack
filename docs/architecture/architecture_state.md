@@ -40,6 +40,7 @@ It records the active phase, the frozen contracts, the open decisions, and the o
 
 ## Current Unresolved Items
 - TF authority handoff is now fixed in policy but not yet activated by perception: `diff_drive_controller` must not publish `odom -> base_link`, and FAST-LIO will take that edge when Phase 2 perception integration starts.
+- Phase 2A input audit found that `/lidar_points` provides `x,y,z,intensity,ring` but no per-point timing field. The next perception task must choose either a minimal adapter or a validated FAST-LIO2 configuration that can tolerate this simulation data shape.
 - The placeholder URDF still couples robot geometry, `gz_ros2_control`, and sensor declarations in one file. This is accepted as a Phase 1 technical debt for fast closed-loop progress and must be refactored in Phase 3.
 
 ## Current Repository State
@@ -64,6 +65,10 @@ It records the active phase, the frozen contracts, the open decisions, and the o
 
 ## Only Allowed Next Task
 - The current project state is now formally in `Phase 2`.
-- The only allowed next task is the first Phase 2 perception baseline task: FAST-LIO2 input/output plumbing plus `odom -> base_link` TF authority activation.
+- Phase 2A has audited the existing `/lidar_points` and `/imu` simulation outputs against FAST-LIO2 input expectations.
+- The only allowed Phase 2 direction remains the first perception baseline task: FAST-LIO2 input/output plumbing plus later `odom -> base_link` TF authority activation.
+- The next implementation boundary is Phase 2B: decide and implement either a minimal `go2w_perception` point cloud adapter or a FAST-LIO2 configuration path that is explicitly validated against `/lidar_points` fields `x,y,z,intensity,ring` without per-point timing.
+- `odom -> base_link` remains unclaimed until FAST-LIO2 runtime odometry is verified stable and duplicate TF authority is ruled out.
 - Runtime acceptance evidence is recorded in `docs/verification/phase1_runtime_acceptance.md` and can be replayed with `tools/verify_phase1_runtime.sh`.
+- Phase 2A input-audit evidence is recorded in `docs/verification/phase2_fastlio_input_audit.md`.
 - Forbidden in that next task unless explicitly approved: Nav2, `nav2_route`, route graph authoring, mission orchestration, and staircase execution logic.

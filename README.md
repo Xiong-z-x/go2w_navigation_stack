@@ -147,6 +147,16 @@ go2w_description/rviz/go2w_phase1.rviz
 - 必要的 `go2w_sim` 输入输出对接
 - 稳定 odom / point cloud / map baseline
 
+当前 Phase 2A 的第一步是 FAST-LIO2 输入契约审计，不等于已经运行
+FAST-LIO2，也不等于已经激活 `odom -> base_link` authority。审计记录见：
+
+```bash
+docs/verification/phase2_fastlio_input_audit.md
+```
+
+当前审计结果：`/lidar_points` 具备 `x,y,z,intensity,ring`，但缺少每点时间字段。
+下一步必须先选择 perception adapter 或已验证可容忍该数据形态的 FAST-LIO2 配置。
+
 禁止顺手推进：
 
 - Nav2 / `nav2_route`
