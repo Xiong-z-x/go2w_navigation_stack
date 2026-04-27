@@ -42,6 +42,12 @@ def generate_launch_description():
     description_launch = os.path.join(description_share, 'launch', 'description.launch.py')
     gz_launch = os.path.join(ros_gz_sim_share, 'launch', 'gz_sim.launch.py')
     controller_yaml_path = os.path.join(sim_share, 'config', 'controllers.yaml')
+    rviz_gpu_env = {
+        'LIBGL_ALWAYS_SOFTWARE': '0',
+        'MESA_D3D12_DEFAULT_ADAPTER_NAME': 'NVIDIA',
+        'MESA_GL_VERSION_OVERRIDE': '4.2',
+        'MESA_GLSL_VERSION_OVERRIDE': '420',
+    }
 
     sanitized_ament_prefix_path = sanitize_path_entries(os.environ.get('AMENT_PREFIX_PATH', ''), install_root)
     sanitized_cmake_prefix_path = sanitize_path_entries(os.environ.get('CMAKE_PREFIX_PATH', ''), install_root)
@@ -159,6 +165,7 @@ def generate_launch_description():
         output='screen',
         arguments=['-d', rviz_config],
         parameters=[{'use_sim_time': True}],
+        additional_env=rviz_gpu_env,
         condition=IfCondition(launch_rviz),
     )
 

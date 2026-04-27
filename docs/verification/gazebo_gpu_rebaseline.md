@@ -104,13 +104,15 @@ Rationale:
 Allowed:
 
 - RViz may use the current WSLg/NVIDIA GLX path.
+- `go2w_sim` launch may set RViz-specific GPU-safe OpenGL environment values
+  with process-local `additional_env`, while leaving Gazebo on `use_gpu:=false`.
 - Future CUDA workloads, FAST-LIO acceleration, or ML workloads may use the GPU
   if validated independently.
 - Gazebo GPU rendering may be re-tested only as a separate environment task.
 
 Not allowed as current default:
 
-- enabling `use_gpu:=true` by default
+- enabling Gazebo `use_gpu:=true` by default
 - treating Gazebo Fortress GPU rendering as Phase 1 or Phase 2 acceptance
 - replacing the Fortress-only baseline with Garden / Harmonic to chase GPU
   rendering without explicit re-baseline approval

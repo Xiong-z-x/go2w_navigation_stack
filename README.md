@@ -51,8 +51,10 @@ ros2 launch go2w_sim sim.launch.py use_gpu:=false
 线程触发同类异常。因此 Gazebo GPU rendering 不属于当前验收合同，也不是
 `Phase 1` 或首个 `Phase 2` 阻塞项。
 
-RViz 可独立使用当前 WSLg/NVIDIA OpenGL 路径；后续 CUDA / FAST-LIO / ML
-用 GPU 需要按各自链路单独验证。完整记录见：
+`use_gpu` 只用于 Gazebo rendering 选择，不代表所有 GUI 统一走同一路径。
+默认 launch 会让 Gazebo 保持软件渲染，同时对 RViz 进程单独注入已验证的
+WSLg/NVIDIA OpenGL 环境。后续 CUDA / FAST-LIO / ML 用 GPU 需要按各自链路
+单独验证。完整记录见：
 
 ```bash
 docs/verification/gazebo_gpu_rebaseline.md
@@ -126,6 +128,9 @@ source /opt/ros/humble/setup.bash
 source install/setup.bash
 ros2 launch go2w_sim sim.launch.py use_gpu:=false headless:=false launch_rviz:=true
 ```
+
+该命令保持 Gazebo `use_gpu:=false`，但 RViz 进程会默认使用已验证的
+WSLg/NVIDIA OpenGL 环境。
 
 当前 RViz 配置文件：
 
