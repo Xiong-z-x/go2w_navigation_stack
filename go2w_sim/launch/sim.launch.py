@@ -7,7 +7,7 @@ from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, Regi
 from launch.conditions import IfCondition, UnlessCondition
 from launch.event_handlers import OnProcessExit
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.substitutions import LaunchConfiguration
+from launch.substitutions import LaunchConfiguration, PythonExpression
 from launch_ros.actions import Node
 
 
@@ -35,6 +35,8 @@ def generate_launch_description():
     sim_prefix = Path(sim_share).resolve().parents[1]
     install_root = str(sim_prefix.parent)
     use_gpu = LaunchConfiguration('use_gpu')
+    headless = LaunchConfiguration('headless')
+    launch_rviz = LaunchConfiguration('launch_rviz')
     world_path = os.path.join(sim_share, 'worlds', 'empty_world.sdf')
     rviz_config = os.path.join(description_share, 'rviz', 'go2w_phase1.rviz')
     description_launch = os.path.join(description_share, 'launch', 'description.launch.py')
@@ -58,7 +60,17 @@ def generate_launch_description():
 
     gazebo = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(gz_launch),
-        launch_arguments={'gz_args': f'-r {world_path}'}.items(),
+        launch_arguments={
+            'gz_args': PythonExpression([
+                f"'-r -s --headless-rendering {world_path}' if '",
+                headless,
+                "' == 'true' else '-r ",
+                world_path,
+                "'",
+            ]),
+            'gz_version': '6',
+            'on_exit_shutdown': 'true',
+        }.items(),
     )
 
     clock_bridge = Node(
@@ -147,10 +159,13 @@ def generate_launch_description():
         output='screen',
         arguments=['-d', rviz_config],
         parameters=[{'use_sim_time': True}],
+        condition=IfCondition(launch_rviz),
     )
 
     return LaunchDescription([
         DeclareLaunchArgument('use_gpu', default_value='false'),
+        DeclareLaunchArgument('headless', default_value='false'),
+        DeclareLaunchArgument('launch_rviz', default_value='true'),
         SetEnvironmentVariable('AMENT_PREFIX_PATH', sanitized_ament_prefix_path),
         SetEnvironmentVariable('CMAKE_PREFIX_PATH', sanitized_cmake_prefix_path),
         SetEnvironmentVariable('COLCON_PREFIX_PATH', sanitized_colcon_prefix_path),

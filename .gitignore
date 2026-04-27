@@ -16,3 +16,6 @@
 .vscode/
 .idea/
 .DS_Store
+
+# Local agent learning logs
+.learnings/

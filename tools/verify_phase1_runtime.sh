@@ -6,7 +6,9 @@ MODEL_NAME="${GO2W_MODEL_NAME:-go2w_placeholder}"
 TMP_DIR="$(mktemp -d)"
 trap 'rm -rf "${TMP_DIR}"' EXIT
 
+# shellcheck source=/dev/null
 source /opt/ros/humble/setup.bash
+# shellcheck source=/dev/null
 source "${ROOT_DIR}/install/setup.bash"
 set -u
 

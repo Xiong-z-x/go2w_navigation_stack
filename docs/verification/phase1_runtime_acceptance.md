@@ -12,6 +12,7 @@ Its goal is to prove, with fixed commands, that the current change set:
 
 ## Preconditions
 - Work from the repository root.
+- Fortress-only runtime baseline: use the ROS 2 Humble default Gazebo Fortress path for this repository. Do not run these checks against a Harmonic / `gz-sim8` mixed environment.
 - Build the workspace first:
 
 ```bash
@@ -21,6 +22,7 @@ source /opt/ros/humble/setup.bash && colcon build --symlink-install
 - Start the simulation in terminal A:
 
 ```bash
+./tools/cleanup_sim_runtime.sh
 source /opt/ros/humble/setup.bash
 source install/setup.bash
 ros2 launch go2w_sim sim.launch.py
@@ -96,6 +98,18 @@ The script:
 - runs `view_frames`
 - fails if `base_link` is still parented to `odom`
 - fails if the required sensor and alias frames are missing
+
+### 6. Launch-chain verifier with cleanup
+```bash
+./tools/verify_go2w_sim_launch.sh
+```
+
+The script:
+- cleans stale Gazebo / RViz / `ros2 launch go2w_sim` processes before and after verification
+- launches `go2w_sim` with `use_gpu:=false`
+- verifies that the launch log uses `ign gazebo-6`
+- verifies that `joint_state_broadcaster` and `diff_drive_controller` both reach `active`
+- verifies that `/clock`, `/imu`, and `/lidar_points` produce messages
 
 ## Observed Result For The Current Change Set
 Observed on the current change set before commit:

@@ -45,8 +45,9 @@ It records the active phase, the frozen contracts, the open decisions, and the o
 ## Current Repository State
 - The repository is treated as a standalone colcon monorepo root inside an outer workspace `src/`.
 - ROS 2 packages are placed directly under the repository root.
-- Environment Constraint: The system strictly uses the official default Gazebo Fortress (`ros-humble-ros-gz-*`) and `gz_ros2_control` to ensure compatibility in ROS 2 Humble. Do not use Garden or Harmonic.
-- Environment Constraint: GPU acceleration for Gazebo GUI under WSLg is disabled due to Ogre2 UnimplementedException. System relies on software rendering (`use_gpu:=false`) to guarantee stability.
+- Environment Constraint: The repository runtime baseline is now frozen as **Fortress-only** on ROS 2 Humble. The accepted simulator path is `ros_gz_sim` with `gz_version=6`, which launches `ign gazebo-6`, together with `gz_ros2_control`.
+- Environment Constraint: Gazebo Harmonic mixed runtime packages (`gz-sim8`, `libgz-*`, `python3-gz-*`) and the `packages.osrfoundation.org` Gazebo runtime path are not part of the accepted project environment and must remain removed unless the human operator explicitly re-baselines the project.
+- Environment Constraint: GPU acceleration for the Gazebo GUI under WSLg remains unsupported for the accepted project baseline. `use_gpu:=true` is not part of the current runtime contract, and the stable path remains software rendering (`use_gpu:=false`).
 - The following root-level packages exist:
   - `go2w_description`
   - `go2w_sim`

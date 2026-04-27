@@ -35,6 +35,14 @@ If any conflict appears:
 
 ---
 
+## Runtime Baseline
+- Until the human operator explicitly approves a re-baseline, this repository is **Fortress-only** on ROS 2 Humble.
+- The accepted simulator stack is the ROS Humble default path: `ignition-gazebo6` / `ign gazebo`, `ros-humble-ros-gz-*`, and `ros-humble-gz-ros2-control`.
+- Do not install, depend on, or validate this repository against Gazebo Harmonic (`gz-sim8`, `libgz-*`, `python3-gz-*`) or the mixed `packages.osrfoundation.org` Gazebo runtime path.
+- Under WSLg, the accepted GUI runtime baseline is software rendering with `use_gpu:=false`. GPU-accelerated Gazebo GUI is not part of the current accepted project contract.
+
+---
+
 ## Architecture Ground Rules
 This project follows a strict layered architecture:
 
