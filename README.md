@@ -175,8 +175,32 @@ Phase 2C 已建立外部 FAST_LIO_ROS2 patch gate：仓库只保存 patch 与验
 docs/verification/phase2_fastlio_patch_gate.md
 ```
 
-下一步仍只能做 patched FAST-LIO2 no-TF runtime dry-run，不得直接声明
-`odom -> base_link` authority。
+Phase 2D 已新增自动化 no-TF runtime dry-run。准备脚本会复用或拉取外部
+FAST_LIO_ROS2 到 `/tmp`，应用 Phase 2C patch，并在 scratch workspace 构建：
+
+```bash
+./tools/prepare_phase2d_fastlio_external.sh
+```
+
+运行时采证脚本会启动 headless `go2w_sim`，启动 patched FAST-LIO，采样输出
+topic 与 TF：
+
+```bash
+./tools/verify_phase2d_fastlio_no_tf_dryrun.sh
+```
+
+当前 Phase 2D 结果：FAST-LIO 可在 no-TF 配置下启动并发布 `/Odometry`、
+`/cloud_registered`、`/cloud_registered_body`、`/Laser_map`、`/path`；
+未发布 `camera_init -> body` TF，`odom -> base_link` 仍未被声明。但日志仍反复
+提示点云缺少 `time` 字段，且 FAST-LIO 输出消息仍使用上游
+`camera_init/body` 帧名。记录见：
+
+```bash
+docs/verification/phase2_fastlio_no_tf_dryrun.md
+```
+
+下一步仍不得直接声明 `odom -> base_link` authority。必须先处理 FAST-LIO
+输入点云 timing 与输出 frame contract。
 
 禁止顺手推进：
 
