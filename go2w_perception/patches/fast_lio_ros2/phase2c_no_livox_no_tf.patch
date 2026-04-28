@@ -1,0 +1,231 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index e091f3a..0e37465 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -59,7 +59,12 @@ find_package(std_srvs REQUIRED)
+ find_package(visualization_msgs REQUIRED)
+ find_package(pcl_ros REQUIRED)
+ find_package(pcl_conversions REQUIRED)
+-find_package(livox_ros_driver2 REQUIRED)
++find_package(tf2_ros REQUIRED)
++option(FAST_LIO_ENABLE_LIVOX "Build Livox CustomMsg input support" OFF)
++if(FAST_LIO_ENABLE_LIVOX)
++  find_package(livox_ros_driver2 REQUIRED)
++  add_compile_definitions(FAST_LIO_ENABLE_LIVOX)
++endif()
+ find_package(rosidl_default_generators REQUIRED)
+ 
+ set(dependencies
+@@ -73,9 +78,13 @@ set(dependencies
+   visualization_msgs
+   pcl_ros
+   pcl_conversions
+-  livox_ros_driver2
++  tf2_ros
+ )
+ 
++if(FAST_LIO_ENABLE_LIVOX)
++  list(APPEND dependencies livox_ros_driver2)
++endif()
++
+ # Thirdparty libraries
+ find_package(Eigen3 REQUIRED)
+ find_package(PCL REQUIRED COMPONENTS common io)
+diff --git a/package.xml b/package.xml
+index 8c39e18..7bb836e 100644
+--- a/package.xml
++++ b/package.xml
+@@ -25,9 +25,9 @@
+   <depend>sensor_msgs</depend>
+   <depend>common_interfaces</depend>
+   <depend>tf2</depend>
++  <depend>tf2_ros</depend>
+   <depend>pcl_ros</depend>
+   <depend>pcl_conversions</depend>
+-  <depend>livox_ros_driver2</depend>
+ 
+   <exec_depend>rosidl_default_runtime</exec_depend>
+   <member_of_group>rosidl_interface_packages</member_of_group>
+diff --git a/src/laserMapping.cpp b/src/laserMapping.cpp
+index d441261..f15f3fd 100644
+--- a/src/laserMapping.cpp
++++ b/src/laserMapping.cpp
+@@ -39,6 +39,7 @@
+ #include <fstream>
+ #include <csignal>
+ #include <chrono>
++#include <stdexcept>
+ #include <unistd.h>
+ #include <Python.h>
+ #include <so3_math.h>
+@@ -59,7 +60,9 @@
+ #include <tf2_ros/transform_broadcaster.h>
+ #include <geometry_msgs/msg/transform_stamped.hpp>
+ #include <geometry_msgs/msg/vector3.hpp>
++#ifdef FAST_LIO_ENABLE_LIVOX
+ #include <livox_ros_driver2/msg/custom_msg.hpp>
++#endif
+ #include "preprocess.h"
+ #include <ikd-Tree/ikd_Tree.h>
+ 
+@@ -73,7 +76,7 @@ double kdtree_incremental_time = 0.0, kdtree_search_time = 0.0, kdtree_delete_ti
+ double T1[MAXN], s_plot[MAXN], s_plot2[MAXN], s_plot3[MAXN], s_plot4[MAXN], s_plot5[MAXN], s_plot6[MAXN], s_plot7[MAXN], s_plot8[MAXN], s_plot9[MAXN], s_plot10[MAXN], s_plot11[MAXN];
+ double match_time = 0, solve_time = 0, solve_const_H_time = 0;
+ int    kdtree_size_st = 0, kdtree_size_end = 0, add_point_size = 0, kdtree_delete_counter = 0;
+-bool   runtime_pos_log = false, pcd_save_en = false, time_sync_en = false, extrinsic_est_en = true, path_en = true;
++bool   runtime_pos_log = false, pcd_save_en = false, time_sync_en = false, extrinsic_est_en = true, path_en = true, tf_publish_en = false;
+ /**************************/
+ 
+ float res_last[100000] = {0.0};
+@@ -308,6 +311,7 @@ void standard_pcl_cbk(const sensor_msgs::msg::PointCloud2::UniquePtr msg)
+ 
+ double timediff_lidar_wrt_imu = 0.0;
+ bool   timediff_set_flg = false;
++#ifdef FAST_LIO_ENABLE_LIVOX
+ void livox_pcl_cbk(const livox_ros_driver2::msg::CustomMsg::UniquePtr msg) 
+ {
+     mtx_buffer.lock();
+@@ -347,6 +351,8 @@ void livox_pcl_cbk(const livox_ros_driver2::msg::CustomMsg::UniquePtr msg)
+     sig_buffer.notify_all();
+ }
+ 
++#endif
++
+ void imu_cbk(const sensor_msgs::msg::Imu::UniquePtr msg_in)
+ {
+     publish_count ++;
+@@ -655,7 +661,10 @@ void publish_odometry(const rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPt
+     trans.transform.rotation.x = odomAftMapped.pose.pose.orientation.x;
+     trans.transform.rotation.y = odomAftMapped.pose.pose.orientation.y;
+     trans.transform.rotation.z = odomAftMapped.pose.pose.orientation.z;
+-    tf_br->sendTransform(trans);
++    if (tf_publish_en && tf_br)
++    {
++        tf_br->sendTransform(trans);
++    }
+ }
+ 
+ void publish_path(rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr pubPath)
+@@ -799,6 +808,7 @@ public:
+     LaserMappingNode(const rclcpp::NodeOptions& options = rclcpp::NodeOptions()) : Node("laser_mapping", options)
+     {
+         this->declare_parameter<bool>("publish.path_en", true);
++        this->declare_parameter<bool>("publish.tf_publish_en", false);
+         this->declare_parameter<bool>("publish.effect_map_en", false);
+         this->declare_parameter<bool>("publish.map_en", false);
+         this->declare_parameter<bool>("publish.scan_publish_en", true);
+@@ -835,6 +845,7 @@ public:
+         this->declare_parameter<vector<double>>("mapping.extrinsic_R", vector<double>());
+ 
+         this->get_parameter_or<bool>("publish.path_en", path_en, true);
++        this->get_parameter_or<bool>("publish.tf_publish_en", tf_publish_en, false);
+         this->get_parameter_or<bool>("publish.effect_map_en", effect_pub_en, false);
+         this->get_parameter_or<bool>("publish.map_en", map_pub_en, false);
+         this->get_parameter_or<bool>("publish.scan_publish_en", scan_pub_en, true);
+@@ -920,7 +931,12 @@ public:
+         /*** ROS subscribe initialization ***/
+         if (p_pre->lidar_type == AVIA)
+         {
++#ifdef FAST_LIO_ENABLE_LIVOX
+             sub_pcl_livox_ = this->create_subscription<livox_ros_driver2::msg::CustomMsg>(lid_topic, 20, livox_pcl_cbk);
++#else
++            RCLCPP_ERROR(this->get_logger(), "preprocess.lidar_type=AVIA requires FAST_LIO_ENABLE_LIVOX=ON");
++            throw std::runtime_error("FAST_LIO_ENABLE_LIVOX is OFF but preprocess.lidar_type is AVIA");
++#endif
+         }
+         else
+         {
+@@ -933,7 +949,10 @@ public:
+         pubLaserCloudMap_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("/Laser_map", 20);
+         pubOdomAftMapped_ = this->create_publisher<nav_msgs::msg::Odometry>("/Odometry", 20);
+         pubPath_ = this->create_publisher<nav_msgs::msg::Path>("/path", 20);
+-        tf_broadcaster_ = std::make_unique<tf2_ros::TransformBroadcaster>(*this);
++        if (tf_publish_en)
++        {
++            tf_broadcaster_ = std::make_unique<tf2_ros::TransformBroadcaster>(*this);
++        }
+ 
+         //------------------------------------------------------------------------------------------------------
+         auto period_ms = std::chrono::milliseconds(static_cast<int64_t>(1000.0 / 100.0));
+@@ -1137,7 +1156,9 @@ private:
+     rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr pubPath_;
+     rclcpp::Subscription<sensor_msgs::msg::Imu>::SharedPtr sub_imu_;
+     rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr sub_pcl_pc_;
++#ifdef FAST_LIO_ENABLE_LIVOX
+     rclcpp::Subscription<livox_ros_driver2::msg::CustomMsg>::SharedPtr sub_pcl_livox_;
++#endif
+ 
+     std::unique_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
+     rclcpp::TimerBase::SharedPtr timer_;
+diff --git a/src/preprocess.cpp b/src/preprocess.cpp
+index 88444f4..059fc71 100644
+--- a/src/preprocess.cpp
++++ b/src/preprocess.cpp
+@@ -44,6 +44,7 @@ void Preprocess::set(bool feat_en, int lid_type, double bld, int pfilt_num)
+   point_filter_num = pfilt_num;
+ }
+ 
++#ifdef FAST_LIO_ENABLE_LIVOX
+ void Preprocess::process(const livox_ros_driver2::msg::CustomMsg::UniquePtr &msg, PointCloudXYZI::Ptr& pcl_out)
+ {
+   avia_handler(msg);
+@@ -50,6 +51,8 @@ void Preprocess::process(const livox_ros_driver2::msg::CustomMsg::UniquePtr &msg
+   *pcl_out = pl_surf;
+ }
+ 
++#endif
++
+ void Preprocess::process(const sensor_msgs::msg::PointCloud2::UniquePtr &msg, PointCloudXYZI::Ptr& pcl_out)
+ {
+   switch (time_unit)
+@@ -90,6 +93,7 @@ void Preprocess::process(const sensor_msgs::msg::PointCloud2::UniquePtr &msg, Po
+   *pcl_out = pl_surf;
+ }
+ 
++#ifdef FAST_LIO_ENABLE_LIVOX
+ void Preprocess::avia_handler(const livox_ros_driver2::msg::CustomMsg::UniquePtr &msg)
+ {
+   pl_surf.clear();
+@@ -193,6 +194,8 @@ void Preprocess::avia_handler(const livox_ros_driver2::msg::CustomMsg::UniquePtr
+   }
+ }
+ 
++#endif
++
+ void Preprocess::oust64_handler(const sensor_msgs::msg::PointCloud2::UniquePtr &msg)
+ {
+   pl_surf.clear();
+diff --git a/src/preprocess.h b/src/preprocess.h
+index 7f7d7a1..ac1e44c 100644
+--- a/src/preprocess.h
++++ b/src/preprocess.h
+@@ -2,7 +2,9 @@
+ #include <rclcpp/rclcpp.hpp>
+ #include <pcl_conversions/pcl_conversions.h>
+ #include <sensor_msgs/msg/point_cloud2.hpp>
++#ifdef FAST_LIO_ENABLE_LIVOX
+ #include <livox_ros_driver2/msg/custom_msg.hpp>
++#endif
+ 
+ using namespace std;
+ 
+@@ -158,7 +160,9 @@ class Preprocess
+   Preprocess();
+   ~Preprocess();
+   
++#ifdef FAST_LIO_ENABLE_LIVOX
+   void process(const livox_ros_driver2::msg::CustomMsg::UniquePtr &msg, PointCloudXYZI::Ptr &pcl_out);
++#endif
+   void process(const sensor_msgs::msg::PointCloud2::UniquePtr &msg, PointCloudXYZI::Ptr &pcl_out);
+   void set(bool feat_en, int lid_type, double bld, int pfilt_num);
+ 
+@@ -173,7 +177,9 @@ class Preprocess
+   // ros::Publisher pub_full, pub_surf, pub_corn;
+ 
+ private:
++#ifdef FAST_LIO_ENABLE_LIVOX
+   void avia_handler(const livox_ros_driver2::msg::CustomMsg::UniquePtr &msg);
++#endif
+   void oust64_handler(const sensor_msgs::msg::PointCloud2::UniquePtr &msg);
+   void velodyne_handler(const sensor_msgs::msg::PointCloud2::UniquePtr &msg);
+   void mid360_handler(const sensor_msgs::msg::PointCloud2::UniquePtr &msg);

@@ -166,6 +166,18 @@ Phase 2B 已进一步检查外部 FAST_LIO_ROS2 dry-run gate。当前候选 wrap
 docs/verification/phase2_fastlio_dryrun.md
 ```
 
+Phase 2C 已建立外部 FAST_LIO_ROS2 patch gate：仓库只保存 patch 与验证工具，
+不 vendor FAST-LIO2 源码。当前 patch 已验证可在
+`FAST_LIO_ENABLE_LIVOX=OFF` 下完成 isolated build，并将 FAST-LIO TF 发布
+通过 `publish.tf_publish_en` 参数默认关闭。记录见：
+
+```bash
+docs/verification/phase2_fastlio_patch_gate.md
+```
+
+下一步仍只能做 patched FAST-LIO2 no-TF runtime dry-run，不得直接声明
+`odom -> base_link` authority。
+
 禁止顺手推进：
 
 - Nav2 / `nav2_route`
