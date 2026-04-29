@@ -246,9 +246,32 @@ Phase 2F 已新增 dedicated perception TF authority activation dry-run：
 docs/verification/phase2_tf_authority_activation.md
 ```
 
-下一步仍不得进入 Nav2。唯一允许的下一步是 Phase 2 perception runtime
-stability acceptance：对已激活 TF authority、odom、point cloud、map outputs
-做更长时间运动窗口验收。
+Phase 2G 已新增 perception runtime stability acceptance：
+
+- 默认 30 秒 command window
+- 验证 `/go2w/perception/odom`、`/tf`、`/fastlio/input/lidar_points`、
+  `/go2w/perception/cloud_registered` 的非零频率
+- 验证 `/go2w/perception/path`、`/go2w/perception/cloud_body`、
+  `/go2w/perception/laser_map` 有消息
+- 验证 `odom -> base_link` 持续存在，`camera_init -> body` 仍缺席
+- 验证 FAST-LIO missing-time warning 仍为 `0`
+
+验证命令：
+
+```bash
+./tools/verify_phase2g_perception_stability.sh
+```
+
+当前 Phase 2G 结果：30 秒稳定性窗口通过，perception baseline 已具备进入
+首个 Nav2/costmap consumer gate 的仓库证据。记录见：
+
+```bash
+docs/verification/phase2_perception_stability_acceptance.md
+```
+
+下一步可以进入第一个 Nav2/costmap 消费者接入门槛，但必须作为单独任务，
+只消费已验证 perception outputs，不得同时做 route graph、mission、楼梯或
+多楼层逻辑。
 
 禁止顺手推进：
 
