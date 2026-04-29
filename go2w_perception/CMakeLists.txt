@@ -13,6 +13,7 @@ install(DIRECTORY config launch
 install(PROGRAMS
   scripts/go2w_fastlio_input_adapter
   scripts/go2w_fastlio_output_adapter
+  scripts/go2w_fastlio_tf_authority
   DESTINATION lib/${PROJECT_NAME}
 )
 

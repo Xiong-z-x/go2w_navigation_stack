@@ -224,9 +224,31 @@ warning 为 `0`，contract odometry 为 `odom/base_link`，contract clouds/path 
 docs/verification/phase2_fastlio_contract_stabilization.md
 ```
 
-下一步仍不得进入 Nav2。唯一允许的下一步是 dedicated Phase 2F TF authority
-activation dry-run：只允许从已稳定的 Phase 2E perception contract 发布并验证
-`odom -> base_link`，并检查 duplicate TF authority。
+Phase 2F 已新增 dedicated perception TF authority activation dry-run：
+
+- TF authority node：订阅 `/go2w/perception/odom`
+- 发布 TF：`odom -> base_link`
+- duplicate authority 检查：激活前无 `odom -> base_link`，且
+  `diff_drive_controller.enable_odom_tf=False`
+- FAST-LIO upstream TF 检查：不发布 `camera_init -> body`
+
+验证命令：
+
+```bash
+./tools/verify_phase2f_tf_authority.sh
+```
+
+当前 Phase 2F 结果：`odom -> base_link` 已由 perception 侧 runtime dry-run
+发布并验证，FAST-LIO missing-time warning 仍为 `0`，`camera_init -> body` TF
+仍缺席。记录见：
+
+```bash
+docs/verification/phase2_tf_authority_activation.md
+```
+
+下一步仍不得进入 Nav2。唯一允许的下一步是 Phase 2 perception runtime
+stability acceptance：对已激活 TF authority、odom、point cloud、map outputs
+做更长时间运动窗口验收。
 
 禁止顺手推进：
 

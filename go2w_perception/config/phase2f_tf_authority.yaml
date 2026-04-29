@@ -1,0 +1,6 @@
+go2w_fastlio_tf_authority:
+  ros__parameters:
+    use_sim_time: true
+    odometry_topic: /go2w/perception/odom
+    parent_frame: odom
+    child_frame: base_link

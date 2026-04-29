@@ -39,12 +39,13 @@ It records the active phase, the frozen contracts, the open decisions, and the o
 - Stair traversal must remain a dedicated behavior-level interface and must not be tunneled through `cmd_vel`.
 
 ## Current Unresolved Items
-- TF authority handoff is now fixed in policy but not yet activated by perception: `diff_drive_controller` must not publish `odom -> base_link`, and FAST-LIO will take that edge when Phase 2 perception integration starts.
+- TF authority handoff is now activated in a Phase 2F perception runtime dry-run: `diff_drive_controller` does not publish `odom -> base_link`, and `go2w_perception` publishes that edge from the stabilized Phase 2E contract odometry. Longer runtime stability acceptance is still open before Nav2 work starts.
 - Phase 2A input audit found that `/lidar_points` provides `x,y,z,intensity,ring` but no per-point timing field. The next perception task must choose either a minimal adapter or a validated FAST-LIO2 configuration that can tolerate this simulation data shape.
 - Phase 2B external FAST-LIO2 dry-run gate found that the current candidate ROS 2 wrapper requires `livox_ros_driver2` at build time and contains hard-coded TF publication (`camera_init -> body`). A no-TF runtime dry-run is therefore blocked until the external dependency chain and TF-disable strategy are explicitly handled.
 - Phase 2C external patch gate cleared that immediate build/no-TF blocker: the repository now carries an external FAST_LIO_ROS2 patch that makes Livox support optional and gates FAST-LIO TF publication behind `publish.tf_publish_en`, defaulting to `false`.
 - Phase 2D external no-TF runtime dry-run cleared the next runtime gate: patched FAST-LIO launched against `/lidar_points` and `/imu`, produced `/Odometry`, `/cloud_registered`, `/cloud_registered_body`, `/Laser_map`, and `/path`, and did not publish `camera_init -> body` TF. However, the FAST-LIO log still reports missing pointcloud `time` fields, and output message frames remain upstream `camera_init/body`; this is not yet stable enough to claim `odom -> base_link`.
 - Phase 2E contract stabilization cleared the Phase 2D input/output blockers: `/fastlio/input/lidar_points` now carries a `time` field, FAST-LIO missing-time warnings are zero in the verifier, and raw FAST-LIO `camera_init/body` messages are republished on project contract topics with `odom/base_link` message frame semantics. Phase 2E still does not publish or claim `odom -> base_link` TF.
+- Phase 2F TF authority activation dry-run cleared the first authority gate: pre-activation simulation TF has no `odom -> base_link`, runtime `diff_drive_controller.enable_odom_tf` is `False`, patched FAST-LIO does not publish `camera_init -> body`, and `go2w_perception` publishes `odom -> base_link` from `/go2w/perception/odom`.
 - The placeholder URDF still couples robot geometry, `gz_ros2_control`, and sensor declarations in one file. This is accepted as a Phase 1 technical debt for fast closed-loop progress and must be refactored in Phase 3.
 
 ## Current Repository State
@@ -66,7 +67,7 @@ It records the active phase, the frozen contracts, the open decisions, and the o
 - `go2w_control`, `go2w_navigation`, and `go2w_mission` remain scaffold-only.
 - Phase 1 uses a software-rendering Gazebo baseline and now reserves `odom -> base_link` for later FAST-LIO ownership by disabling `diff_drive_controller` TF publication.
 - Phase 1 simulation is expected to publish `robot_description`, `/clock`, `/imu`, and `/lidar_points`, while RViz visualizes the robot model, TF sensor frames, and point cloud data without consuming perception outputs.
-- Repository-local FAST-LIO TF authority activation does not exist yet; current FAST-LIO work covers external-source patching, build validation, no-TF dry-run automation, and local input/output contract adapters. Nav2 configuration, mission logic, and staircase behavior implementation do not exist yet.
+- Repository-local FAST-LIO TF authority activation now exists as a Phase 2F dry-run node and verifier. Current FAST-LIO work covers external-source patching, build validation, no-TF dry-run automation, local input/output contract adapters, and perception-side `odom -> base_link` TF activation. Nav2 configuration, mission logic, and staircase behavior implementation do not exist yet.
 
 ## Only Allowed Next Task
 - The current project state is now formally in `Phase 2`.
@@ -75,13 +76,15 @@ It records the active phase, the frozen contracts, the open decisions, and the o
 - Phase 2C has added and verified a repository-local external patch gate for FAST_LIO_ROS2: `FAST_LIO_ENABLE_LIVOX=OFF` builds successfully in a scratch workspace, and FAST-LIO TF publication is parameter-gated off by default.
 - Phase 2D has added and verified automated external preparation plus no-TF runtime dry-run scripts for patched FAST_LIO_ROS2.
 - Phase 2E has added and verified local `go2w_perception` contract adapters: FAST-LIO input pointclouds carry `time`, contract outputs use project frame IDs, and no TF is published.
+- Phase 2F has added and verified a local `go2w_perception` TF authority node: `odom -> base_link` is published from `/go2w/perception/odom`, pre-activation duplicate authority checks pass, and FAST-LIO upstream `camera_init -> body` TF remains absent.
 - The only allowed Phase 2 direction remains the first perception baseline task: FAST-LIO2 input/output plumbing plus later `odom -> base_link` TF authority activation.
-- The next implementation boundary is Phase 2F: a dedicated perception TF authority activation dry-run, limited to publishing and verifying `odom -> base_link` from the stabilized Phase 2E contract output with duplicate TF authority checks.
-- `odom -> base_link` remains unclaimed until FAST-LIO2 runtime odometry is verified stable and duplicate TF authority is ruled out.
+- The next implementation boundary is Phase 2G: a perception runtime stability acceptance gate for activated odometry, TF, point cloud, and map outputs over a longer motion window.
+- `odom -> base_link` is now claimed only by the Phase 2F perception TF authority path in the verified dry-run. Longer runtime stability evidence is still required before navigation consumes it.
 - Runtime acceptance evidence is recorded in `docs/verification/phase1_runtime_acceptance.md` and can be replayed with `tools/verify_phase1_runtime.sh`.
 - Phase 2A input-audit evidence is recorded in `docs/verification/phase2_fastlio_input_audit.md`.
 - Phase 2B external FAST-LIO2 dry-run-gate evidence is recorded in `docs/verification/phase2_fastlio_dryrun.md`.
 - Phase 2C external FAST-LIO2 patch-gate evidence is recorded in `docs/verification/phase2_fastlio_patch_gate.md`.
 - Phase 2D external FAST-LIO2 no-TF runtime dry-run evidence is recorded in `docs/verification/phase2_fastlio_no_tf_dryrun.md`.
 - Phase 2E FAST-LIO input/output contract stabilization evidence is recorded in `docs/verification/phase2_fastlio_contract_stabilization.md`.
+- Phase 2F perception TF authority activation evidence is recorded in `docs/verification/phase2_tf_authority_activation.md`.
 - Forbidden in that next task unless explicitly approved: Nav2, `nav2_route`, route graph authoring, mission orchestration, and staircase execution logic.
