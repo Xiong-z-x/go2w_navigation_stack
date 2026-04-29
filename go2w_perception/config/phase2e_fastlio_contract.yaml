@@ -1,0 +1,26 @@
+go2w_fastlio_input_adapter:
+  ros__parameters:
+    use_sim_time: true
+    input_topic: /lidar_points
+    output_topic: /fastlio/input/lidar_points
+    scan_period_sec: 0.1
+    time_field_name: time
+    force_recompute_time: true
+
+go2w_fastlio_output_adapter:
+  ros__parameters:
+    use_sim_time: true
+    raw_world_frame: camera_init
+    raw_body_frame: body
+    target_world_frame: odom
+    target_body_frame: base_link
+    raw_odometry_topic: /Odometry
+    raw_path_topic: /path
+    raw_cloud_registered_topic: /cloud_registered
+    raw_cloud_body_topic: /cloud_registered_body
+    raw_laser_map_topic: /Laser_map
+    contract_odometry_topic: /go2w/perception/odom
+    contract_path_topic: /go2w/perception/path
+    contract_cloud_registered_topic: /go2w/perception/cloud_registered
+    contract_cloud_body_topic: /go2w/perception/cloud_body
+    contract_laser_map_topic: /go2w/perception/laser_map

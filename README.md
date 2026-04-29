@@ -155,7 +155,7 @@ docs/verification/phase2_fastlio_input_audit.md
 ```
 
 当前审计结果：`/lidar_points` 具备 `x,y,z,intensity,ring`，但缺少每点时间字段。
-下一步必须先选择 perception adapter 或已验证可容忍该数据形态的 FAST-LIO2 配置。
+该问题已在 Phase 2E 通过本地 perception adapter 收口。
 
 Phase 2B 已进一步检查外部 FAST_LIO_ROS2 dry-run gate。当前候选 wrapper
 需要 `livox_ros_driver2` 构建依赖，并在源码中存在硬编码 TF 发布路径
@@ -199,8 +199,34 @@ topic 与 TF：
 docs/verification/phase2_fastlio_no_tf_dryrun.md
 ```
 
-下一步仍不得直接声明 `odom -> base_link` authority。必须先处理 FAST-LIO
-输入点云 timing 与输出 frame contract。
+Phase 2E 已新增本地 `go2w_perception` contract adapters：
+
+- 输入 adapter：`/lidar_points` -> `/fastlio/input/lidar_points`，补齐
+  FAST-LIO 所需 `time` 字段
+- 输出 adapter：FAST-LIO raw `/Odometry`、`/path`、`/cloud_registered`、
+  `/cloud_registered_body`、`/Laser_map` -> `/go2w/perception/*` contract topics
+- frame contract：raw `camera_init/body` 消息帧重写为项目侧 `odom/base_link`
+  消息语义
+- 当前仍不发布 TF，不声明 `odom -> base_link`
+
+验证命令：
+
+```bash
+./tools/verify_phase2e_fastlio_contract.sh
+```
+
+当前 Phase 2E 结果：adapted pointcloud 已带 `time` 字段，FAST-LIO missing-time
+warning 为 `0`，contract odometry 为 `odom/base_link`，contract clouds/path 使用
+项目 frame，未发布 `camera_init -> body` TF，`odom -> base_link` 仍未被声明。
+记录见：
+
+```bash
+docs/verification/phase2_fastlio_contract_stabilization.md
+```
+
+下一步仍不得进入 Nav2。唯一允许的下一步是 dedicated Phase 2F TF authority
+activation dry-run：只允许从已稳定的 Phase 2E perception contract 发布并验证
+`odom -> base_link`，并检查 duplicate TF authority。
 
 禁止顺手推进：
 
