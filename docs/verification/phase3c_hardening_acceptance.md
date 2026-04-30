@@ -65,6 +65,7 @@ Command:
 
 ```bash
 GO2W_FASTLIO_SKIP_BUILD=1 ./tools/verify_phase3c_fastlio_dependency_baseline.sh
+./tools/prepare_phase2d_fastlio_external.sh
 ```
 
 Key results:
@@ -76,6 +77,9 @@ default_fastlio_paths_not_tmp: PASS
 fastlio_external_audit: PASS
 external_cache_untracked: PASS
 phase3c_fastlio_dependency_result: PASS
+fastlio_build_status: PASS
+fastlio_mapping_executable: present
+prepare_status: complete
 ```
 
 The pinned refs are recorded in:
