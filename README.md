@@ -12,6 +12,7 @@ simulation-first 路线推进。
 进入新对话或后续 Phase 4 工作前，先读取当前状态和迁移交接包：
 
 - `docs/handoff/README.md`
+- `docs/verification/phase4d_route_tracking_feedback.md`
 - `docs/verification/phase4c_flat_segment_gate.md`
 - `docs/verification/phase4b_mission_segment_runtime.md`
 - `docs/verification/phase4a_stair_handoff_acceptance.md`
@@ -20,7 +21,7 @@ simulation-first 路线推进。
 
 ## 当前状态
 
-- 当前正式阶段：`Phase 4C-min`
+- 当前正式阶段：`Phase 4D-min`
 - `Phase 1` 状态：仿真可控闭环已完成并进入可审计验收状态
 - `Phase 2` 状态：FAST-LIO2 输入/输出、感知侧 `odom -> base_link`
   TF authority、稳定 perception baseline、首个 Nav2 costmap consumer gate
@@ -33,10 +34,11 @@ simulation-first 路线推进。
 - `Phase 4A` 状态：最小楼梯状态机/控制权交接骨架已完成并验收
 - `Phase 4B-min` 状态：最小 mission segment runtime 已完成并验收
 - `Phase 4C-min` 状态：最小 flat/stair/flat execution gate 已完成并验收
+- `Phase 4D-min` 状态：最小 route tracking feedback observation gate 已完成并验收
 
-不要把 Phase 4C-min runtime 误判成 production mission orchestration、真实 Nav2
-route tracking、真实楼梯控制器调参、多楼层自主行为、elevation mapping 或
-traversability。
+不要把 Phase 4D-min runtime 误判成 production mission orchestration、真实 Nav2
+route tracking against robot motion、真实 `nav2_route` operation plugin、真实楼梯
+控制器调参、多楼层自主行为、elevation mapping 或 traversability。
 
 ## 运行环境基线
 
@@ -512,6 +514,35 @@ docs/verification/phase4c_flat_segment_gate.md
 该阶段只验证 flat/stair/flat 任务顺序和控制权路径；flat executor 仍是
 navigation-owned verifier skeleton，不是真实 Nav2 route tracking，也不是
 production Mission Orchestrator。
+
+## 当前 Phase 4D-min 边界
+
+Phase 4D-min 已新增最小 route tracking feedback observation gate：
+
+- `go2w_navigation` 提供 navigation-owned `ComputeAndTrackRoute` feedback verifier
+  Action server
+- `go2w_mission` 提供 mission-owned one-shot feedback observer
+- observer 可接收 route edges `300, 301, 500, 400, 401`
+- observer 可检测 staircase edge `500`
+- observer 可检测 `operations_triggered` 中的 `stair_exec`
+- `tools/verify_phase4d_route_tracking_feedback.sh` 可重复验证 success、missing
+  operation trigger 和 unavailable action 路径
+
+验证命令：
+
+```bash
+./tools/verify_phase4d_route_tracking_feedback.sh
+```
+
+验收记录见：
+
+```bash
+docs/verification/phase4d_route_tracking_feedback.md
+```
+
+该阶段只验证 mission 侧能消费 `ComputeAndTrackRoute` feedback 形态并观察 route
+operation 触发信号；feedback source 仍是 verifier skeleton，不是真实机器人运动上的
+route tracking，也没有执行真实 `nav2_route` operation plugin。
 
 Phase 4 迁移前交接包一致性检查仍可用于检查历史交接包结构：
 

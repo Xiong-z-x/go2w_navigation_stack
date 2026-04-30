@@ -165,6 +165,21 @@ The runtime evidence directories for these runs were:
 /tmp/go2w_phase4c_flat_segment_gate_3231
 ```
 
+After hardening the verifier-generated `ROS_DOMAIN_ID` range to stay below the
+Fast-DDS unsafe upper range, the Phase 4C runtime verifier was replayed at
+`2026-05-01T02:17+08:00` with:
+
+```text
+ros_domain_id: 196
+phase4c_flat_segment_gate_result: PASS
+```
+
+The replay evidence directory was:
+
+```text
+/tmp/go2w_phase4c_flat_segment_gate_10686
+```
+
 ## Reproduction Command
 From the repository root:
 

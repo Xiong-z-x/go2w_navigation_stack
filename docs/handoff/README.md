@@ -8,9 +8,9 @@
 ## 有效范围
 - 初始迁移快照日期：2026-04-30
 - 当前补充状态日期：2026-05-01
-- 当前阶段：已验收 `Phase 4C-min`
+- 当前阶段：已验收 `Phase 4D-min`
 - 当前主线：ROS 2 Humble + Gazebo Fortress-only + FAST-LIO external cache
-- 下一任务边界：Phase 4C-min 之后的最小单主题任务，必须另有完整任务单或当前自主审批模式下的自批准任务单
+- 下一任务边界：Phase 4D-min 之后的最小单主题任务，必须另有完整任务单或当前自主审批模式下的自批准任务单
 
 ## 事实源优先级
 实现或审计时按以下顺序判断事实：
@@ -38,7 +38,8 @@
 11. `docs/verification/phase4a_stair_handoff_acceptance.md`
 12. `docs/verification/phase4b_mission_segment_runtime.md`
 13. `docs/verification/phase4c_flat_segment_gate.md`
-14. `docs/handoff/new_model_initialization_prompt.md`
+14. `docs/verification/phase4d_route_tracking_feedback.md`
+15. `docs/handoff/new_model_initialization_prompt.md`
 
 ## 本目录文件职责
 - `current_project_state.md`：当前真实状态总览。
@@ -71,4 +72,10 @@ Phase 4C-min flat segment execution gate 验收可用以下命令复现：
 
 ```bash
 ./tools/verify_phase4c_flat_segment_gate.sh
+```
+
+Phase 4D-min route tracking feedback observation gate 验收可用以下命令复现：
+
+```bash
+./tools/verify_phase4d_route_tracking_feedback.sh
 ```

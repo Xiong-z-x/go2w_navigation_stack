@@ -14,10 +14,10 @@ simulation-first 的自主导航栈，最终实现：
 核心工程原则仍是：先闭环，再升级智能。
 
 ## 当前阶段
-- 当前正式阶段：`Phase 4C-min`
-- 当前状态：Phase 3A、Phase 3B、Phase 3C、Phase 4 迁移前封板、Phase 4A、Phase 4B-min、Phase 4C-min 均已验收。
-- 当前 Phase 4C-min 范围：最小 flat/stair/flat execution gate，覆盖手工 route 计算、flat/stair/flat 分段、flat `NavigateToPose` Action 调度、楼梯段 `/stair_exec` 调度和 mission 级结果诊断。
-- 下一步：只能在新的完整任务单或当前自主审批模式下的自批准任务单中推进 Phase 4C-min 之后的最小单主题任务。
+- 当前正式阶段：`Phase 4D-min`
+- 当前状态：Phase 3A、Phase 3B、Phase 3C、Phase 4 迁移前封板、Phase 4A、Phase 4B-min、Phase 4C-min、Phase 4D-min 均已验收。
+- 当前 Phase 4D-min 范围：最小 route tracking feedback observation gate，覆盖 `ComputeAndTrackRoute` feedback 消费、staircase edge `500` 检测、`operations_triggered` 中 `stair_exec` 观测，以及 missing operation / unavailable action 诊断。
+- 下一步：只能在新的完整任务单或当前自主审批模式下的自批准任务单中推进 Phase 4D-min 之后的最小单主题任务。
 
 ## 当前环境基线
 - Ubuntu 22.04 / WSL2
@@ -39,10 +39,12 @@ Gazebo GPU rendering 不是当前验收合同。RViz 可单独使用 WSLg/NVIDIA
 - `go2w_perception`：FAST-LIO 输入/输出 adapter、perception TF authority、
   `odom -> base_link` 发布链与测试。
 - `go2w_navigation`：Phase 2H costmap gate、Phase 3A Nav2 同层闭环、
-  Phase 3B/3C route graph baseline、Phase 4C-min flat navigation executor skeleton。
+  Phase 3B/3C route graph baseline、Phase 4C-min flat navigation executor skeleton、
+  Phase 4D-min route tracking feedback executor skeleton。
 - `go2w_mission`：Phase 4A 已新增 handoff demo 和最小 launch 验证路径；
   Phase 4B-min 已新增 one-shot mission segment runtime；Phase 4C-min 已将 flat
-  segment 接入 navigation-owned `NavigateToPose` gate；
+  segment 接入 navigation-owned `NavigateToPose` gate；Phase 4D-min 已新增
+  route tracking feedback observer；
   尚未实现 production Mission Orchestrator。
 
 ## 已完成闭环
@@ -61,11 +63,16 @@ Gazebo GPU rendering 不是当前验收合同。RViz 可单独使用 WSLg/NVIDIA
 - Phase 4C-min：通过 `NavigateToPose` 调度 flat segments，通过 `/stair_exec`
   调度 stair segment，验证 `flat -> stair -> flat` 顺序以及 flat failure/cancel/
   timeout/unavailable 诊断。
+- Phase 4D-min：通过 `ComputeAndTrackRoute` feedback verifier 和 mission observer
+  验证 staircase edge `500` 可观测、`stair_exec` route operation trigger 可观测、
+  missing operation 与 unavailable action 可诊断。
 
 ## 当前未完成内容
 - 未导入真实 Unitree Go2W 模型。
 - 未实现 production Mission Orchestrator。
 - Phase 4C-min 的 flat executor 仍是 verifier skeleton，未运行真实 Nav2 route tracking against robot motion。
+- Phase 4D-min 的 route feedback executor 仍是 verifier skeleton，未运行真实
+  `nav2_route` route tracking against robot motion，也未执行真实 route operation plugin。
 - 未实现真实楼梯运动控制器和控制参数调优。
 - 未实现真实跨楼层自主行为。
 - 未实现 `map_server` / AMCL / `map -> odom` 定位链。
