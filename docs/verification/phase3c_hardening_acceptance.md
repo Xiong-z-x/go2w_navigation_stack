@@ -66,6 +66,7 @@ Command:
 ```bash
 GO2W_FASTLIO_SKIP_BUILD=1 ./tools/verify_phase3c_fastlio_dependency_baseline.sh
 ./tools/prepare_phase2d_fastlio_external.sh
+GO2W_FASTLIO_SKIP_PREPARE=1 ./tools/verify_phase2d_fastlio_no_tf_dryrun.sh
 ```
 
 Key results:
@@ -80,6 +81,10 @@ phase3c_fastlio_dependency_result: PASS
 fastlio_build_status: PASS
 fastlio_mapping_executable: present
 prepare_status: complete
+phase2d_result: PASS
+fastlio_output_topics_with_messages: 5
+fastlio_tf_camera_init_body: ABSENT
+odom_base_link_authority: ABSENT
 ```
 
 The pinned refs are recorded in:
