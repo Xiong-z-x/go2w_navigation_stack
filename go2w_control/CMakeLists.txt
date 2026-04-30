@@ -15,6 +15,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
 
 install(PROGRAMS
   scripts/go2w_command_gate
+  scripts/go2w_stair_executor
   DESTINATION lib/${PROJECT_NAME}
 )
 
@@ -22,6 +23,9 @@ if(BUILD_TESTING)
   find_package(ament_cmake_pytest REQUIRED)
 
   ament_add_pytest_test(test_command_gate test/test_command_gate.py
+    APPEND_ENV PYTHONPATH=${CMAKE_CURRENT_SOURCE_DIR}
+  )
+  ament_add_pytest_test(test_stair_executor_policy test/test_stair_executor_policy.py
     APPEND_ENV PYTHONPATH=${CMAKE_CURRENT_SOURCE_DIR}
   )
 endif()
