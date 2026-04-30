@@ -33,7 +33,7 @@ def build_feedback_sequence(*, include_operation: bool) -> list[RouteTrackingFee
 def parse_args(argv: list[str]) -> tuple[argparse.Namespace, list[str]]:
     parser = argparse.ArgumentParser()
     parser.add_argument("--action-name", default="/compute_and_track_route")
-    parser.add_argument("--drop-operation", action="store_true")
+    parser.add_argument("--drop-operation", choices=("true", "false"), default="false")
     parser.add_argument("--feedback-period-sec", type=float, default=0.05)
     return parser.parse_known_args(argv)
 
@@ -77,7 +77,7 @@ def main(argv: list[str] | None = None) -> None:
         def _execute_callback(self, goal_handle):
             _ = goal_handle.request
             started = time.monotonic()
-            for sample in build_feedback_sequence(include_operation=not args.drop_operation):
+            for sample in build_feedback_sequence(include_operation=args.drop_operation != "true"):
                 if goal_handle.is_cancel_requested:
                     goal_handle.canceled()
                     return ComputeAndTrackRoute.Result()
