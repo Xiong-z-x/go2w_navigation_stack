@@ -37,7 +37,9 @@ def generate_launch_description():
     use_gpu = LaunchConfiguration('use_gpu')
     headless = LaunchConfiguration('headless')
     launch_rviz = LaunchConfiguration('launch_rviz')
-    world_path = os.path.join(sim_share, 'worlds', 'empty_world.sdf')
+    default_world_path = os.path.join(sim_share, 'worlds', 'empty_world.sdf')
+    world_path = LaunchConfiguration('world')
+    world_name = LaunchConfiguration('world_name')
     rviz_config = os.path.join(description_share, 'rviz', 'go2w_phase1.rviz')
     description_launch = os.path.join(description_share, 'launch', 'description.launch.py')
     gz_launch = os.path.join(ros_gz_sim_share, 'launch', 'gz_sim.launch.py')
@@ -68,11 +70,13 @@ def generate_launch_description():
         PythonLaunchDescriptionSource(gz_launch),
         launch_arguments={
             'gz_args': PythonExpression([
-                f"'-r -s --headless-rendering {world_path}' if '",
-                headless,
-                "' == 'true' else '-r ",
+                "'-r -s --headless-rendering ' + r'''",
                 world_path,
-                "'",
+                "''' if '",
+                headless,
+                "' == 'true' else '-r ' + r'''",
+                world_path,
+                "'''",
             ]),
             'gz_version': '6',
             'on_exit_shutdown': 'true',
@@ -128,7 +132,7 @@ def generate_launch_description():
         executable='create',
         output='screen',
         arguments=[
-            '-world', 'go2w_empty_world',
+            '-world', world_name,
             '-topic', 'robot_description',
             '-name', 'go2w_placeholder',
             '-z', '0.15',
@@ -173,6 +177,8 @@ def generate_launch_description():
         DeclareLaunchArgument('use_gpu', default_value='false'),
         DeclareLaunchArgument('headless', default_value='false'),
         DeclareLaunchArgument('launch_rviz', default_value='true'),
+        DeclareLaunchArgument('world', default_value=default_world_path),
+        DeclareLaunchArgument('world_name', default_value='go2w_empty_world'),
         SetEnvironmentVariable('AMENT_PREFIX_PATH', sanitized_ament_prefix_path),
         SetEnvironmentVariable('CMAKE_PREFIX_PATH', sanitized_cmake_prefix_path),
         SetEnvironmentVariable('COLCON_PREFIX_PATH', sanitized_colcon_prefix_path),

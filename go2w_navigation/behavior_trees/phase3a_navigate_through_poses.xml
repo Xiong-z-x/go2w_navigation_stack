@@ -1,0 +1,12 @@
+<!--
+  Phase 3A does not exercise NavigateThroughPoses, but Humble bt_navigator
+  loads this default tree during activation. Keep it minimal and recovery-free.
+-->
+<root main_tree_to_execute="MainTree">
+  <BehaviorTree ID="MainTree">
+    <PipelineSequence name="NavigateThroughPosesWithPath">
+      <ComputePathThroughPoses goals="{goals}" path="{path}" planner_id="GridBased"/>
+      <FollowPath path="{path}" controller_id="FollowPath"/>
+    </PipelineSequence>
+  </BehaviorTree>
+</root>

@@ -1,0 +1,13 @@
+<!--
+  Phase 3A intentionally keeps the behavior tree minimal:
+  compute one path in odom and follow it. Recovery, route, mission, and
+  staircase behaviors are later-phase concerns.
+-->
+<root main_tree_to_execute="MainTree">
+  <BehaviorTree ID="MainTree">
+    <PipelineSequence name="NavigateWithPath">
+      <ComputePathToPose goal="{goal}" path="{path}" planner_id="GridBased"/>
+      <FollowPath path="{path}" controller_id="FollowPath"/>
+    </PipelineSequence>
+  </BehaviorTree>
+</root>

@@ -16,11 +16,12 @@ simulation-first 路线推进。
 - `Phase 2` 状态：FAST-LIO2 输入/输出、感知侧 `odom -> base_link`
   TF authority、稳定 perception baseline、首个 Nav2 costmap consumer gate
   已完成并验收
-- 当前唯一允许推进方向：Phase 3 的同层 Nav2 导航最小闭环，必须继续按
-  单任务、完整任务单、最小改动推进
+- `Phase 3A` 状态：最小同层 Nav2 planner/controller/BT 导航闭环已完成并验收
+- 当前唯一允许推进方向：Phase 3B 的最小 `nav2_route` / 手工 route graph
+  基线，必须继续按单任务、完整任务单、最小改动推进
 
-不要把 Phase 3 的第一步直接扩展成 `nav2_route`、route graph、mission
-orchestration、楼梯执行、多楼层行为、elevation mapping 或 traversability。
+不要把 Phase 3B 直接扩展成 mission orchestration、楼梯执行、多楼层行为、
+elevation mapping 或 traversability。
 
 ## 运行环境基线
 
@@ -139,6 +140,18 @@ WSLg/NVIDIA OpenGL 环境。
 
 ```bash
 go2w_description/rviz/go2w_phase1.rviz
+```
+
+`go2w_sim` 默认仍启动 `empty_world.sdf`。Phase 3A 另提供专用特征验证世界，
+用于给 FAST-LIO-backed Nav2 闭环提供可观测几何：
+
+```bash
+ros2 launch go2w_sim sim.launch.py \
+  use_gpu:=false \
+  headless:=true \
+  launch_rviz:=false \
+  world:="$(pwd)/install/go2w_sim/share/go2w_sim/worlds/phase3a_feature_world.sdf" \
+  world_name:=go2w_phase3a_feature_world
 ```
 
 ## Phase 2 已验收基线
@@ -300,13 +313,36 @@ docs/verification/phase2_costmap_consumer_gate.md
 
 ## 当前 Phase 3 边界
 
-下一步只允许进入 Phase 3 的同层 Nav2 导航最小闭环。建议首个任务只接入
-planner/controller/BT 所需的最小 Nav2 bringup，并继续消费 Phase 2 已验收的
-odom、TF 和 costmap 输入。
+Phase 3A 已新增最小同层 Nav2 导航闭环：
+
+- planner、controller、BT Navigator lifecycle 均可进入 `active`
+- local/global costmap 消费 `/go2w/perception/cloud_body`
+- Nav2 消费 `/go2w/perception/odom`
+- `/navigate_to_pose` 可在 `odom` frame 下完成短距离同层 goal
+- Nav2 发布 `/cmd_vel`
+- perception odometry 在 goal 期间发生变化
+- `odom -> base_link` 仍由 perception 侧发布
+- 不发布临时 `map -> odom`
+- 不启动 `nav2_route`、route graph、mission、楼梯、多楼层、elevation 或
+  traversability 节点
+
+验证命令：
+
+```bash
+./tools/verify_phase3a_nav2_same_floor.sh
+```
+
+当前 Phase 3A 结果：运行时门禁通过。记录见：
+
+```bash
+docs/verification/phase3a_nav2_same_floor.md
+```
+
+下一步只允许进入 Phase 3B 的最小 `nav2_route` / 手工 route graph 基线。必须
+继续消费 Phase 3A 已验收的 odom、TF、Nav2 和 costmap 输入。
 
 禁止顺手推进：
 
-- `nav2_route` / route graph authoring
 - mission orchestration
 - staircase execution logic
 - multi-floor behavior
