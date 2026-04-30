@@ -14,10 +14,10 @@ simulation-first 的自主导航栈，最终实现：
 核心工程原则仍是：先闭环，再升级智能。
 
 ## 当前阶段
-- 当前正式阶段：`Phase 4A`
-- 当前状态：Phase 3A、Phase 3B、Phase 3C、Phase 4 迁移前封板、Phase 4A 均已验收。
-- 当前 Phase 4A 范围：最小楼梯状态机/控制权交接骨架。
-- 下一步：只能在新的完整任务单下推进 Phase 4A 之后的最小单主题任务。
+- 当前正式阶段：`Phase 4B-min`
+- 当前状态：Phase 3A、Phase 3B、Phase 3C、Phase 4 迁移前封板、Phase 4A、Phase 4B-min 均已验收。
+- 当前 Phase 4B-min 范围：最小 mission segment runtime，覆盖手工 route 计算、flat/stair/flat 分段、楼梯段 `/stair_exec` 调度和 mission 级结果诊断。
+- 下一步：只能在新的完整任务单下推进 Phase 4B-min 之后的最小单主题任务。
 
 ## 当前环境基线
 - Ubuntu 22.04 / WSL2
@@ -41,6 +41,7 @@ Gazebo GPU rendering 不是当前验收合同。RViz 可单独使用 WSLg/NVIDIA
 - `go2w_navigation`：Phase 2H costmap gate、Phase 3A Nav2 同层闭环、
   Phase 3B/3C route graph baseline。
 - `go2w_mission`：Phase 4A 已新增 handoff demo 和最小 launch 验证路径；
+  Phase 4B-min 已新增 one-shot mission segment runtime 和 runtime verifier；
   尚未实现 production Mission Orchestrator。
 
 ## 已完成闭环
@@ -53,10 +54,14 @@ Gazebo GPU rendering 不是当前验收合同。RViz 可单独使用 WSLg/NVIDIA
   hospital multi-floor world asset。
 - Phase 4A：手工 staircase connector 检测、dedicated `/stair_exec` Action
   skeleton、flat/stair 控制权互斥、完成/失败/取消/超时诊断。
+- Phase 4B-min：调用 `/compute_route`、分解 flat/stair/flat mission segments、
+  通过 `/stair_exec` 调度楼梯段、诊断成功/失败/取消/超时/route unavailable/
+  connector unavailable。
 
 ## 当前未完成内容
 - 未导入真实 Unitree Go2W 模型。
 - 未实现 production Mission Orchestrator。
+- Phase 4B-min 的 flat segment 仍是诊断占位，未运行真实 Nav2 route tracking。
 - 未实现真实楼梯运动控制器和控制参数调优。
 - 未实现真实跨楼层自主行为。
 - 未实现 `map_server` / AMCL / `map -> odom` 定位链。

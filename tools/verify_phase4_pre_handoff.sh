@@ -83,7 +83,9 @@ required_files=(
   "docs/handoff/next_agent_notes.md"
   "docs/handoff/new_model_initialization_prompt.md"
   "docs/verification/phase4a_stair_handoff_acceptance.md"
+  "docs/verification/phase4b_mission_segment_runtime.md"
   "tools/verify_phase4a_stair_handoff.sh"
+  "tools/verify_phase4b_mission_segments.sh"
   "go2w_navigation/graphs/phase3c_hospital_multifloor_route.geojson"
   "go2w_sim/worlds/phase3c_hospital_multifloor_world.sdf"
 )
@@ -92,14 +94,15 @@ for file in "${required_files[@]}"; do
   require_file "${file}"
 done
 
-require_contains "docs/architecture/architecture_state.md" "Active Phase: \`Phase (3|4A)\`" "active_phase_phase3_or_phase4a"
+require_contains "docs/architecture/architecture_state.md" "Active Phase: \`Phase (3|4A|4B-min)\`" "active_phase_phase3_or_phase4"
 require_contains "docs/architecture/architecture_state.md" 'Any next implementation still requires a separate complete task card' "next_task_card_boundary"
 require_contains "docs/handoff/phase4_migration_handoff_report.md" 'Phase 4A 应从最小楼梯状态机/控制权交接骨架开始' "handoff_phase4a_start"
 require_contains "docs/handoff/current_project_state.md" '\.go2w_external/workspaces/fast_lio_ros2' "handoff_fastlio_repo_local_ws"
-require_contains "docs/handoff/current_project_state.md" '当前正式阶段：`Phase 4A`' "handoff_current_phase4a"
+require_contains "docs/handoff/current_project_state.md" '当前正式阶段：`Phase 4B-min`' "handoff_current_phase4b"
 require_contains "docs/handoff/next_agent_notes.md" "不要把 \`nav2_route\` 当成 3D 地形规划器" "handoff_nav2_route_warning"
 require_contains "docs/handoff/new_model_initialization_prompt.md" '可直接复制到新的对话中使用' "new_model_prompt_ready"
 require_contains "docs/verification/phase4a_stair_handoff_acceptance.md" 'phase4a_stair_handoff_result: PASS' "phase4a_acceptance_evidence"
+require_contains "docs/verification/phase4b_mission_segment_runtime.md" 'phase4b_mission_segments_result: PASS' "phase4b_acceptance_evidence"
 require_contains "README.md" 'docs/handoff/README.md' "readme_handoff_entry"
 require_contains "AGENTS.md" 'docs/handoff/README.md' "agents_handoff_entry"
 
@@ -131,7 +134,8 @@ bash -n \
   "${ROOT_DIR}/tools/verify_phase2h_costmap_consumer.sh" \
   "${ROOT_DIR}/tools/verify_phase3a_nav2_same_floor.sh" \
   "${ROOT_DIR}/tools/verify_phase4_pre_handoff.sh" \
-  "${ROOT_DIR}/tools/verify_phase4a_stair_handoff.sh"
+  "${ROOT_DIR}/tools/verify_phase4a_stair_handoff.sh" \
+  "${ROOT_DIR}/tools/verify_phase4b_mission_segments.sh"
 print_kv "bash_syntax" "PASS"
 
 require_python_parse \

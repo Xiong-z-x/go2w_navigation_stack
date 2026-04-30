@@ -12,13 +12,14 @@ simulation-first 路线推进。
 进入新对话或后续 Phase 4 工作前，先读取当前状态和迁移交接包：
 
 - `docs/handoff/README.md`
+- `docs/verification/phase4b_mission_segment_runtime.md`
 - `docs/verification/phase4a_stair_handoff_acceptance.md`
 - `docs/handoff/phase4_migration_handoff_report.md`
 - `docs/handoff/new_model_initialization_prompt.md`
 
 ## 当前状态
 
-- 当前正式阶段：`Phase 4A`
+- 当前正式阶段：`Phase 4B-min`
 - `Phase 1` 状态：仿真可控闭环已完成并进入可审计验收状态
 - `Phase 2` 状态：FAST-LIO2 输入/输出、感知侧 `odom -> base_link`
   TF authority、稳定 perception baseline、首个 Nav2 costmap consumer gate
@@ -29,9 +30,11 @@ simulation-first 路线推进。
   baseline、多层医院仿真 world 资产已完成并验收
 - `Phase 3` 状态：同层导航 + 拓扑骨架 + Phase 4 前置硬化资产已完成并验收
 - `Phase 4A` 状态：最小楼梯状态机/控制权交接骨架已完成并验收
+- `Phase 4B-min` 状态：最小 mission segment runtime 已完成并验收
 
-不要把 Phase 4A 骨架误判成 production mission orchestration、真实楼梯控制器调参、
-多楼层自主行为、elevation mapping 或 traversability。
+不要把 Phase 4B-min runtime 误判成 production mission orchestration、真实平地
+Nav2 route tracking、真实楼梯控制器调参、多楼层自主行为、elevation mapping 或
+traversability。
 
 ## 运行环境基线
 
@@ -450,6 +453,34 @@ docs/verification/phase4a_stair_handoff_acceptance.md
 
 该阶段只验证接口握手、状态诊断和控制权互斥；不验证真实楼梯动力学或跨楼层自主行为。
 
+## 当前 Phase 4B-min 边界
+
+Phase 4B-min 已新增最小 mission segment runtime：
+
+- `go2w_mission` 可调用 `/compute_route` 获取 Phase 3C 手工 route graph 上的路线
+- route edge 可分解为 flat/stair/flat mission segments
+- staircase segment 通过 dedicated `/stair_exec` Action 执行
+- runtime 可输出稳定 mission 结果：
+  `MISSION_SUCCEEDED`、`MISSION_FAILED`、`MISSION_CANCELED`、`MISSION_TIMEOUT`、
+  `ROUTE_UNAVAILABLE`、`CONNECTOR_UNAVAILABLE`
+- `tools/verify_phase4b_mission_segments.sh` 可重复验证成功、失败、取消、超时、
+  route unavailable 和 connector unavailable 路径
+
+验证命令：
+
+```bash
+./tools/verify_phase4b_mission_segments.sh
+```
+
+验收记录见：
+
+```bash
+docs/verification/phase4b_mission_segment_runtime.md
+```
+
+该阶段只验证任务分段、楼梯 Action 调度和 mission 级诊断；flat segment 当前仍是
+诊断占位，不运行真实 Nav2 route tracking，也不是 production Mission Orchestrator。
+
 Phase 4 迁移前交接包一致性检查仍可用于检查历史交接包结构：
 
 ```bash
@@ -459,6 +490,7 @@ Phase 4 迁移前交接包一致性检查仍可用于检查历史交接包结构
 后续任务禁止顺手推进：
 
 - production mission orchestration
+- real flat-ground route tracking as part of the one-shot verifier
 - real staircase traversal controller tuning
 - multi-floor autonomous behavior
 - elevation mapping / traversability

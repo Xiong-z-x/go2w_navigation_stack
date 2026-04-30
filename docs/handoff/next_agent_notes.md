@@ -5,6 +5,9 @@
   route_server baseline。
 - 不要把 Phase 4A handoff skeleton 当成真实楼梯运动控制或 production Mission
   Orchestrator。它只证明 connector detection、Action handoff、控制权互斥和诊断状态。
+- 不要把 Phase 4B-min mission segment runtime 当成 production Mission Orchestrator
+  或真实跨楼层自主导航。它只证明手工 route 分段、楼梯段 `/stair_exec` 调度和
+  mission 级结果诊断；flat segment 当前仍是诊断占位。
 - 不要把 `nav2_route` 当成 3D 地形规划器。它不是自动楼梯识别或 traversability。
 - 不要重新启用 `diff_drive_controller` 的 `odom -> base_link` TF。该边当前属于
   perception authority。
@@ -57,10 +60,12 @@ Phase 4A 当前只证明了控制权交接骨架：
 - Unitree 模型导入。
 - perception TF authority 重构。
 
-## Phase 4A 后续防漂移边界
-后续最小任务可以围绕 hand-authored staircase connector 做更接近 runtime 的
-mission segment 调度，但必须另有完整任务单。不要把下一步扩大为真实多楼层自主、
-真实楼梯控制器调参、自动楼梯检测、traversability 或 `map -> odom` 定位链。
+## Phase 4B-min 后续防漂移边界
+Phase 4B-min 已完成 hand-authored staircase connector 上的最小 mission segment
+调度。后续最小任务必须另有完整任务单，可以围绕真实 flat segment executor、
+更强 route-tracking observation gate 或 mission recovery 做单主题推进。不要把下一步
+扩大为 production Mission Orchestrator、真实多楼层自主、真实楼梯控制器调参、自动楼梯
+检测、traversability 或 `map -> odom` 定位链。
 
 ## 上下文变长后的防失真做法
 - 每完成一个阶段或关键任务，更新 `architecture_state.md`。
