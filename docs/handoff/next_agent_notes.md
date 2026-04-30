@@ -7,7 +7,10 @@
   Orchestrator。它只证明 connector detection、Action handoff、控制权互斥和诊断状态。
 - 不要把 Phase 4B-min mission segment runtime 当成 production Mission Orchestrator
   或真实跨楼层自主导航。它只证明手工 route 分段、楼梯段 `/stair_exec` 调度和
-  mission 级结果诊断；flat segment 当前仍是诊断占位。
+  mission 级结果诊断；Phase 4C-min 已补上 flat Action gate，但仍不是真实 route tracking。
+- 不要把 Phase 4C-min flat segment execution gate 当成真实 Nav2 route tracking。
+  它只证明 mission runtime 会调用 navigation-owned `NavigateToPose` Action gate，
+  并观察 `flat -> stair -> flat` 顺序；flat executor 仍是 verifier skeleton。
 - 不要把 `nav2_route` 当成 3D 地形规划器。它不是自动楼梯识别或 traversability。
 - 不要重新启用 `diff_drive_controller` 的 `odom -> base_link` TF。该边当前属于
   perception authority。
@@ -60,12 +63,18 @@ Phase 4A 当前只证明了控制权交接骨架：
 - Unitree 模型导入。
 - perception TF authority 重构。
 
-## Phase 4B-min 后续防漂移边界
-Phase 4B-min 已完成 hand-authored staircase connector 上的最小 mission segment
-调度。后续最小任务必须另有完整任务单，可以围绕真实 flat segment executor、
-更强 route-tracking observation gate 或 mission recovery 做单主题推进。不要把下一步
-扩大为 production Mission Orchestrator、真实多楼层自主、真实楼梯控制器调参、自动楼梯
-检测、traversability 或 `map -> odom` 定位链。
+## Phase 4C-min 后续防漂移边界
+Phase 4C-min 已完成 hand-authored staircase connector 上的最小 flat/stair/flat
+执行门。后续最小任务必须另有完整任务单或当前自主审批模式下的自批准任务单，可以围绕
+`ComputeAndTrackRoute` feedback / Route Operation observation gate、mission recovery、
+或 production-grade Mission API skeleton 做单主题推进。不要把下一步扩大为真实多楼层
+自主、真实楼梯控制器调参、自动楼梯检测、traversability 或 `map -> odom` 定位链。
+
+## Runtime 验证注意
+- Phase 4B 回归曾出现一次非复现的 ROS discovery/lifecycle 等待失败：
+  `route_server` 进程已启动，但 lifecycle manager 未发现 `route_server/get_state`。
+  后续换新 ROS domain 复跑通过。遇到类似现象时，先清理残留并换新 domain 复跑，
+  不要直接改 route graph 或 route server 配置。
 
 ## 上下文变长后的防失真做法
 - 每完成一个阶段或关键任务，更新 `architecture_state.md`。

@@ -12,6 +12,8 @@
 | 源码目录存在无价值 Python 缓存 | `go2w_*` 与 `tools` 下存在 ignored `__pycache__` | 清理源码侧 `__pycache__`，不把缓存纳入交接 | 已清理 |
 | Phase 4A handoff 缺少可重复 runtime 证据 | 仅有 Phase 3C connector 资产不能证明控制权交接 | 新增 `tools/verify_phase4a_stair_handoff.sh`，验证 route connector detection、`/stair_exec`、command gate 互斥、success/failure/cancel/timeout | 已修复 |
 | Phase 4A 后缺少 mission-side 分段 runtime 证据 | Handoff skeleton 已能触发 `/stair_exec`，但还没有 mission 层 route segmentation 证据 | 新增 Phase 4B-min one-shot mission segment runtime 和 `tools/verify_phase4b_mission_segments.sh`，验证 success/failure/cancel/timeout/route unavailable/connector unavailable | 已修复 |
+| Phase 4B-min flat segment 仍是打印占位 | Mission runtime 没有真实调用任何 navigation-owned flat execution surface | 新增 Phase 4C-min flat navigation executor skeleton 和 `tools/verify_phase4c_flat_segment_gate.sh`，验证 flat/stair/flat sequence 与 flat failure/cancel/timeout/unavailable | 已修复 |
+| Python ROS entrypoint 拒绝 launch_ros 追加参数 | `go2w_flat_nav_executor` 初版使用严格 `argparse.parse_args()`，遇到 `--ros-args` 退出 | 改为 `parse_known_args()` 并将 ROS 参数交给 `rclpy.init(args=...)` | 已修复 |
 
 ## 保留但已标注的历史内容
 - `docs/superpowers/` 中的早期 Phase 2/3 计划和设计文档保留为历史记录。
@@ -28,6 +30,7 @@
 | Unitree Go2W 真实模型未导入 | 会影响控制、碰撞、传感器布局和运动学假设 | Phase 4 或后续独立模型基线任务处理 |
 | Phase 3C route graph 是手工 floor atlas | 目的是给 Phase 4 手工连接器提供基线，不是自动建图结果 | Phase 4 先证明控制交接；Phase 5 再自动连接器 |
 | 没有 production Mission Orchestrator | Phase 4B-min 只新增 one-shot mission segment runtime，不是长生命周期调度器 | 后续用独立完整任务单推进 production-grade mission API、恢复策略或状态持久化 |
-| Phase 4B-min flat segment 仍是诊断占位 | 本阶段只证明 route segmentation 与 stair dispatch，不执行真实平地 Nav2 route tracking | 后续 dedicated flat segment executor 或 route-tracking observation gate 任务处理 |
+| Phase 4C-min flat executor 仍是 verifier skeleton | 本阶段只证明 mission 到 navigation-owned `NavigateToPose` gate 的调度，不执行真实 Nav2 route tracking against robot motion | 后续 real route tracking observation gate 或真实 Nav2/Gazebo 联合验收任务处理 |
+| ROS discovery/lifecycle 偶发等待 | 曾有一次 Phase 4B 回归中 `route_server` 进程已启动但 lifecycle service 未被发现；换新 domain 复跑通过 | 先清理残留并换新 `ROS_DOMAIN_ID` 复跑；若复现，再单独加 discovery 诊断 |
 | 没有真实楼梯执行控制器调参 | Phase 4 DoD 先验证接口握手与互斥，不追求动力学真实性 | 后续 dedicated stair executor/control tuning 任务处理 |
 | 没有 `map -> odom` 定位融合链 | Phase 3A 有意运行在 `odom`，Phase 3C 只提供 `map` 资产 | 后续定位/地图服务任务单再引入 |

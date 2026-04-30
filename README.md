@@ -12,6 +12,7 @@ simulation-first 路线推进。
 进入新对话或后续 Phase 4 工作前，先读取当前状态和迁移交接包：
 
 - `docs/handoff/README.md`
+- `docs/verification/phase4c_flat_segment_gate.md`
 - `docs/verification/phase4b_mission_segment_runtime.md`
 - `docs/verification/phase4a_stair_handoff_acceptance.md`
 - `docs/handoff/phase4_migration_handoff_report.md`
@@ -19,7 +20,7 @@ simulation-first 路线推进。
 
 ## 当前状态
 
-- 当前正式阶段：`Phase 4B-min`
+- 当前正式阶段：`Phase 4C-min`
 - `Phase 1` 状态：仿真可控闭环已完成并进入可审计验收状态
 - `Phase 2` 状态：FAST-LIO2 输入/输出、感知侧 `odom -> base_link`
   TF authority、稳定 perception baseline、首个 Nav2 costmap consumer gate
@@ -31,9 +32,10 @@ simulation-first 路线推进。
 - `Phase 3` 状态：同层导航 + 拓扑骨架 + Phase 4 前置硬化资产已完成并验收
 - `Phase 4A` 状态：最小楼梯状态机/控制权交接骨架已完成并验收
 - `Phase 4B-min` 状态：最小 mission segment runtime 已完成并验收
+- `Phase 4C-min` 状态：最小 flat/stair/flat execution gate 已完成并验收
 
-不要把 Phase 4B-min runtime 误判成 production mission orchestration、真实平地
-Nav2 route tracking、真实楼梯控制器调参、多楼层自主行为、elevation mapping 或
+不要把 Phase 4C-min runtime 误判成 production mission orchestration、真实 Nav2
+route tracking、真实楼梯控制器调参、多楼层自主行为、elevation mapping 或
 traversability。
 
 ## 运行环境基线
@@ -481,6 +483,36 @@ docs/verification/phase4b_mission_segment_runtime.md
 该阶段只验证任务分段、楼梯 Action 调度和 mission 级诊断；flat segment 当前仍是
 诊断占位，不运行真实 Nav2 route tracking，也不是 production Mission Orchestrator。
 
+## 当前 Phase 4C-min 边界
+
+Phase 4C-min 已新增最小 flat segment execution gate：
+
+- `go2w_navigation` 提供 navigation-owned `go2w_flat_nav_executor`
+- flat segment 通过标准 `nav2_msgs/action/NavigateToPose` Action 调度
+- stair segment 仍通过 dedicated `/stair_exec` Action 调度
+- mission runtime 可观测 `flat -> stair -> flat` 顺序
+- runtime 可输出稳定 mission 结果：
+  `MISSION_SUCCEEDED`、`FLAT_NAV_FAILED`、`MISSION_CANCELED`、
+  `MISSION_TIMEOUT`、`FLAT_NAV_UNAVAILABLE`
+- `tools/verify_phase4c_flat_segment_gate.sh` 可重复验证 success、flat failure、
+  flat cancel、flat timeout 和 flat unavailable 路径
+
+验证命令：
+
+```bash
+./tools/verify_phase4c_flat_segment_gate.sh
+```
+
+验收记录见：
+
+```bash
+docs/verification/phase4c_flat_segment_gate.md
+```
+
+该阶段只验证 flat/stair/flat 任务顺序和控制权路径；flat executor 仍是
+navigation-owned verifier skeleton，不是真实 Nav2 route tracking，也不是
+production Mission Orchestrator。
+
 Phase 4 迁移前交接包一致性检查仍可用于检查历史交接包结构：
 
 ```bash
@@ -490,7 +522,7 @@ Phase 4 迁移前交接包一致性检查仍可用于检查历史交接包结构
 后续任务禁止顺手推进：
 
 - production mission orchestration
-- real flat-ground route tracking as part of the one-shot verifier
+- real Nav2 route tracking against robot motion
 - real staircase traversal controller tuning
 - multi-floor autonomous behavior
 - elevation mapping / traversability
