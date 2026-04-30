@@ -11,13 +11,16 @@ simulation-first 路线推进。
 
 ## 当前状态
 
-- 当前正式阶段：`Phase 2`
+- 当前正式阶段：`Phase 3`
 - `Phase 1` 状态：仿真可控闭环已完成并进入可审计验收状态
-- 当前唯一允许推进方向：FAST-LIO2 input/output plumbing，以及感知侧接管
-  `odom -> base_link` TF authority
+- `Phase 2` 状态：FAST-LIO2 输入/输出、感知侧 `odom -> base_link`
+  TF authority、稳定 perception baseline、首个 Nav2 costmap consumer gate
+  已完成并验收
+- 当前唯一允许推进方向：Phase 3 的同层 Nav2 导航最小闭环，必须继续按
+  单任务、完整任务单、最小改动推进
 
-`Phase 2` 之前不要引入 Nav2、`nav2_route`、mission orchestration、楼梯执行逻辑或
-地形升维内容。
+不要把 Phase 3 的第一步直接扩展成 `nav2_route`、route graph、mission
+orchestration、楼梯执行、多楼层行为、elevation mapping 或 traversability。
 
 ## 运行环境基线
 
@@ -138,29 +141,34 @@ WSLg/NVIDIA OpenGL 环境。
 go2w_description/rviz/go2w_phase1.rviz
 ```
 
-## 当前 Phase 2 边界
+## Phase 2 已验收基线
 
-下一步只允许进入首个 Phase 2 perception baseline：
+Phase 2 已完成：
 
 - FAST-LIO2 input/output plumbing
 - perception 对 `odom -> base_link` TF authority 的接管
 - 必要的 `go2w_sim` 输入输出对接
 - 稳定 odom / point cloud / map baseline
+- 首个 Nav2 costmap consumer gate
 
-当前 Phase 2A 的第一步是 FAST-LIO2 输入契约审计，不等于已经运行
-FAST-LIO2，也不等于已经激活 `odom -> base_link` authority。审计记录见：
+Phase 2 总体验收记录见：
+
+```bash
+docs/verification/phase2_runtime_acceptance.md
+```
+
+Phase 2A 完成 FAST-LIO2 输入契约审计。记录见：
 
 ```bash
 docs/verification/phase2_fastlio_input_audit.md
 ```
 
-当前审计结果：`/lidar_points` 具备 `x,y,z,intensity,ring`，但缺少每点时间字段。
+审计结果：`/lidar_points` 具备 `x,y,z,intensity,ring`，但缺少每点时间字段。
 该问题已在 Phase 2E 通过本地 perception adapter 收口。
 
-Phase 2B 已进一步检查外部 FAST_LIO_ROS2 dry-run gate。当前候选 wrapper
-需要 `livox_ros_driver2` 构建依赖，并在源码中存在硬编码 TF 发布路径
-`camera_init -> body`。因此当前不得直接启动 FAST-LIO2 运行时 dry-run；
-必须先处理外部依赖链和 no-TF wrapper/patch 策略。记录见：
+Phase 2B 进一步检查外部 FAST_LIO_ROS2 dry-run gate，发现候选 wrapper
+需要处理 `livox_ros_driver2` 构建依赖和硬编码 TF 发布路径
+`camera_init -> body`。记录见：
 
 ```bash
 docs/verification/phase2_fastlio_dryrun.md
@@ -175,7 +183,7 @@ Phase 2C 已建立外部 FAST_LIO_ROS2 patch gate：仓库只保存 patch 与验
 docs/verification/phase2_fastlio_patch_gate.md
 ```
 
-Phase 2D 已新增自动化 no-TF runtime dry-run。准备脚本会复用或拉取外部
+Phase 2D 新增自动化 no-TF runtime dry-run。准备脚本会复用或拉取外部
 FAST_LIO_ROS2 到 `/tmp`，应用 Phase 2C patch，并在 scratch workspace 构建：
 
 ```bash
@@ -189,11 +197,10 @@ topic 与 TF：
 ./tools/verify_phase2d_fastlio_no_tf_dryrun.sh
 ```
 
-当前 Phase 2D 结果：FAST-LIO 可在 no-TF 配置下启动并发布 `/Odometry`、
+Phase 2D 结果：FAST-LIO 可在 no-TF 配置下启动并发布 `/Odometry`、
 `/cloud_registered`、`/cloud_registered_body`、`/Laser_map`、`/path`；
-未发布 `camera_init -> body` TF，`odom -> base_link` 仍未被声明。但日志仍反复
-提示点云缺少 `time` 字段，且 FAST-LIO 输出消息仍使用上游
-`camera_init/body` 帧名。记录见：
+未发布 `camera_init -> body` TF。其遗留的点云 `time` 字段和输出 frame
+问题已在 Phase 2E 收口。记录见：
 
 ```bash
 docs/verification/phase2_fastlio_no_tf_dryrun.md
@@ -207,7 +214,7 @@ Phase 2E 已新增本地 `go2w_perception` contract adapters：
   `/cloud_registered_body`、`/Laser_map` -> `/go2w/perception/*` contract topics
 - frame contract：raw `camera_init/body` 消息帧重写为项目侧 `odom/base_link`
   消息语义
-- 当前仍不发布 TF，不声明 `odom -> base_link`
+- Phase 2E 本身仍不发布 TF，不声明 `odom -> base_link`
 
 验证命令：
 
@@ -215,7 +222,7 @@ Phase 2E 已新增本地 `go2w_perception` contract adapters：
 ./tools/verify_phase2e_fastlio_contract.sh
 ```
 
-当前 Phase 2E 结果：adapted pointcloud 已带 `time` 字段，FAST-LIO missing-time
+Phase 2E 结果：adapted pointcloud 已带 `time` 字段，FAST-LIO missing-time
 warning 为 `0`，contract odometry 为 `odom/base_link`，contract clouds/path 使用
 项目 frame，未发布 `camera_init -> body` TF，`odom -> base_link` 仍未被声明。
 记录见：
@@ -238,7 +245,7 @@ Phase 2F 已新增 dedicated perception TF authority activation dry-run：
 ./tools/verify_phase2f_tf_authority.sh
 ```
 
-当前 Phase 2F 结果：`odom -> base_link` 已由 perception 侧 runtime dry-run
+Phase 2F 结果：`odom -> base_link` 已由 perception 侧 runtime dry-run
 发布并验证，FAST-LIO missing-time warning 仍为 `0`，`camera_init -> body` TF
 仍缺席。记录见：
 
@@ -262,23 +269,47 @@ Phase 2G 已新增 perception runtime stability acceptance：
 ./tools/verify_phase2g_perception_stability.sh
 ```
 
-当前 Phase 2G 结果：30 秒稳定性窗口通过，perception baseline 已具备进入
+Phase 2G 结果：30 秒稳定性窗口通过，perception baseline 已具备进入
 首个 Nav2/costmap consumer gate 的仓库证据。记录见：
 
 ```bash
 docs/verification/phase2_perception_stability_acceptance.md
 ```
 
-下一步可以进入第一个 Nav2/costmap 消费者接入门槛，但必须作为单独任务，
-只消费已验证 perception outputs，不得同时做 route graph、mission、楼梯或
-多楼层逻辑。
+Phase 2H 已新增第一个 Nav2 costmap consumer gate：
+
+- standalone `/costmap/costmap` lifecycle node
+- `global_frame=odom`
+- `robot_base_frame=base_link`
+- PointCloud2 observation source：`/go2w/perception/cloud_body`
+- 发布 `/costmap/costmap`
+- 不启动 planner、controller、BT、`nav2_route`、mission、楼梯、多楼层、
+  elevation 或 traversability 节点
+
+验证命令：
+
+```bash
+./tools/verify_phase2h_costmap_consumer.sh
+```
+
+当前 Phase 2H 结果：运行时门禁通过，Phase 2 总体验收完成。记录见：
+
+```bash
+docs/verification/phase2_costmap_consumer_gate.md
+```
+
+## 当前 Phase 3 边界
+
+下一步只允许进入 Phase 3 的同层 Nav2 导航最小闭环。建议首个任务只接入
+planner/controller/BT 所需的最小 Nav2 bringup，并继续消费 Phase 2 已验收的
+odom、TF 和 costmap 输入。
 
 禁止顺手推进：
 
-- Nav2 / `nav2_route`
-- route graph authoring
+- `nav2_route` / route graph authoring
 - mission orchestration
 - staircase execution logic
+- multi-floor behavior
 - elevation mapping / traversability
 
 ## 协作纪律
