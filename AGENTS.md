@@ -33,6 +33,14 @@ If any conflict appears:
 - do not rewrite stable interfaces,
 - instead, report the conflict explicitly.
 
+Before opening a new Phase 4A implementation conversation, also read the
+pre-migration handoff index:
+
+- `docs/handoff/README.md`
+
+The handoff package summarizes state and risks. It does not override the
+canonical architecture documents above.
+
 ---
 
 ## Runtime Baseline

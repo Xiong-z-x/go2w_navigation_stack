@@ -9,6 +9,12 @@ simulation-first 路线推进。
 - `docs/architecture/interface_contracts.md`
 - `docs/architecture/architecture_state.md`
 
+进入 Phase 4A 新对话前，先读取迁移前交接包：
+
+- `docs/handoff/README.md`
+- `docs/handoff/phase4_migration_handoff_report.md`
+- `docs/handoff/new_model_initialization_prompt.md`
+
 ## 当前状态
 
 - 当前正式阶段：`Phase 3`
@@ -416,6 +422,12 @@ docs/verification/phase3_runtime_acceptance.md
 ```
 
 下一步只允许在完整任务单下进入 Phase 4A 的最小楼梯状态机/控制权交接骨架。
+
+迁移前交接包一致性检查：
+
+```bash
+./tools/verify_phase4_pre_handoff.sh
+```
 
 禁止顺手推进：
 

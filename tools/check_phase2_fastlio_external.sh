@@ -3,7 +3,8 @@ set -eo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
-FASTLIO_SRC="${1:-${GO2W_FASTLIO_SRC:-/tmp/fast_lio_ros2_probe}}"
+FASTLIO_CACHE_ROOT="${GO2W_FASTLIO_CACHE_ROOT:-${REPO_ROOT}/.go2w_external}"
+FASTLIO_SRC="${1:-${GO2W_FASTLIO_SRC:-${FASTLIO_CACHE_ROOT}/src/FAST_LIO_ROS2}}"
 ROS_SETUP="${ROS_SETUP:-/opt/ros/humble/setup.bash}"
 
 if [ -f "${ROS_SETUP}" ]; then

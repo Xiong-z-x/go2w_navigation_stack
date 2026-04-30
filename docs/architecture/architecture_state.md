@@ -18,9 +18,11 @@ It records the active phase, the frozen contracts, the open decisions, and the o
 - `AGENTS.md`
 - `docs/agent_collaboration_policy.md`
 - `docs/architecture/architecture_state.md`
+- `docs/handoff/README.md` for Phase 4 migration handoff navigation
 
 ### Non-Canonical Documentation
 - `README.md` is an operator-facing summary and is not a source of truth for architecture or execution status.
+- `docs/handoff/*` is a migration and onboarding package. It summarizes the current state and risks but does not override the frozen architecture contracts.
 
 ## Current Unique Blueprint File
 - The only canonical blueprint file is `docs/architecture/system_blueprint.md`.
@@ -84,6 +86,7 @@ It records the active phase, the frozen contracts, the open decisions, and the o
 - Phase 3A has added and verified the first minimal same-floor Nav2 navigation closed loop: planner, controller, and BT Navigator reach lifecycle `active`; local and global costmaps consume `/go2w/perception/cloud_body`; `/navigate_to_pose` succeeds on a short `odom`-frame goal; Nav2 publishes `/cmd_vel`; perception odometry changes; `odom -> base_link` remains perception-owned; no temporary `map -> odom`, `nav2_route`, route graph, mission, stair, elevation, or traversability nodes are introduced.
 - Phase 3B has added and verified the first minimal `nav2_route` / manual route graph baseline: `route_server` reaches lifecycle `active`; `/route_server/set_route_graph` reloads the installed GeoJSON graph; `/compute_route` succeeds from node `0` to node `3`; returned `Route` and `Path` frames are `odom`; `/route_graph` publishes `visualization_msgs/msg/MarkerArray` in `odom`; no mission, stair, multi-floor, elevation, traversability, `map_server`, or `amcl` nodes are introduced.
 - Phase 3C has added and verified hardening assets: FAST-LIO external dependency preparation uses a pinned lock and ignored repo-local cache instead of `/tmp` defaults; `route_server` loads a persistent floor-aware hospital graph in `map` and computes a route from node `100` to node `202` across manual connector edge `500`; a non-default multi-floor hospital Gazebo world launches headless through the existing Fortress-only path and publishes `/clock`, `/imu`, and `/lidar_points`.
+- Phase 4 pre-migration handoff is recorded under `docs/handoff/`. The handoff package clarifies current status, repaired risks, remaining limitations, and the next-conversation initialization prompt. It is validated by `tools/verify_phase4_pre_handoff.sh`.
 - `odom -> base_link` is now claimed only by the perception TF authority path, and navigation may consume it from Phase 3 onward.
 - Runtime acceptance evidence is recorded in `docs/verification/phase1_runtime_acceptance.md` and can be replayed with `tools/verify_phase1_runtime.sh`.
 - Phase 2A input-audit evidence is recorded in `docs/verification/phase2_fastlio_input_audit.md`.

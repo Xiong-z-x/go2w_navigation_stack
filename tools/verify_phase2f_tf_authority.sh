@@ -4,7 +4,8 @@ set -eo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
-FASTLIO_WS="${GO2W_FASTLIO_WS:-/tmp/go2w_phase2d_fastlio_ws}"
+FASTLIO_CACHE_ROOT="${GO2W_FASTLIO_CACHE_ROOT:-${REPO_ROOT}/.go2w_external}"
+FASTLIO_WS="${GO2W_FASTLIO_WS:-${FASTLIO_CACHE_ROOT}/workspaces/fast_lio_ros2}"
 ROS_SETUP="${ROS_SETUP:-/opt/ros/humble/setup.bash}"
 REPO_SETUP="${REPO_ROOT}/install/setup.bash"
 FASTLIO_SETUP="${FASTLIO_WS}/install/setup.bash"

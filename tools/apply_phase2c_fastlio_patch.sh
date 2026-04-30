@@ -3,7 +3,8 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
-FASTLIO_SRC="${1:-${GO2W_FASTLIO_SRC:-/tmp/fast_lio_ros2_probe}}"
+FASTLIO_CACHE_ROOT="${GO2W_FASTLIO_CACHE_ROOT:-${REPO_ROOT}/.go2w_external}"
+FASTLIO_SRC="${1:-${GO2W_FASTLIO_SRC:-${FASTLIO_CACHE_ROOT}/src/FAST_LIO_ROS2}}"
 PATCH_FILE="${REPO_ROOT}/go2w_perception/patches/fast_lio_ros2/phase2c_no_livox_no_tf.patch"
 
 printf '# Phase 2C FAST-LIO2 Patch Apply\n'
