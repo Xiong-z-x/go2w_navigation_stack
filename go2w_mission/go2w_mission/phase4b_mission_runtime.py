@@ -24,6 +24,13 @@ class StairGoalSpec:
     force_timeout: bool
 
 
+@dataclass(frozen=True)
+class FlatGoalSpec:
+    frame_id: str
+    x: float
+    y: float
+
+
 def print_kv(key: str, value: object) -> None:
     print(f"{key}: {value}", flush=True)
 
@@ -44,8 +51,34 @@ def build_stair_goal_from_segment(
     )
 
 
+def build_flat_goal_from_segment(
+    graph: Phase4ARouteGraph,
+    segment: MissionSegment,
+    *,
+    frame_id: str,
+) -> FlatGoalSpec:
+    last_edge = graph.edges[segment.edge_ids[-1]]
+    target = graph.nodes[last_edge.end_id]
+    return FlatGoalSpec(frame_id=frame_id, x=target.x, y=target.y)
+
+
+def _to_pose_stamped(spec: FlatGoalSpec):
+    from geometry_msgs.msg import PoseStamped
+
+    pose = PoseStamped()
+    pose.header.frame_id = spec.frame_id
+    pose.pose.position.x = spec.x
+    pose.pose.position.y = spec.y
+    pose.pose.orientation.w = 1.0
+    return pose
+
+
 def final_result_for_timeout(mode: str) -> str:
     return "MISSION_TIMEOUT" if mode == "timeout" else "MISSION_FAILED"
+
+
+def final_result_for_flat_timeout(mode: str) -> str:
+    return "MISSION_TIMEOUT" if mode == "flat_timeout" else "MISSION_FAILED"
 
 
 def _spin_until(node, future, timeout_sec: float) -> bool:
@@ -69,8 +102,12 @@ class Phase4BMissionRuntime:
         expected_duration_sec: float,
         result_timeout_sec: float,
         compute_route_action: str,
+        flat_nav_action: str,
+        flat_mode: str,
+        flat_result_timeout_sec: float,
+        route_frame_id: str,
     ) -> None:
-        from nav2_msgs.action import ComputeRoute
+        from nav2_msgs.action import ComputeRoute, NavigateToPose
         from rclpy.action import ActionClient
 
         from go2w_control.action import StairExec
@@ -82,9 +119,14 @@ class Phase4BMissionRuntime:
         self.mode = mode
         self.expected_duration_sec = expected_duration_sec
         self.result_timeout_sec = result_timeout_sec
+        self.flat_mode = flat_mode
+        self.flat_result_timeout_sec = flat_result_timeout_sec
+        self.route_frame_id = route_frame_id
         self.compute_route_type = ComputeRoute
+        self.navigate_to_pose_type = NavigateToPose
         self.stair_exec_type = StairExec
         self.compute_route_client = ActionClient(node, ComputeRoute, compute_route_action)
+        self.navigate_to_pose_client = ActionClient(node, NavigateToPose, flat_nav_action)
         self.stair_exec_client = ActionClient(node, StairExec, "/stair_exec")
 
     def run(self) -> int:
@@ -146,12 +188,10 @@ class Phase4BMissionRuntime:
             print_kv("phase4b_segment_index", index)
             print_kv("phase4b_segment_type", segment.segment_type)
             if segment.segment_type == "flat":
-                print_kv("phase4b_state", "FLAT_SEGMENT_ACTIVE")
-                print_kv(
-                    "phase4b_flat_edges",
-                    ",".join(str(edge_id) for edge_id in segment.edge_ids),
-                )
-                print_kv("phase4b_state", "FLAT_SEGMENT_SUCCEEDED")
+                result = self._execute_flat_segment(segment)
+                if result != "MISSION_SUCCEEDED":
+                    print_kv("phase4b_final_result", result)
+                    return 0 if result in {"MISSION_CANCELED", "MISSION_TIMEOUT"} else 2
                 continue
             result = self._execute_stair_segment(segment)
             if result != "MISSION_SUCCEEDED":
@@ -159,6 +199,49 @@ class Phase4BMissionRuntime:
                 return 0 if result in {"MISSION_CANCELED", "MISSION_TIMEOUT"} else 2
         print_kv("phase4b_final_result", "MISSION_SUCCEEDED")
         return 0
+
+    def _execute_flat_segment(self, segment: MissionSegment) -> str:
+        from action_msgs.msg import GoalStatus
+
+        if not self.navigate_to_pose_client.wait_for_server(timeout_sec=5.0):
+            return "FLAT_NAV_UNAVAILABLE"
+        print_kv("phase4c_state", "FLAT_SEGMENT_ACTIVE")
+        print_kv(
+            "phase4c_flat_edges",
+            ",".join(str(edge_id) for edge_id in segment.edge_ids),
+        )
+        goal = self.navigate_to_pose_type.Goal()
+        spec = build_flat_goal_from_segment(
+            self.graph,
+            segment,
+            frame_id=self.route_frame_id,
+        )
+        goal.pose = _to_pose_stamped(spec)
+
+        send_future = self.navigate_to_pose_client.send_goal_async(goal)
+        if not _spin_until(self.node, send_future, 10.0):
+            return "FLAT_NAV_FAILED"
+        goal_handle = send_future.result()
+        if goal_handle is None or not goal_handle.accepted:
+            return "FLAT_NAV_FAILED"
+        if self.flat_mode == "flat_cancel":
+            time.sleep(0.2)
+            cancel_future = goal_handle.cancel_goal_async()
+            if not _spin_until(self.node, cancel_future, 5.0):
+                return "FLAT_NAV_FAILED"
+            print_kv("phase4c_flat_cancel", "REQUESTED")
+        result_future = goal_handle.get_result_async()
+        if not _spin_until(self.node, result_future, self.flat_result_timeout_sec):
+            goal_handle.cancel_goal_async()
+            return final_result_for_flat_timeout(self.flat_mode)
+        wrapped = result_future.result()
+        print_kv("phase4c_flat_action_status", wrapped.status)
+        if wrapped.status == GoalStatus.STATUS_SUCCEEDED:
+            print_kv("phase4c_state", "FLAT_SEGMENT_SUCCEEDED")
+            return "MISSION_SUCCEEDED"
+        if wrapped.status == GoalStatus.STATUS_CANCELED:
+            return "MISSION_CANCELED"
+        return "FLAT_NAV_FAILED"
 
     def _execute_stair_segment(self, segment: MissionSegment) -> str:
         from action_msgs.msg import GoalStatus
@@ -227,6 +310,14 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--expected-duration-sec", type=float, default=0.3)
     parser.add_argument("--result-timeout-sec", type=float, default=4.0)
     parser.add_argument("--compute-route-action", default="/compute_route")
+    parser.add_argument("--flat-nav-action", default="/navigate_to_pose")
+    parser.add_argument(
+        "--flat-mode",
+        choices=("success", "flat_failure", "flat_cancel", "flat_timeout"),
+        default="success",
+    )
+    parser.add_argument("--flat-result-timeout-sec", type=float, default=4.0)
+    parser.add_argument("--route-frame-id", default="map")
     return parser.parse_args(argv)
 
 
@@ -247,6 +338,10 @@ def main(argv: list[str] | None = None) -> int:
             expected_duration_sec=args.expected_duration_sec,
             result_timeout_sec=args.result_timeout_sec,
             compute_route_action=args.compute_route_action,
+            flat_nav_action=args.flat_nav_action,
+            flat_mode=args.flat_mode,
+            flat_result_timeout_sec=args.flat_result_timeout_sec,
+            route_frame_id=args.route_frame_id,
         )
         return runtime.run()
     finally:

@@ -96,7 +96,7 @@ def main(argv: list[str] | None = None) -> None:
             return CancelResponse.ACCEPT
 
         def _execute_callback(self, goal_handle):
-            del goal_handle.request
+            _ = goal_handle.request
             started = time.monotonic()
             force_timeout = args.mode == "timeout"
             force_fail = args.mode == "failure"
