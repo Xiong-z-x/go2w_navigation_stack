@@ -9,15 +9,16 @@ simulation-first 路线推进。
 - `docs/architecture/interface_contracts.md`
 - `docs/architecture/architecture_state.md`
 
-进入 Phase 4A 新对话前，先读取迁移前交接包：
+进入新对话或后续 Phase 4 工作前，先读取当前状态和迁移交接包：
 
 - `docs/handoff/README.md`
+- `docs/verification/phase4a_stair_handoff_acceptance.md`
 - `docs/handoff/phase4_migration_handoff_report.md`
 - `docs/handoff/new_model_initialization_prompt.md`
 
 ## 当前状态
 
-- 当前正式阶段：`Phase 3`
+- 当前正式阶段：`Phase 4A`
 - `Phase 1` 状态：仿真可控闭环已完成并进入可审计验收状态
 - `Phase 2` 状态：FAST-LIO2 输入/输出、感知侧 `odom -> base_link`
   TF authority、稳定 perception baseline、首个 Nav2 costmap consumer gate
@@ -27,9 +28,9 @@ simulation-first 路线推进。
 - `Phase 3C` 状态：FAST-LIO 外部依赖生产化、持久多楼层 route graph
   baseline、多层医院仿真 world 资产已完成并验收
 - `Phase 3` 状态：同层导航 + 拓扑骨架 + Phase 4 前置硬化资产已完成并验收
-- 下一步只能在完整任务单下进入 `Phase 4A` 的最小楼梯状态机/控制权交接骨架
+- `Phase 4A` 状态：最小楼梯状态机/控制权交接骨架已完成并验收
 
-不要把 Phase 4A 直接扩展成 production mission orchestration、真实楼梯控制器调参、
+不要把 Phase 4A 骨架误判成 production mission orchestration、真实楼梯控制器调参、
 多楼层自主行为、elevation mapping 或 traversability。
 
 ## 运行环境基线
@@ -421,15 +422,41 @@ Phase 3 总体验收记录见：
 docs/verification/phase3_runtime_acceptance.md
 ```
 
-下一步只允许在完整任务单下进入 Phase 4A 的最小楼梯状态机/控制权交接骨架。
+## 当前 Phase 4A 边界
 
-迁移前交接包一致性检查：
+Phase 4A 已新增最小楼梯状态机/控制权交接骨架：
+
+- Phase 3C 医院多楼层 route graph 中的 staircase connector metadata 可被校验
+- `route_server` 可计算从 node `100` 到 node `202` 且经过 connector edge `500`
+  的 route
+- `go2w_mission` 的 handoff demo 可检测楼梯边并触发 dedicated `/stair_exec`
+  Action
+- `go2w_control` 的 command gate 证明 flat/stair 控制权互斥：
+  `/go2w/control/flat_cmd_vel` 与 `/go2w/control/stair_cmd_vel` 只有当前 owner
+  对应的一路可进入 `/cmd_vel`
+- `/stair_exec` skeleton 支持完成、失败、取消、超时等可诊断结果
+
+验证命令：
+
+```bash
+./tools/verify_phase4a_stair_handoff.sh
+```
+
+验收记录见：
+
+```bash
+docs/verification/phase4a_stair_handoff_acceptance.md
+```
+
+该阶段只验证接口握手、状态诊断和控制权互斥；不验证真实楼梯动力学或跨楼层自主行为。
+
+Phase 4 迁移前交接包一致性检查仍可用于检查历史交接包结构：
 
 ```bash
 ./tools/verify_phase4_pre_handoff.sh
 ```
 
-禁止顺手推进：
+后续任务禁止顺手推进：
 
 - production mission orchestration
 - real staircase traversal controller tuning

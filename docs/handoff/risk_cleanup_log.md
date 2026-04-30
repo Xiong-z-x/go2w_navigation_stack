@@ -10,6 +10,7 @@
 | Phase 4A 起点容易被扩大 | README/状态文档虽有边界，但缺少迁移前专门警示 | 在交接报告、注意事项和初始化提示词中重复固定 Phase 4A 最小边界 | 已修复 |
 | 交接资料缺少一键静态验收 | 迁移包新增后需要可重复检查 | 新增 `tools/verify_phase4_pre_handoff.sh` | 已修复 |
 | 源码目录存在无价值 Python 缓存 | `go2w_*` 与 `tools` 下存在 ignored `__pycache__` | 清理源码侧 `__pycache__`，不把缓存纳入交接 | 已清理 |
+| Phase 4A handoff 缺少可重复 runtime 证据 | 仅有 Phase 3C connector 资产不能证明控制权交接 | 新增 `tools/verify_phase4a_stair_handoff.sh`，验证 route connector detection、`/stair_exec`、command gate 互斥、success/failure/cancel/timeout | 已修复 |
 
 ## 保留但已标注的历史内容
 - `docs/superpowers/` 中的早期 Phase 2/3 计划和设计文档保留为历史记录。
@@ -25,6 +26,6 @@
 | 占位 URDF 耦合 geometry/control/sensors | 当前可运行闭环依赖该过渡模型 | 未来 Unitree model import 或模型重构任务单中处理 |
 | Unitree Go2W 真实模型未导入 | 会影响控制、碰撞、传感器布局和运动学假设 | Phase 4 或后续独立模型基线任务处理 |
 | Phase 3C route graph 是手工 floor atlas | 目的是给 Phase 4 手工连接器提供基线，不是自动建图结果 | Phase 4 先证明控制交接；Phase 5 再自动连接器 |
-| 没有 production Mission Orchestrator | 当前还未进入 Phase 4A runtime | Phase 4A 从最小状态机/控制权交接骨架开始 |
+| 没有 production Mission Orchestrator | Phase 4A 只新增 handoff demo，不是任务调度器 | 后续用独立完整任务单推进最小 mission segment runtime |
 | 没有真实楼梯执行控制器调参 | Phase 4 DoD 先验证接口握手与互斥，不追求动力学真实性 | 后续 dedicated stair executor/control tuning 任务处理 |
 | 没有 `map -> odom` 定位融合链 | Phase 3A 有意运行在 `odom`，Phase 3C 只提供 `map` 资产 | 后续定位/地图服务任务单再引入 |

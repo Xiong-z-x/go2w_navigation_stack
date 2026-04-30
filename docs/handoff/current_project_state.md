@@ -14,10 +14,10 @@ simulation-first 的自主导航栈，最终实现：
 核心工程原则仍是：先闭环，再升级智能。
 
 ## 当前阶段
-- 当前正式阶段：`Phase 3`
-- 当前状态：Phase 3A、Phase 3B、Phase 3C 均已验收。
-- 尚未进入：`Phase 4A`
-- 下一步：只有在完整任务单下进入最小楼梯状态机/控制权交接骨架。
+- 当前正式阶段：`Phase 4A`
+- 当前状态：Phase 3A、Phase 3B、Phase 3C、Phase 4 迁移前封板、Phase 4A 均已验收。
+- 当前 Phase 4A 范围：最小楼梯状态机/控制权交接骨架。
+- 下一步：只能在新的完整任务单下推进 Phase 4A 之后的最小单主题任务。
 
 ## 当前环境基线
 - Ubuntu 22.04 / WSL2
@@ -34,12 +34,14 @@ Gazebo GPU rendering 不是当前验收合同。RViz 可单独使用 WSLg/NVIDIA
 - `go2w_description`：占位机器人 URDF、RViz 配置、robot_state_publisher launch。
 - `go2w_sim`：Fortress-only Gazebo launch、empty world、Phase 3A feature world、
   Phase 3C hospital world、桥接与 controller orchestration。
-- `go2w_control`：仍为 scaffold-only，尚未实现楼梯执行控制器。
+- `go2w_control`：Phase 4A 已新增 `StairExec` Action、command gate、
+  minimal stair executor skeleton；尚未实现真实楼梯运动控制器。
 - `go2w_perception`：FAST-LIO 输入/输出 adapter、perception TF authority、
   `odom -> base_link` 发布链与测试。
 - `go2w_navigation`：Phase 2H costmap gate、Phase 3A Nav2 同层闭环、
   Phase 3B/3C route graph baseline。
-- `go2w_mission`：仍为 scaffold-only，尚未实现 Mission Orchestrator。
+- `go2w_mission`：Phase 4A 已新增 handoff demo 和最小 launch 验证路径；
+  尚未实现 production Mission Orchestrator。
 
 ## 已完成闭环
 - Phase 1：Gazebo + `gz_ros2_control` + `/cmd_vel` 底盘可控闭环。
@@ -49,11 +51,13 @@ Gazebo GPU rendering 不是当前验收合同。RViz 可单独使用 WSLg/NVIDIA
 - Phase 3B：最小 `nav2_route` + 手工 route graph baseline。
 - Phase 3C：FAST-LIO repo-local external cache、floor-aware hospital route graph、
   hospital multi-floor world asset。
+- Phase 4A：手工 staircase connector 检测、dedicated `/stair_exec` Action
+  skeleton、flat/stair 控制权互斥、完成/失败/取消/超时诊断。
 
 ## 当前未完成内容
 - 未导入真实 Unitree Go2W 模型。
-- 未实现 Mission Orchestrator。
-- 未实现 Stair Executor runtime。
+- 未实现 production Mission Orchestrator。
+- 未实现真实楼梯运动控制器和控制参数调优。
 - 未实现真实跨楼层自主行为。
 - 未实现 `map_server` / AMCL / `map -> odom` 定位链。
 - 未实现 elevation mapping / traversability / automatic stair detection。

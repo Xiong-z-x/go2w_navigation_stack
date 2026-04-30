@@ -3,6 +3,8 @@
 ## 最容易犯错的地方
 - 不要把 Phase 3C route graph 当成已实现跨楼层自主导航。它只是手工资产和
   route_server baseline。
+- 不要把 Phase 4A handoff skeleton 当成真实楼梯运动控制或 production Mission
+  Orchestrator。它只证明 connector detection、Action handoff、控制权互斥和诊断状态。
 - 不要把 `nav2_route` 当成 3D 地形规划器。它不是自动楼梯识别或 traversability。
 - 不要重新启用 `diff_drive_controller` 的 `odom -> base_link` TF。该边当前属于
   perception authority。
@@ -37,13 +39,14 @@
 - 失败命令要留下可审计证据，不能口头说“应该可以”。
 - 新踩坑必须写回本注意文档或后续专门风险文档。
 
-## Phase 4A 防漂移边界
-Phase 4A 只应该证明控制权交接骨架：
+## Phase 4A 当前已验收边界
+Phase 4A 当前只证明了控制权交接骨架：
 
 - 手工 route graph connector 触发。
 - Nav2 平地控制与 stair executor 控制互斥。
 - `stair_exec` Action skeleton 可观测。
 - 失败/取消/完成状态向上暴露。
+- 超时状态可通过 verifier 诊断。
 
 不应同时做：
 
@@ -53,6 +56,11 @@ Phase 4A 只应该证明控制权交接骨架：
 - elevation mapping / traversability。
 - Unitree 模型导入。
 - perception TF authority 重构。
+
+## Phase 4A 后续防漂移边界
+后续最小任务可以围绕 hand-authored staircase connector 做更接近 runtime 的
+mission segment 调度，但必须另有完整任务单。不要把下一步扩大为真实多楼层自主、
+真实楼梯控制器调参、自动楼梯检测、traversability 或 `map -> odom` 定位链。
 
 ## 上下文变长后的防失真做法
 - 每完成一个阶段或关键任务，更新 `architecture_state.md`。

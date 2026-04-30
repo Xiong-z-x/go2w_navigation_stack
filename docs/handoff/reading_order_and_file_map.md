@@ -18,6 +18,7 @@
 - `docs/verification/phase2_runtime_acceptance.md`：Phase 2 总体验收。
 - `docs/verification/phase3_runtime_acceptance.md`：Phase 3 总体验收。
 - `docs/verification/phase3c_hardening_acceptance.md`：Phase 3C 硬化证据。
+- `docs/verification/phase4a_stair_handoff_acceptance.md`：Phase 4A 最小楼梯 handoff 骨架验收。
 - `docs/verification/gazebo_gpu_rebaseline.md`：Gazebo GPU 降级原因。
 
 ## 第四层：历史任务记录
@@ -32,8 +33,8 @@
 - `go2w_sim/`：Gazebo worlds、simulation launch、controller config。
 - `go2w_perception/`：FAST-LIO adapters、TF authority、patch、external lock。
 - `go2w_navigation/`：Nav2 configs、BT、route graph、maps。
-- `go2w_control/`：当前 scaffold，Phase 4 后可能开始承载 stair execution。
-- `go2w_mission/`：当前 scaffold，Phase 4 后可能开始承载 mission orchestration。
+- `go2w_control/`：Phase 4A 起承载 `StairExec` Action、command gate 和最小 stair executor skeleton。
+- `go2w_mission/`：Phase 4A 起承载 handoff demo 与最小验证 launch；尚不是 production Mission Orchestrator。
 
 ## 关键工具
 - `tools/prepare_phase2d_fastlio_external.sh`：准备 pinned FAST-LIO external cache。
@@ -47,6 +48,7 @@
 - `tools/verify_phase3c_multifloor_route_graph.sh`：multi-floor route graph asset gate。
 - `tools/verify_phase3c_hospital_world.sh`：hospital world asset gate。
 - `tools/verify_phase4_pre_handoff.sh`：迁移前交接一致性 gate。
+- `tools/verify_phase4a_stair_handoff.sh`：Phase 4A staircase handoff runtime gate。
 
 ## 生成/缓存目录
 - `.go2w_external/`：ignored FAST-LIO external source/workspace cache。

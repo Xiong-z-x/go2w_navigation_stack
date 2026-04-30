@@ -24,8 +24,9 @@ When making implementation decisions, always obey the following priority:
 
 1. `docs/architecture/system_blueprint.md`
 2. `docs/architecture/interface_contracts.md`
-3. Current task brief from the human operator
-4. Existing code in this repository
+3. `docs/architecture/architecture_state.md`
+4. Current task brief from the human operator
+5. Existing code in this repository
 
 If any conflict appears:
 - do not silently “improve” the architecture,
@@ -33,8 +34,8 @@ If any conflict appears:
 - do not rewrite stable interfaces,
 - instead, report the conflict explicitly.
 
-Before opening a new Phase 4A implementation conversation, also read the
-pre-migration handoff index:
+Before opening a new Phase 4 or post-Phase-4A implementation conversation, also
+read the handoff index:
 
 - `docs/handoff/README.md`
 
