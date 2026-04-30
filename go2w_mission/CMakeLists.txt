@@ -24,6 +24,9 @@ if(BUILD_TESTING)
   ament_add_pytest_test(test_phase4a_handoff_demo test/test_phase4a_handoff_demo.py
     APPEND_ENV PYTHONPATH=${CMAKE_CURRENT_SOURCE_DIR}
   )
+  ament_add_pytest_test(test_phase4b_mission_segments test/test_phase4b_mission_segments.py
+    APPEND_ENV PYTHONPATH=${CMAKE_CURRENT_SOURCE_DIR}
+  )
 endif()
 
 ament_package()
