@@ -1,0 +1,15 @@
+string connector_id
+uint16 edge_id
+string direction
+float32 expected_duration_sec
+bool force_fail
+bool force_timeout
+---
+bool success
+string result_code
+string message
+builtin_interfaces/Duration elapsed_time
+---
+string phase
+float32 progress
+string owner
