@@ -6,7 +6,7 @@ It records the active phase, the frozen contracts, the open decisions, and the o
 
 ## Current Phase
 - Active Phase: `Phase 3`
-- Phase Status: Phase 3 is accepted on the current `main` baseline. FAST-LIO2 input/output plumbing, perception-side `odom -> base_link` TF authority, longer-window perception stability, the first Nav2 costmap consumer gate, the first minimal same-floor Nav2 navigation closed loop, and the first minimal `nav2_route` / manual route graph baseline are accepted. Do not enter Phase 4 without a separate complete task card.
+- Phase Status: Phase 3 is accepted on the current `main` baseline. FAST-LIO2 input/output plumbing, perception-side `odom -> base_link` TF authority, longer-window perception stability, the first Nav2 costmap consumer gate, the first minimal same-floor Nav2 navigation closed loop, the first minimal `nav2_route` / manual route graph baseline, and Phase 3C hardening assets are accepted. Do not enter Phase 4 runtime behavior without a separate complete task card.
 
 ## Current Document Status
 
@@ -40,10 +40,12 @@ It records the active phase, the frozen contracts, the open decisions, and the o
 
 ## Current Unresolved Items
 - Phase 2 is accepted as complete: `/fastlio/input/lidar_points` carries `time`, patched FAST-LIO runs no-TF, contract topics publish project frame semantics, `go2w_perception` owns `odom -> base_link`, longer-window perception stability passed, and standalone Nav2 costmap consumes `/go2w/perception/cloud_body`.
-- FAST_LIO_ROS2 remains an external scratch-workspace dependency prepared under `/tmp` by repository tools. This is acceptable for Phase 2 acceptance; production dependency strategy remains a future hardening task and must not vendor external source into this repository without explicit approval.
+- FAST_LIO_ROS2 remains an external dependency and is not vendored into this repository. Phase 3C replaces the previous `/tmp` default with a pinned dependency lock and ignored repo-local cache under `.go2w_external/`; operators may still override paths through environment variables.
 - The Phase 2H costmap consumer uses the Humble standalone `nav2_costmap_2d` lifecycle node `/costmap/costmap`. Phase 3A separately introduced the conventional full-stack local/global costmap paths; these remain distinct evidence gates and must not be conflated.
 - Phase 3A full Nav2 bringup intentionally runs in `odom` without publishing a temporary `map -> odom` edge. This preserves the long-term localization/map authority boundary while proving the immediate same-floor closed loop.
 - Phase 3B route graph baseline also runs in `odom`, using a hand-authored GeoJSON graph loaded by `nav2_route` `route_server`; it does not publish TF and does not add mission, stair, multi-floor, elevation, or traversability behavior.
+- Phase 3C adds a persistent `map` frame, floor-aware hospital route graph and map metadata baseline. It uses floor-atlas coordinates plus `floor_id` / `connector_id` metadata to avoid 2D projection ambiguity. This is an asset and contract baseline only; it does not add mission orchestration, stair executor runtime, elevation mapping, traversability, automatic connector generation, `map_server`, or AMCL.
+- Phase 3C adds a non-default multi-floor hospital Gazebo world asset for later Phase 4 staircase handoff tests. The default `empty_world.sdf` and placeholder model launch path remain unchanged.
 - The default Phase 1 empty world remains the default `go2w_sim` world. Phase 3A adds a dedicated feature-rich verification world because the empty world is too degenerate for FAST-LIO-backed motion feedback.
 - The placeholder URDF still couples robot geometry, `gz_ros2_control`, and sensor declarations in one file. This remains accepted technical debt and must be handled by a future dedicated refactor task; it is not part of Phase 3A/3B acceptance.
 
@@ -61,13 +63,13 @@ It records the active phase, the frozen contracts, the open decisions, and the o
   - `go2w_navigation`
   - `go2w_mission`
 - `go2w_description` now provides a minimal diff-drive placeholder URDF, RViz configuration, and a `robot_state_publisher` launch path.
-- `go2w_sim` now provides a minimal empty-world Gazebo Sim launch path, a backward-compatible optional `world` / `world_name` launch override, a Phase 3A feature-rich verification world, a `ros_gz_sim`-based spawn path, `/clock` bridge startup, and `gz_ros2_control` controller orchestration.
+- `go2w_sim` now provides a minimal empty-world Gazebo Sim launch path, a backward-compatible optional `world` / `world_name` launch override, a Phase 3A feature-rich verification world, a Phase 3C multi-floor hospital verification world, a `ros_gz_sim`-based spawn path, `/clock` bridge startup, and `gz_ros2_control` controller orchestration.
 - `go2w_perception` now contains Phase 2E local FAST-LIO contract adapters, Phase 2F TF authority activation, config, launch, and tests.
-- `go2w_navigation` now contains a Phase 2H standalone Nav2 costmap consumer config and launch, a Phase 3A minimal same-floor Nav2 planner/controller/BT bringup, and a Phase 3B minimal `nav2_route` route server plus manual same-floor GeoJSON route graph. Mission logic and staircase behavior are not implemented yet.
+- `go2w_navigation` now contains a Phase 2H standalone Nav2 costmap consumer config and launch, a Phase 3A minimal same-floor Nav2 planner/controller/BT bringup, a Phase 3B minimal `nav2_route` route server plus manual same-floor GeoJSON route graph, and Phase 3C persistent multi-floor route graph / map metadata assets. Mission logic and staircase behavior are not implemented yet.
 - `go2w_control` and `go2w_mission` remain scaffold-only.
 - Phase 1 uses a software-rendering Gazebo baseline and now reserves `odom -> base_link` for later FAST-LIO ownership by disabling `diff_drive_controller` TF publication.
 - Phase 1 simulation is expected to publish `robot_description`, `/clock`, `/imu`, and `/lidar_points`, while RViz visualizes the robot model, TF sensor frames, and point cloud data without consuming perception outputs.
-- Repository-local FAST-LIO integration is accepted through Phase 3B. Current work covers external-source patching, build validation, no-TF dry-run automation, local input/output contract adapters, perception-side `odom -> base_link` TF activation, longer-window perception output stability, a standalone Nav2 costmap consumer gate, a minimal same-floor Nav2 closed loop, and a minimal same-floor `nav2_route` graph baseline. Mission logic and staircase behavior implementation do not exist yet.
+- Repository-local FAST-LIO integration is accepted through Phase 3C. Current work covers pinned external-source patching, build validation, no-TF dry-run automation, local input/output contract adapters, perception-side `odom -> base_link` TF activation, longer-window perception output stability, a standalone Nav2 costmap consumer gate, a minimal same-floor Nav2 closed loop, a minimal same-floor `nav2_route` graph baseline, and Phase 3C multi-floor map/route/world hardening assets. Mission logic and staircase behavior implementation do not exist yet.
 
 ## Only Allowed Next Task
 - The current project state remains formally in `Phase 3` until a separate Phase 4A task card starts.
@@ -81,6 +83,7 @@ It records the active phase, the frozen contracts, the open decisions, and the o
 - Phase 2H has added and verified the first Nav2 costmap consumer gate: standalone `/costmap/costmap` consumes `/go2w/perception/cloud_body`, publishes `/costmap/costmap` in `odom`, and does not start planner, controller, BT, route, mission, stair, elevation, or traversability nodes.
 - Phase 3A has added and verified the first minimal same-floor Nav2 navigation closed loop: planner, controller, and BT Navigator reach lifecycle `active`; local and global costmaps consume `/go2w/perception/cloud_body`; `/navigate_to_pose` succeeds on a short `odom`-frame goal; Nav2 publishes `/cmd_vel`; perception odometry changes; `odom -> base_link` remains perception-owned; no temporary `map -> odom`, `nav2_route`, route graph, mission, stair, elevation, or traversability nodes are introduced.
 - Phase 3B has added and verified the first minimal `nav2_route` / manual route graph baseline: `route_server` reaches lifecycle `active`; `/route_server/set_route_graph` reloads the installed GeoJSON graph; `/compute_route` succeeds from node `0` to node `3`; returned `Route` and `Path` frames are `odom`; `/route_graph` publishes `visualization_msgs/msg/MarkerArray` in `odom`; no mission, stair, multi-floor, elevation, traversability, `map_server`, or `amcl` nodes are introduced.
+- Phase 3C has added and verified hardening assets: FAST-LIO external dependency preparation uses a pinned lock and ignored repo-local cache instead of `/tmp` defaults; `route_server` loads a persistent floor-aware hospital graph in `map` and computes a route from node `100` to node `202` across manual connector edge `500`; a non-default multi-floor hospital Gazebo world launches headless through the existing Fortress-only path and publishes `/clock`, `/imu`, and `/lidar_points`.
 - `odom -> base_link` is now claimed only by the perception TF authority path, and navigation may consume it from Phase 3 onward.
 - Runtime acceptance evidence is recorded in `docs/verification/phase1_runtime_acceptance.md` and can be replayed with `tools/verify_phase1_runtime.sh`.
 - Phase 2A input-audit evidence is recorded in `docs/verification/phase2_fastlio_input_audit.md`.
@@ -95,5 +98,6 @@ It records the active phase, the frozen contracts, the open decisions, and the o
 - Phase 3A Nav2 same-floor evidence is recorded in `docs/verification/phase3a_nav2_same_floor.md`.
 - Phase 3B route graph baseline evidence is recorded in `docs/verification/phase3b_route_graph_baseline.md`.
 - Phase 3 total acceptance evidence is recorded in `docs/verification/phase3_runtime_acceptance.md`.
+- Phase 3C hardening evidence is recorded in `docs/verification/phase3c_hardening_acceptance.md`.
 - The next implementation boundary is Phase 4A only after an explicit complete task card: introduce the smallest staircase state-machine handoff skeleton needed to prove control ownership transitions, without real multi-floor autonomy, elevation mapping, traversability, automatic stair detection, or changes to the perception-owned `odom -> base_link` authority.
 - Forbidden in the next task unless explicitly approved by its task card: production mission orchestration, real staircase traversal controller tuning, multi-floor autonomous behavior, elevation mapping, traversability, automatic stair connector generation, and any change to the perception-owned `odom -> base_link` authority.

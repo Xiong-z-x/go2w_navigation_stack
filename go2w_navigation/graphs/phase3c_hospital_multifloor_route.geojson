@@ -1,0 +1,181 @@
+{
+  "type": "FeatureCollection",
+  "name": "phase3c_hospital_multifloor_route",
+  "crs": {
+    "type": "name",
+    "properties": {
+      "name": "urn:ogc:def:crs:EPSG::3857"
+    }
+  },
+  "properties": {
+    "frame": "map",
+    "map_index": "phase3c_hospital_map_index.yaml",
+    "contract": "manual_floor_aware_route_graph",
+    "notes": "2D coordinates with explicit floor metadata; nav2_route remains a graph router, not a 3D planner."
+  },
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 100,
+        "frame": "map",
+        "floor_id": "F1",
+        "level_index": 1,
+        "semantic": "floor_1_lobby"
+      },
+      "geometry": {"type": "Point", "coordinates": [0.0, 0.0]}
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 101,
+        "frame": "map",
+        "floor_id": "F1",
+        "level_index": 1,
+        "semantic": "floor_1_corridor"
+      },
+      "geometry": {"type": "Point", "coordinates": [1.5, 0.0]}
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 102,
+        "frame": "map",
+        "floor_id": "F1",
+        "level_index": 1,
+        "semantic": "floor_1_stair_landing",
+        "connector_id": "stair_a",
+        "connector_terminal": "lower"
+      },
+      "geometry": {"type": "Point", "coordinates": [3.0, 0.0]}
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 103,
+        "frame": "map",
+        "floor_id": "F1",
+        "level_index": 1,
+        "semantic": "floor_1_ward"
+      },
+      "geometry": {"type": "Point", "coordinates": [1.5, 1.2]}
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 200,
+        "frame": "map",
+        "floor_id": "F2",
+        "level_index": 2,
+        "semantic": "floor_2_stair_landing",
+        "connector_id": "stair_a",
+        "connector_terminal": "upper"
+      },
+      "geometry": {"type": "Point", "coordinates": [6.0, 0.0]}
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 201,
+        "frame": "map",
+        "floor_id": "F2",
+        "level_index": 2,
+        "semantic": "floor_2_corridor"
+      },
+      "geometry": {"type": "Point", "coordinates": [7.5, 0.0]}
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 202,
+        "frame": "map",
+        "floor_id": "F2",
+        "level_index": 2,
+        "semantic": "floor_2_nurse_station"
+      },
+      "geometry": {"type": "Point", "coordinates": [7.5, 1.2]}
+    },
+    {
+      "type": "Feature",
+      "properties": {"id": 300, "startid": 100, "endid": 101, "overridable": true, "mode": "flat", "floor_id": "F1"},
+      "geometry": {"type": "MultiLineString", "coordinates": [[[0.0, 0.0], [1.5, 0.0]]]}
+    },
+    {
+      "type": "Feature",
+      "properties": {"id": 301, "startid": 101, "endid": 102, "overridable": true, "mode": "flat", "floor_id": "F1"},
+      "geometry": {"type": "MultiLineString", "coordinates": [[[1.5, 0.0], [3.0, 0.0]]]}
+    },
+    {
+      "type": "Feature",
+      "properties": {"id": 302, "startid": 101, "endid": 103, "overridable": true, "mode": "flat", "floor_id": "F1"},
+      "geometry": {"type": "MultiLineString", "coordinates": [[[1.5, 0.0], [1.5, 1.2]]]}
+    },
+    {
+      "type": "Feature",
+      "properties": {"id": 310, "startid": 101, "endid": 100, "overridable": true, "mode": "flat", "floor_id": "F1"},
+      "geometry": {"type": "MultiLineString", "coordinates": [[[1.5, 0.0], [0.0, 0.0]]]}
+    },
+    {
+      "type": "Feature",
+      "properties": {"id": 311, "startid": 102, "endid": 101, "overridable": true, "mode": "flat", "floor_id": "F1"},
+      "geometry": {"type": "MultiLineString", "coordinates": [[[6.0, 0.0], [7.5, 0.0]]]}
+    },
+    {
+      "type": "Feature",
+      "properties": {"id": 312, "startid": 103, "endid": 101, "overridable": true, "mode": "flat", "floor_id": "F1"},
+      "geometry": {"type": "MultiLineString", "coordinates": [[[1.5, 1.2], [1.5, 0.0]]]}
+    },
+    {
+      "type": "Feature",
+      "properties": {"id": 400, "startid": 200, "endid": 201, "overridable": true, "mode": "flat", "floor_id": "F2"},
+      "geometry": {"type": "MultiLineString", "coordinates": [[[3.0, 0.0], [1.5, 0.0]]]}
+    },
+    {
+      "type": "Feature",
+      "properties": {"id": 401, "startid": 201, "endid": 202, "overridable": true, "mode": "flat", "floor_id": "F2"},
+      "geometry": {"type": "MultiLineString", "coordinates": [[[7.5, 0.0], [7.5, 1.2]]]}
+    },
+    {
+      "type": "Feature",
+      "properties": {"id": 410, "startid": 201, "endid": 200, "overridable": true, "mode": "flat", "floor_id": "F2"},
+      "geometry": {"type": "MultiLineString", "coordinates": [[[7.5, 0.0], [6.0, 0.0]]]}
+    },
+    {
+      "type": "Feature",
+      "properties": {"id": 411, "startid": 202, "endid": 201, "overridable": true, "mode": "flat", "floor_id": "F2"},
+      "geometry": {"type": "MultiLineString", "coordinates": [[[7.5, 1.2], [7.5, 0.0]]]}
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 500,
+        "startid": 102,
+        "endid": 200,
+        "overridable": true,
+        "mode": "stair",
+        "connector_id": "stair_a",
+        "connector_type": "manual_stair",
+        "stair_exec_required": true,
+        "floor_from": "F1",
+        "floor_to": "F2"
+      },
+      "geometry": {"type": "MultiLineString", "coordinates": [[[3.0, 0.0], [6.0, 0.0]]]}
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 501,
+        "startid": 200,
+        "endid": 102,
+        "overridable": true,
+        "mode": "stair",
+        "connector_id": "stair_a",
+        "connector_type": "manual_stair",
+        "stair_exec_required": true,
+        "floor_from": "F2",
+        "floor_to": "F1"
+      },
+      "geometry": {"type": "MultiLineString", "coordinates": [[[6.0, 0.0], [3.0, 0.0]]]}
+    }
+  ]
+}

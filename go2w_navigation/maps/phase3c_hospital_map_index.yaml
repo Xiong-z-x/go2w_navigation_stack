@@ -1,0 +1,25 @@
+frame: map
+contract: phase3c_manual_multifloor_map_index
+description: >
+  Minimal persistent multi-floor hospital map metadata. This index is for
+  route/mission semantics only in Phase 3C; it does not start map_server or AMCL.
+floors:
+  - id: F1
+    level_index: 1
+    elevation_m: 0.0
+    map_yaml: phase3c_hospital_floor_1.yaml
+    route_node_ids: [100, 101, 102, 103]
+  - id: F2
+    level_index: 2
+    elevation_m: 2.8
+    map_yaml: phase3c_hospital_floor_2.yaml
+    route_node_ids: [200, 201, 202]
+connectors:
+  - id: stair_a
+    type: manual_stair
+    lower_floor: F1
+    upper_floor: F2
+    lower_node_id: 102
+    upper_node_id: 200
+    execution_action: stair_exec
+    auto_detection: false

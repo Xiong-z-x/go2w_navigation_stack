@@ -55,7 +55,9 @@ def _field_size(field: PointField) -> int:
     try:
         datatype_size = _POINT_FIELD_SIZES[field.datatype]
     except KeyError as exc:
-        raise ValueError(f"unsupported point field datatype for {field.name}: {field.datatype}") from exc
+        raise ValueError(
+            f"unsupported point field datatype for {field.name}: {field.datatype}"
+        ) from exc
     return datatype_size * max(field.count, 1)
 
 

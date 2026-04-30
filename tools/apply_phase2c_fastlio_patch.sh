@@ -26,13 +26,21 @@ if [ ! -f "${PATCH_FILE}" ]; then
   exit 2
 fi
 
+is_own_git_worktree() {
+  local source_root
+  local git_root
+  source_root="$(readlink -f "${FASTLIO_SRC}")"
+  git_root="$(git -C "${FASTLIO_SRC}" rev-parse --show-toplevel 2>/dev/null || true)"
+  [ -n "${git_root}" ] && [ "$(readlink -f "${git_root}")" = "${source_root}" ]
+}
+
 if grep -q 'FAST_LIO_ENABLE_LIVOX' "${FASTLIO_SRC}/CMakeLists.txt" \
   && grep -q 'publish.tf_publish_en' "${FASTLIO_SRC}/src/laserMapping.cpp"; then
   printf 'patch_status: already_applied\n'
   exit 0
 fi
 
-if git -C "${FASTLIO_SRC}" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+if is_own_git_worktree; then
   git -C "${FASTLIO_SRC}" apply --check "${PATCH_FILE}"
   git -C "${FASTLIO_SRC}" apply "${PATCH_FILE}"
 else

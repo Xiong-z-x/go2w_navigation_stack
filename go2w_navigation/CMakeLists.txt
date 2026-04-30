@@ -8,6 +8,7 @@ install(DIRECTORY
   config
   graphs
   launch
+  maps
   DESTINATION share/${PROJECT_NAME}
 )
 

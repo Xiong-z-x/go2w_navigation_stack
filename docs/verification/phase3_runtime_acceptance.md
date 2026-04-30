@@ -6,11 +6,16 @@ Phase 3 is accepted as the combination of:
 
 - Phase 3A: minimal same-floor Nav2 planner/controller/BT navigation loop.
 - Phase 3B: minimal `nav2_route` / manual route graph baseline.
+- Phase 3C: hardening assets for FAST-LIO external dependency, persistent
+  multi-floor route graph metadata, and a non-default multi-floor hospital world.
 
 The accepted Phase 3 boundary is same-floor navigation plus topology skeleton.
 It does not include Mission Orchestrator, staircase execution, multi-floor
 behavior, elevation mapping, traversability, automatic stair connectors, or any
 change to perception-owned `odom -> base_link`.
+
+Phase 3C prepares multi-floor assets but still does not implement multi-floor
+autonomous behavior or Phase 4 staircase control handoff.
 
 ## Fresh Verification
 
@@ -126,5 +131,7 @@ Phase 3 acceptance criteria from the canonical blueprint are covered:
   `MarkerArray` evidence.
 - `nav2_route` is enabled through a minimal route server and manual GeoJSON
   graph baseline.
+- Phase 3C hardening evidence is recorded separately in
+  `docs/verification/phase3c_hardening_acceptance.md`.
 
 The next phase boundary is Phase 4A only after a separate complete task card.

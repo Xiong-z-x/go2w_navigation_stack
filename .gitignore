@@ -19,3 +19,6 @@
 
 # Local agent learning logs
 .learnings/
+
+# External source/build cache prepared by repository tools
+.go2w_external/

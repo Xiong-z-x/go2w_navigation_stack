@@ -8,7 +8,7 @@ ROS_SETUP="${ROS_SETUP:-/opt/ros/humble/setup.bash}"
 
 if [ -f "${ROS_SETUP}" ]; then
   # Source ROS before enabling nounset; ROS setup scripts may reference unset vars.
-  # shellcheck source=/opt/ros/humble/setup.bash
+  # shellcheck source=/dev/null
   source "${ROS_SETUP}"
 fi
 
@@ -99,6 +99,14 @@ print_ros_package() {
   fi
 }
 
+is_own_git_worktree() {
+  local source_root
+  local git_root
+  source_root="$(readlink -f "${FASTLIO_SRC}")"
+  git_root="$(git -C "${FASTLIO_SRC}" rev-parse --show-toplevel 2>/dev/null || true)"
+  [ -n "${git_root}" ] && [ "$(readlink -f "${git_root}")" = "${source_root}" ]
+}
+
 printf '# Phase 2 FAST-LIO2 External Audit\n'
 printf 'repo_root: %s\n' "${REPO_ROOT}"
 printf 'fastlio_source_path: %s\n' "${FASTLIO_SRC}"
@@ -111,7 +119,7 @@ fi
 
 printf 'fastlio_source_present: true\n'
 
-if git -C "${FASTLIO_SRC}" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+if is_own_git_worktree; then
   printf 'fastlio_git_remote: %s\n' "$(git -C "${FASTLIO_SRC}" remote get-url origin 2>/dev/null || printf 'unknown')"
   printf 'fastlio_git_branch: %s\n' "$(git -C "${FASTLIO_SRC}" branch --show-current 2>/dev/null || printf 'unknown')"
   printf 'fastlio_git_commit: %s\n' "$(git -C "${FASTLIO_SRC}" rev-parse HEAD)"
@@ -119,6 +127,15 @@ else
   printf 'fastlio_git_remote: unknown\n'
   printf 'fastlio_git_branch: unknown\n'
   printf 'fastlio_git_commit: unknown\n'
+fi
+
+if [ -f "${FASTLIO_SRC}/.go2w_fastlio_provenance.env" ]; then
+  # shellcheck source=/dev/null
+  source "${FASTLIO_SRC}/.go2w_fastlio_provenance.env"
+  printf 'fastlio_provenance_repo: %s\n' "${GO2W_FASTLIO_REPO_URL:-unknown}"
+  printf 'fastlio_provenance_ref: %s\n' "${GO2W_FASTLIO_REF:-unknown}"
+  printf 'ikdtree_provenance_repo: %s\n' "${GO2W_IKDTREE_REPO_URL:-unknown}"
+  printf 'ikdtree_provenance_ref: %s\n' "${GO2W_IKDTREE_REF:-unknown}"
 fi
 
 print_ros_package fast_lio

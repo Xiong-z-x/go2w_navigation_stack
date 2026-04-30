@@ -72,7 +72,10 @@ class FastlioFrameContractAdapter(Node):
         self.declare_parameter("raw_laser_map_topic", "/Laser_map")
         self.declare_parameter("contract_odometry_topic", "/go2w/perception/odom")
         self.declare_parameter("contract_path_topic", "/go2w/perception/path")
-        self.declare_parameter("contract_cloud_registered_topic", "/go2w/perception/cloud_registered")
+        self.declare_parameter(
+            "contract_cloud_registered_topic",
+            "/go2w/perception/cloud_registered",
+        )
         self.declare_parameter("contract_cloud_body_topic", "/go2w/perception/cloud_body")
         self.declare_parameter("contract_laser_map_topic", "/go2w/perception/laser_map")
 
