@@ -53,6 +53,7 @@ class CommandGateCore:
 def main() -> None:
     import rclpy
     from geometry_msgs.msg import Twist
+    from rclpy.executors import ExternalShutdownException
     from rclpy.node import Node
     from std_msgs.msg import String
 
@@ -118,9 +119,12 @@ def main() -> None:
     node = CommandGateNode()
     try:
         rclpy.spin(node)
+    except (KeyboardInterrupt, ExternalShutdownException):
+        pass
     finally:
         node.destroy_node()
-        rclpy.shutdown()
+        if rclpy.ok():
+            rclpy.shutdown()
 
 
 if __name__ == "__main__":

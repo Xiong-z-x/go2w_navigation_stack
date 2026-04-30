@@ -58,7 +58,9 @@ def _zero_twist():
 
 def main() -> None:
     import rclpy
-    from rclpy.action import ActionServer
+    from rclpy.action import ActionServer, CancelResponse
+    from rclpy.callback_groups import ReentrantCallbackGroup
+    from rclpy.executors import ExternalShutdownException, MultiThreadedExecutor
     from rclpy.node import Node
 
     from go2w_control.action import StairExec
@@ -67,6 +69,7 @@ def main() -> None:
         def __init__(self) -> None:
             super().__init__("go2w_stair_executor")
             self._policy = StairExecutionPolicy()
+            self._callback_group = ReentrantCallbackGroup()
             self._owner_pub = self.create_publisher(
                 _string_msg("").__class__,
                 "/go2w/control/command_owner",
@@ -82,7 +85,12 @@ def main() -> None:
                 StairExec,
                 "/stair_exec",
                 self._execute_callback,
+                callback_group=self._callback_group,
+                cancel_callback=self._cancel_callback,
             )
+
+        def _cancel_callback(self, _cancel_request):
+            return CancelResponse.ACCEPT
 
         def _execute_callback(self, goal_handle):
             goal = goal_handle.request
@@ -159,11 +167,17 @@ def main() -> None:
 
     rclpy.init()
     node = StairExecutorNode()
+    executor = MultiThreadedExecutor()
+    executor.add_node(node)
     try:
-        rclpy.spin(node)
+        executor.spin()
+    except (KeyboardInterrupt, ExternalShutdownException):
+        pass
     finally:
+        executor.shutdown()
         node.destroy_node()
-        rclpy.shutdown()
+        if rclpy.ok():
+            rclpy.shutdown()
 
 
 if __name__ == "__main__":
