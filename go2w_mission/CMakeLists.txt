@@ -12,6 +12,7 @@ install(DIRECTORY launch
 
 install(PROGRAMS
   scripts/go2w_phase4a_handoff_demo
+  scripts/go2w_phase4b_mission_runtime
   DESTINATION lib/${PROJECT_NAME}
 )
 
@@ -25,6 +26,9 @@ if(BUILD_TESTING)
     APPEND_ENV PYTHONPATH=${CMAKE_CURRENT_SOURCE_DIR}
   )
   ament_add_pytest_test(test_phase4b_mission_segments test/test_phase4b_mission_segments.py
+    APPEND_ENV PYTHONPATH=${CMAKE_CURRENT_SOURCE_DIR}
+  )
+  ament_add_pytest_test(test_phase4b_mission_runtime test/test_phase4b_mission_runtime.py
     APPEND_ENV PYTHONPATH=${CMAKE_CURRENT_SOURCE_DIR}
   )
 endif()
