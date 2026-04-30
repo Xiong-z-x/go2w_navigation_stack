@@ -217,6 +217,12 @@ class Phase4BMissionRuntime:
             frame_id=self.route_frame_id,
         )
         goal.pose = _to_pose_stamped(spec)
+        if self.flat_mode == "flat_failure":
+            goal.behavior_tree = "failure"
+        elif self.flat_mode == "flat_timeout":
+            goal.behavior_tree = "timeout"
+        else:
+            goal.behavior_tree = "success"
 
         send_future = self.navigate_to_pose_client.send_goal_async(goal)
         if not _spin_until(self.node, send_future, 10.0):

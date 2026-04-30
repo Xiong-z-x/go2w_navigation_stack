@@ -1,4 +1,4 @@
-from go2w_navigation_runtime.flat_nav_executor import FlatNavPolicy
+from go2w_navigation_runtime.flat_nav_executor import FlatNavPolicy, parse_args
 
 
 def test_flat_nav_policy_result_code() -> None:
@@ -15,3 +15,16 @@ def test_flat_nav_policy_duration() -> None:
     assert policy.execution_duration(0.01, force_timeout=False) == 0.05
     assert policy.execution_duration(0.25, force_timeout=False) == 0.25
     assert policy.execution_duration(0.25, force_timeout=True) == 5.0
+
+
+def test_parse_args_leaves_ros_args_for_rclpy() -> None:
+    args, ros_args = parse_args([
+        "--mode",
+        "failure",
+        "--ros-args",
+        "--log-level",
+        "info",
+    ])
+
+    assert args.mode == "failure"
+    assert ros_args == ["--ros-args", "--log-level", "info"]

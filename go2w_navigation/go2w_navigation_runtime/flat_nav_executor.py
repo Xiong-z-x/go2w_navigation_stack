@@ -49,13 +49,13 @@ def _zero_twist():
     return Twist()
 
 
-def parse_args(argv: list[str]) -> argparse.Namespace:
+def parse_args(argv: list[str]) -> tuple[argparse.Namespace, list[str]]:
     parser = argparse.ArgumentParser()
     parser.add_argument("--action-name", default="/navigate_to_pose")
     parser.add_argument("--mode", choices=("success", "failure", "timeout"), default="success")
     parser.add_argument("--duration-sec", type=float, default=0.2)
     parser.add_argument("--timeout-duration-sec", type=float, default=5.0)
-    return parser.parse_args(argv)
+    return parser.parse_known_args(argv)
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -66,7 +66,8 @@ def main(argv: list[str] | None = None) -> None:
     from rclpy.executors import ExternalShutdownException, MultiThreadedExecutor
     from rclpy.node import Node
 
-    args = parse_args(sys.argv[1:] if argv is None else argv)
+    raw_argv = sys.argv[1:] if argv is None else argv
+    args, ros_args = parse_args(raw_argv)
 
     class FlatNavExecutorNode(Node):
         def __init__(self) -> None:
@@ -96,10 +97,12 @@ def main(argv: list[str] | None = None) -> None:
             return CancelResponse.ACCEPT
 
         def _execute_callback(self, goal_handle):
-            _ = goal_handle.request
+            request = goal_handle.request
             started = time.monotonic()
-            force_timeout = args.mode == "timeout"
-            force_fail = args.mode == "failure"
+            request_mode = request.behavior_tree.strip()
+            mode = request_mode if request_mode in {"success", "failure", "timeout"} else args.mode
+            force_timeout = mode == "timeout"
+            force_fail = mode == "failure"
             duration = self._policy.execution_duration(
                 args.duration_sec,
                 force_timeout=force_timeout,
@@ -135,7 +138,7 @@ def main(argv: list[str] | None = None) -> None:
             goal_handle.succeed()
             return NavigateToPose.Result()
 
-    rclpy.init()
+    rclpy.init(args=[sys.argv[0], *ros_args])
     node = FlatNavExecutorNode()
     executor = MultiThreadedExecutor()
     executor.add_node(node)

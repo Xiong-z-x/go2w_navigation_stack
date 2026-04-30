@@ -3,6 +3,7 @@
 
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
+from launch.conditions import IfCondition
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
@@ -14,6 +15,8 @@ def generate_launch_description():
     use_sim_time = LaunchConfiguration("use_sim_time")
     autostart = LaunchConfiguration("autostart")
     log_level = LaunchConfiguration("log_level")
+    launch_flat_nav_executor = LaunchConfiguration("launch_flat_nav_executor")
+    flat_nav_mode = LaunchConfiguration("flat_nav_mode")
 
     default_route_params_file = PathJoinSubstitution([
         FindPackageShare("go2w_navigation"),
@@ -51,6 +54,16 @@ def generate_launch_description():
             "log_level",
             default_value="info",
             description="ROS log level for Phase 4B-min nodes.",
+        ),
+        DeclareLaunchArgument(
+            "launch_flat_nav_executor",
+            default_value="true",
+            description="Launch the Phase 4C-min flat navigation verifier action server.",
+        ),
+        DeclareLaunchArgument(
+            "flat_nav_mode",
+            default_value="success",
+            description="Default mode for the Phase 4C-min flat navigation verifier.",
         ),
         Node(
             package="nav2_route",
@@ -91,5 +104,19 @@ def generate_launch_description():
             name="go2w_stair_executor",
             output="screen",
             arguments=["--ros-args", "--log-level", log_level],
+        ),
+        Node(
+            package="go2w_navigation",
+            executable="go2w_flat_nav_executor",
+            name="go2w_flat_nav_executor",
+            output="screen",
+            condition=IfCondition(launch_flat_nav_executor),
+            arguments=[
+                "--mode",
+                flat_nav_mode,
+                "--ros-args",
+                "--log-level",
+                log_level,
+            ],
         ),
     ])
