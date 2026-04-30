@@ -1,0 +1,134 @@
+{
+  "type": "FeatureCollection",
+  "name": "phase3b_same_floor_route",
+  "crs": {
+    "type": "name",
+    "properties": {
+      "name": "urn:ogc:def:crs:EPSG::3857"
+    }
+  },
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 0,
+        "frame": "odom"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [0.0, 0.0]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 1,
+        "frame": "odom"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [0.30, 0.0]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 2,
+        "frame": "odom"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [0.60, 0.0]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 3,
+        "frame": "odom"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [0.60, 0.30]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 10,
+        "startid": 0,
+        "endid": 1,
+        "overridable": true
+      },
+      "geometry": {
+        "type": "MultiLineString",
+        "coordinates": [[[0.0, 0.0], [0.30, 0.0]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 11,
+        "startid": 1,
+        "endid": 2,
+        "overridable": true
+      },
+      "geometry": {
+        "type": "MultiLineString",
+        "coordinates": [[[0.30, 0.0], [0.60, 0.0]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 12,
+        "startid": 2,
+        "endid": 3,
+        "overridable": true
+      },
+      "geometry": {
+        "type": "MultiLineString",
+        "coordinates": [[[0.60, 0.0], [0.60, 0.30]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 20,
+        "startid": 1,
+        "endid": 0,
+        "overridable": true
+      },
+      "geometry": {
+        "type": "MultiLineString",
+        "coordinates": [[[0.30, 0.0], [0.0, 0.0]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 21,
+        "startid": 2,
+        "endid": 1,
+        "overridable": true
+      },
+      "geometry": {
+        "type": "MultiLineString",
+        "coordinates": [[[0.60, 0.0], [0.30, 0.0]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 22,
+        "startid": 3,
+        "endid": 2,
+        "overridable": true
+      },
+      "geometry": {
+        "type": "MultiLineString",
+        "coordinates": [[[0.60, 0.30], [0.60, 0.0]]]
+      }
+    }
+  ]
+}

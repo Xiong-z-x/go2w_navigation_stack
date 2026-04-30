@@ -17,11 +17,12 @@ simulation-first 路线推进。
   TF authority、稳定 perception baseline、首个 Nav2 costmap consumer gate
   已完成并验收
 - `Phase 3A` 状态：最小同层 Nav2 planner/controller/BT 导航闭环已完成并验收
-- 当前唯一允许推进方向：Phase 3B 的最小 `nav2_route` / 手工 route graph
-  基线，必须继续按单任务、完整任务单、最小改动推进
+- `Phase 3B` 状态：最小 `nav2_route` / 手工 route graph 基线已完成并验收
+- `Phase 3` 状态：同层导航 + 拓扑骨架已完成并验收
+- 下一步只能在完整任务单下进入 `Phase 4A` 的最小楼梯状态机/控制权交接骨架
 
-不要把 Phase 3B 直接扩展成 mission orchestration、楼梯执行、多楼层行为、
-elevation mapping 或 traversability。
+不要把 Phase 4A 直接扩展成 production mission orchestration、真实楼梯控制器调参、
+多楼层自主行为、elevation mapping 或 traversability。
 
 ## 运行环境基线
 
@@ -338,14 +339,46 @@ Phase 3A 已新增最小同层 Nav2 导航闭环：
 docs/verification/phase3a_nav2_same_floor.md
 ```
 
-下一步只允许进入 Phase 3B 的最小 `nav2_route` / 手工 route graph 基线。必须
-继续消费 Phase 3A 已验收的 odom、TF、Nav2 和 costmap 输入。
+Phase 3B 已新增最小 `nav2_route` / 手工 route graph 基线：
+
+- `go2w_navigation` 声明 `nav2_route` runtime 依赖
+- 安装 `odom` frame 的手工 GeoJSON route graph
+- `route_server` lifecycle 可进入 `active`
+- `/route_server/set_route_graph` 可重载已安装 graph
+- `/compute_route` 可从 node `0` 到 node `3` 返回成功 route
+- 返回的 `Route` 和 `Path` 均为 `odom`
+- `/route_graph` 发布 `visualization_msgs/msg/MarkerArray`
+- 不启动 mission、楼梯、多楼层、elevation、traversability、`map_server` 或
+  `amcl` 节点
+
+验证命令：
+
+```bash
+./tools/verify_phase3b_route_graph.sh
+```
+
+当前 Phase 3B 结果：运行时门禁通过。记录见：
+
+```bash
+docs/verification/phase3b_route_graph_baseline.md
+```
+
+当前 Phase 3 结果：Phase 3A 同层 Nav2 运动闭环 + Phase 3B route graph
+可视化/计算基线均已通过，Phase 3 可关闭。
+
+Phase 3 总体验收记录见：
+
+```bash
+docs/verification/phase3_runtime_acceptance.md
+```
+
+下一步只允许在完整任务单下进入 Phase 4A 的最小楼梯状态机/控制权交接骨架。
 
 禁止顺手推进：
 
-- mission orchestration
-- staircase execution logic
-- multi-floor behavior
+- production mission orchestration
+- real staircase traversal controller tuning
+- multi-floor autonomous behavior
 - elevation mapping / traversability
 
 ## 协作纪律
