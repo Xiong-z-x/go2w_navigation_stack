@@ -104,6 +104,8 @@ production-grade Mission API skeleton 做单主题推进。不要把下一步扩
   `z_voxels` 提到 16 以上。
 - `go2w_control` 的 `stair_executor` 现在会读取 legged motion profile 并钳制 stair 线速度。
   这只是让 skeleton 和 motion baseline 对齐，不是已经调好的真实楼梯步态。
+- `go2w_control` 的 `stair_executor` 现在还会在 stair owner 激活时发布 12 关节 leg hold command。
+  这只是把姿态出口显式化，不代表真实楼梯行走调参完成。
 
 ## 上下文变长后的防失真做法
 - 每完成一个阶段或关键任务，更新 `architecture_state.md`。

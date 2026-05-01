@@ -20,7 +20,8 @@ stair detection, automatic connector generation, `map_server`, AMCL, or
   - non-owned command streams are muted
 - `go2w_control_runtime.stair_executor` provides the `/stair_exec` Action server
   skeleton, publishes observable command ownership, and now reuses the Go2W
-  legged motion profile as a conservative stair-command baseline.
+  legged motion profile as a conservative stair-command baseline. It also
+  publishes a 12-joint leg hold command while stair ownership is active.
 - `go2w_mission.phase4a_handoff_demo` uses the Phase 3C hospital route graph,
   calls `/compute_route`, detects the staircase connector edge, and calls
   `/stair_exec`.
@@ -147,6 +148,59 @@ Result:
 phase4_pre_handoff_result: PASS
 ```
 
+## Post-Hardening Regression
+
+Timestamp: `2026-05-01T23:23+08:00`
+
+Focused control unit tests:
+
+```bash
+PYTHONPATH=go2w_control python3 -m pytest \
+  go2w_control/test/test_stair_executor_policy.py \
+  go2w_control/test/test_motion_profiles.py \
+  go2w_control/test/test_command_gate.py \
+  -q
+```
+
+Result:
+
+```text
+15 passed in 0.03s
+```
+
+Package build and tests:
+
+```bash
+source /opt/ros/humble/setup.bash
+colcon build --symlink-install --packages-select go2w_control
+colcon test --packages-select go2w_control
+colcon test-result --verbose
+```
+
+Result:
+
+```text
+Summary: 71 tests, 0 errors, 0 failures, 0 skipped
+```
+
+Runtime regression:
+
+```bash
+./tools/verify_phase4a_stair_handoff.sh
+```
+
+Key output:
+
+```text
+phase4a_stair_handoff_result: PASS
+```
+
+The runtime evidence directory for this regression run was:
+
+```text
+/tmp/go2w_phase4a_stair_handoff_18265
+```
+
 ## Reproduction Command
 From the repository root:
 
@@ -168,4 +222,4 @@ outcomes.
   generation is implemented.
 - The staircase Action skeleton publishes only minimal diagnostic command
   behavior; it is not a tuned locomotion controller, even though it now clamps
-  its stair baseline to the legged motion profile.
+  its stair baseline to the legged motion profile and emits a leg hold outlet.

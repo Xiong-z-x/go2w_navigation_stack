@@ -11,6 +11,21 @@ from go2w_control_runtime.motion_profiles import (
 DEFAULT_STAIR_LINEAR_VELOCITY_MPS = 0.03
 
 
+def build_leg_hold_command_data(
+    profile: MotionModeProfile | None = None,
+) -> tuple[float, ...]:
+    resolved_profile = profile or get_go2w_motion_profiles().legged
+    return tuple(resolved_profile.stand_pose)
+
+
+def build_leg_hold_command(profile: MotionModeProfile | None = None):
+    from std_msgs.msg import Float64MultiArray
+
+    command = Float64MultiArray()
+    command.data = list(build_leg_hold_command_data(profile))
+    return command
+
+
 class StairExecutionPolicy:
     def __init__(
         self,
@@ -84,6 +99,8 @@ def main() -> None:
 
     class StairExecutorNode(Node):
         def __init__(self) -> None:
+            from std_msgs.msg import Float64MultiArray
+
             super().__init__("go2w_stair_executor")
             self._policy = StairExecutionPolicy()
             self._callback_group = ReentrantCallbackGroup()
@@ -95,6 +112,11 @@ def main() -> None:
             self._stair_cmd_pub = self.create_publisher(
                 _stair_twist(self._policy.stair_linear_velocity_mps).__class__,
                 "/go2w/control/stair_cmd_vel",
+                10,
+            )
+            self._leg_hold_pub = self.create_publisher(
+                Float64MultiArray,
+                "/leg_position_controller/commands",
                 10,
             )
             self._server = ActionServer(
@@ -117,6 +139,7 @@ def main() -> None:
                 force_timeout=bool(goal.force_timeout),
             )
             self._owner_pub.publish(_string_msg("stair"))
+            self._leg_hold_pub.publish(build_leg_hold_command(self._policy.profile))
 
             while rclpy.ok():
                 elapsed = time.monotonic() - started
@@ -126,6 +149,7 @@ def main() -> None:
                 feedback.progress = float(progress)
                 feedback.owner = "stair"
                 goal_handle.publish_feedback(feedback)
+                self._leg_hold_pub.publish(build_leg_hold_command(self._policy.profile))
                 self._stair_cmd_pub.publish(
                     _stair_twist(self._policy.stair_linear_velocity_mps)
                 )
@@ -147,6 +171,7 @@ def main() -> None:
                 time.sleep(0.1)
 
             self._stair_cmd_pub.publish(_zero_twist())
+            self._leg_hold_pub.publish(build_leg_hold_command(self._policy.profile))
             self._owner_pub.publish(_string_msg("flat"))
 
             if goal.force_fail:

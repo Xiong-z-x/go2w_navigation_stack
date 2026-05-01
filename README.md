@@ -170,7 +170,7 @@ ros2 launch go2w_sim sim_go2w_real.launch.py use_gpu:=false headless:=true launc
 - `diff_drive_controller.enable_odom_tf` 仍为 `False`
 - `go2w_stand_initializer` 可发布 12 关节站立命令
 - `go2w_stair_executor` 复用 legged motion profile 作为保守 stair baseline，
-  但仍不是真实楼梯控制器
+  并在 stair owner 激活时发布 12 关节 leg hold command，但仍不是真实楼梯控制器
 
 同层 real-model route-following verifier 可重复验证短 `NavigateToPose` 目标：
 

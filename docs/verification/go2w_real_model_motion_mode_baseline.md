@@ -49,6 +49,7 @@ go2w_real_model_baseline_result: PASS
 - The opt-in same-floor route-following verifier is documented separately in
   `docs/verification/go2w_real_model_route_following.md`.
 - `go2w_stair_executor` now reuses the same legged motion profile as its conservative stair-command baseline and clamps stair linear velocity to that profile ceiling. This keeps the control skeleton aligned with the motion-mode baseline, but it is still not a real stair controller.
+- `go2w_stair_executor` now also publishes a 12-joint leg hold command on `/leg_position_controller/commands` while stair ownership is active. This makes the posture outlet explicit, but it is still not a tuned stair gait controller.
 
 ## Open Validation Items
 - The real model path has not yet replaced the default placeholder path.

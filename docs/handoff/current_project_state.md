@@ -38,7 +38,7 @@ Gazebo GPU rendering 不是当前验收合同。RViz 可单独使用 WSLg/NVIDIA
   `sim_go2w_real.launch.py`。
 - `go2w_control`：Phase 4A 已新增 `StairExec` Action、command gate、
   owner->motion-mode state、Go2W motion profiles、stand initializer、minimal
-  stair executor skeleton；当前 stair executor policy 复用了 legged motion profile 并钳制 stair 线速度，但尚未实现真实楼梯运动控制器。
+  stair executor skeleton；当前 stair executor policy 复用了 legged motion profile、钳制 stair 线速度，并在 stair owner 激活时发布 12 关节 leg hold command，但尚未实现真实楼梯运动控制器。
 - `go2w_perception`：FAST-LIO 输入/输出 adapter、perception TF authority、
   `odom -> base_link` 发布链与测试。
 - `go2w_navigation`：Phase 2H costmap gate、Phase 3A Nav2 同层闭环、
