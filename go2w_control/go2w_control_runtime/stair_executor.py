@@ -1,14 +1,13 @@
 from __future__ import annotations
 
+import argparse
 import time
 
 from go2w_control_runtime.motion_profiles import (
     MotionModeProfile,
+    describe_motion_profile,
     get_go2w_motion_profiles,
 )
-
-
-DEFAULT_STAIR_LINEAR_VELOCITY_MPS = 0.03
 
 
 def build_leg_hold_command_data(
@@ -32,15 +31,20 @@ class StairExecutionPolicy:
         min_duration_sec: float = 0.05,
         timeout_duration_sec: float = 5.0,
         profile: MotionModeProfile | None = None,
-        stair_linear_velocity_mps: float = DEFAULT_STAIR_LINEAR_VELOCITY_MPS,
+        stair_linear_velocity_mps: float | None = None,
     ) -> None:
         self.min_duration_sec = min_duration_sec
         self.timeout_duration_sec = timeout_duration_sec
         self.profile = profile or get_go2w_motion_profiles().legged
         self.motion_mode = self.profile.mode
         self.stand_pose_joint_count = len(self.profile.stand_pose)
+        requested_velocity = (
+            self.profile.default_stair_linear_velocity_mps
+            if stair_linear_velocity_mps is None
+            else stair_linear_velocity_mps
+        )
         self.stair_linear_velocity_mps = min(
-            max(0.0, stair_linear_velocity_mps),
+            max(0.0, requested_velocity),
             self.profile.max_linear_velocity_mps,
         )
 
@@ -74,7 +78,7 @@ def _string_msg(value: str):
     return msg
 
 
-def _stair_twist(linear_x: float = DEFAULT_STAIR_LINEAR_VELOCITY_MPS):
+def _stair_twist(linear_x: float = 0.0):
     from geometry_msgs.msg import Twist
 
     msg = Twist()
@@ -97,12 +101,22 @@ def main() -> None:
 
     from go2w_control.action import StairExec
 
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--min-duration-sec", type=float, default=0.05)
+    parser.add_argument("--timeout-duration-sec", type=float, default=5.0)
+    parser.add_argument("--stair-linear-velocity-mps", type=float, default=None)
+    args, ros_args = parser.parse_known_args()
+
     class StairExecutorNode(Node):
         def __init__(self) -> None:
             from std_msgs.msg import Float64MultiArray
 
             super().__init__("go2w_stair_executor")
-            self._policy = StairExecutionPolicy()
+            self._policy = StairExecutionPolicy(
+                min_duration_sec=float(args.min_duration_sec),
+                timeout_duration_sec=float(args.timeout_duration_sec),
+                stair_linear_velocity_mps=args.stair_linear_velocity_mps,
+            )
             self._callback_group = ReentrantCallbackGroup()
             self._owner_pub = self.create_publisher(
                 _string_msg("").__class__,
@@ -126,6 +140,11 @@ def main() -> None:
                 self._execute_callback,
                 callback_group=self._callback_group,
                 cancel_callback=self._cancel_callback,
+            )
+            self.get_logger().info(
+                "go2w_stair_executor_profile: "
+                f"{describe_motion_profile(self._policy.profile)} "
+                f"stair_linear_velocity_mps={self._policy.stair_linear_velocity_mps:.3f}"
             )
 
         def _cancel_callback(self, _cancel_request):
@@ -209,7 +228,7 @@ def main() -> None:
             result.elapsed_time = _duration_msg(elapsed)
             return result
 
-    rclpy.init()
+    rclpy.init(args=ros_args)
     node = StairExecutorNode()
     executor = MultiThreadedExecutor()
     executor.add_node(node)

@@ -109,6 +109,29 @@ require_grep() {
   exit 2
 }
 
+wait_for_controller_states_active() {
+  local output_file="$1"
+  local timeout_seconds="$2"
+  local elapsed=0
+
+  while [ "${elapsed}" -lt "${timeout_seconds}" ]; do
+    if timeout 20s ros2 control list_controllers >"${output_file}" 2>&1; then
+      if grep -q "joint_state_broadcaster.*active" "${output_file}" \
+        && grep -q "leg_position_controller.*active" "${output_file}" \
+        && grep -q "diff_drive_controller.*active" "${output_file}"; then
+        print_kv "controller_states_ready" "PASS"
+        return 0
+      fi
+    fi
+    sleep 2
+    elapsed=$((elapsed + 2))
+  done
+
+  print_kv "controller_states_ready" "FAIL"
+  sed -n '1,220p' "${output_file}" || true
+  exit 2
+}
+
 main() {
   mkdir -p "${EVIDENCE_DIR}"
   export ROS_DOMAIN_ID="${DOMAIN_ID}"
@@ -136,9 +159,8 @@ main() {
   LAUNCH_PID="$!"
 
   wait_for_text "ign gazebo-" "${EVIDENCE_DIR}/go2w_real_model_launch.log" 25
-  wait_for_text "Configured and activated .*joint_state_broadcaster" "${EVIDENCE_DIR}/go2w_real_model_launch.log" 45
-  wait_for_text "Configured and activated .*leg_position_controller" "${EVIDENCE_DIR}/go2w_real_model_launch.log" 45
-  wait_for_text "Configured and activated .*diff_drive_controller" "${EVIDENCE_DIR}/go2w_real_model_launch.log" 45
+  wait_for_controller_states_active "${EVIDENCE_DIR}/controllers.txt" 75
+  wait_for_text "go2w_stand_initializer_profile: .*mode=legged .*body_height_m=0.32 .*foot_raise_height_m=0.09 .*gait_type=3 .*speed_level=0" "${EVIDENCE_DIR}/go2w_real_model_launch.log" 30
   wait_for_text "go2w_stand_initializer_result: PASS" "${EVIDENCE_DIR}/go2w_real_model_launch.log" 30
 
   timeout 15s ros2 topic echo --once /clock >"${EVIDENCE_DIR}/clock.txt" 2>&1
@@ -154,6 +176,8 @@ main() {
   require_grep "FL_hip_joint" "${EVIDENCE_DIR}/joint_states.txt" "joint_states_include_leg_joint"
   require_grep "FL_foot_joint" "${EVIDENCE_DIR}/joint_states.txt" "joint_states_include_wheel_joint"
   require_grep "Boolean value is: False" "${EVIDENCE_DIR}/diff_drive_enable_odom_tf.txt" "diff_drive_odom_tf_disabled"
+  require_grep "go2w_stand_initializer_profile: .*mode=legged .*body_height_m=0.32 .*foot_raise_height_m=0.09 .*gait_type=3 .*speed_level=0" "${EVIDENCE_DIR}/go2w_real_model_launch.log" "stand_initializer_profile_legged"
+  require_grep "go2w_stand_initializer_result: PASS motion_mode=legged" "${EVIDENCE_DIR}/go2w_real_model_launch.log" "stand_initializer_result_legged"
 
   print_kv "clock_message" "PASS"
   print_kv "imu_message" "PASS"

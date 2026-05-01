@@ -43,7 +43,7 @@ simulation-first 路线推进。
 - `Phase 4` 状态：Phase 4A、Phase 4B-min、Phase 4C-min、Phase 4D-min 和总验收 gate 已完成并验收
 - `Phase 5A` 证据门：live route tracking observation gate 已完成并验收，作为 Phase 4D-min 之外的 live route-server-backed 观察证据
 - Go2W real model / motion-mode baseline：真实 Go2W 模型、四足轮式 controller profile、
-  wheeled/legged mode state 和启动站立初始化已作为 opt-in 路径完成验证；同层
+  wheeled/legged mode state、显式 `legged` startup profile 日志和启动站立初始化已作为 opt-in 路径完成验证；同层
   real-model route-following verifier 也已通过短 `NavigateToPose` 目标验证；旧
   `sim.launch.py` placeholder 路径仍是默认基线
 - `go2w_mission` 还额外提供 opt-in `RunMission` Action skeleton 与 mission API
@@ -56,8 +56,8 @@ route tracking against robot motion、真实 `nav2_route` operation plugin、真
 控制器调参、多楼层自主行为、elevation mapping 或 traversability。
 
 也不要把 opt-in 真实模型基线误判成真实步态控制或楼梯动力学闭环；它只证明模型、
-controller、传感器 topic、`flat -> wheeled` / `stair -> legged` 状态和启动站立
-命令可重复验证。
+controller、传感器 topic、`flat -> wheeled` / `stair -> legged` 状态、controller
+state 轮询和启动站立命令可重复验证。
 
 ## 运行环境基线
 
@@ -169,13 +169,15 @@ ros2 launch go2w_sim sim_go2w_real.launch.py use_gpu:=false headless:=true launc
 
 - 官方 Go2W 模型资产可加载
 - `joint_state_broadcaster`、`leg_position_controller`、`diff_drive_controller`
-  进入 `active`
+  通过 controller-state 轮询进入 `active`
 - `/joint_states` 包含腿部关节和 foot wheel 关节
 - `/clock`、`/imu`、`/lidar_points` 可发布
 - `diff_drive_controller.enable_odom_tf` 仍为 `False`
-- `go2w_stand_initializer` 可发布 12 关节站立命令
+- `go2w_stand_initializer` 显式使用 `--motion-mode legged`，打印 profile 摘要，
+  并可发布 12 关节站立命令
 - `go2w_stair_executor` 复用 legged motion profile 作为保守 stair baseline，
-  并在 stair owner 激活时发布 12 关节 leg hold command，但仍不是真实楼梯控制器
+  默认 stair 线速度来自 profile 元数据，并在 stair owner 激活时发布 12 关节
+  leg hold command，但仍不是真实楼梯控制器
 
 同层 real-model route-following verifier 可重复验证短 `NavigateToPose` 目标：
 

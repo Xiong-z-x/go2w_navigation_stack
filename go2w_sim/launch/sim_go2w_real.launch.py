@@ -162,6 +162,7 @@ def generate_launch_description():
         executable='go2w_stand_initializer',
         output='screen',
         arguments=[
+            '--motion-mode', 'legged',
             '--duration-sec', '2.0',
             '--rate-hz', '20.0',
         ],

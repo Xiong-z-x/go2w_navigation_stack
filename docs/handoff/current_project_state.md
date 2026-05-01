@@ -39,6 +39,8 @@ Gazebo GPU rendering 不是当前验收合同。RViz 可单独使用 WSLg/NVIDIA
 - `go2w_control`：Phase 4A 已新增 `StairExec` Action、command gate、
   owner->motion-mode state、Go2W motion profiles、stand initializer、minimal
   stair executor skeleton；当前 stair executor policy 复用了 legged motion profile、钳制 stair 线速度，并在 stair owner 激活时发布 12 关节 leg hold command，但尚未实现真实楼梯运动控制器。
+  当前 real-model baseline 还把 `go2w_stand_initializer` 显式切到 `--motion-mode legged`，
+  并把 profile 摘要和 controller-state 轮询写进验收证据，避免再依赖单条 spawner 日志。
 - `go2w_perception`：FAST-LIO 输入/输出 adapter、perception TF authority、
   `odom -> base_link` 发布链与测试。
 - `go2w_navigation`：Phase 2H costmap gate、Phase 3A Nav2 同层闭环、
@@ -81,7 +83,8 @@ Gazebo GPU rendering 不是当前验收合同。RViz 可单独使用 WSLg/NVIDIA
 - Go2W real model / motion-mode baseline：通过
   `tools/verify_go2w_real_model_baseline.sh` 验证 opt-in 真实模型、四 foot wheel
   `diff_drive_controller`、腿部 position controller、sensor topics、joint states
-  和启动站立初始化。
+  和启动站立初始化；当前验收还要求 `go2w_stand_initializer_profile`、
+  `controller_states_ready` 与 `go2w_stand_initializer_result` 这些可审计日志键。
 - Go2W real model same-floor route-following verifier：通过
   `tools/verify_go2w_real_model_route_following.sh` 验证 opt-in 真实模型上的短
   `NavigateToPose` 同层目标、`phase5_real_model_nav2_same_floor.yaml` 参数文件、

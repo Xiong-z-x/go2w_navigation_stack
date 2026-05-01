@@ -100,6 +100,10 @@ connector discovery、mission recovery 做单主题推进。不要把下一步�
   spawner 显式 `--switch-timeout` / `--service-call-timeout`，并将四个 foot wheel
   collision 简化为与 `wheel_radius=0.10` 一致的圆柱。后续不要把这改回 mesh
   collision，除非先有新的 headless runtime 证据。
+- Real-model baseline verifier 现在不只看 spawner 文本日志，还轮询
+  `ros2 control list_controllers`，把 `controller_states_ready: PASS` 作为 controller
+  激活证据。以后遇到 spawner 重试或 `Configured and activated` 日志缺失，先看控制器
+  state，不要直接把 launch 判死。
 - Real-model same-floor route-following verifier 现已通过。对应 Nav2 参数文件是
   `go2w_navigation/config/phase5_real_model_nav2_same_floor.yaml`，当前关键值是
   `robot_radius: 0.28`、`footprint_padding: 0.01`、`origin_z: -0.40`、`z_voxels: 16`。
@@ -109,6 +113,9 @@ connector discovery、mission recovery 做单主题推进。不要把下一步�
   这只是让 skeleton 和 motion baseline 对齐，不是已经调好的真实楼梯步态。
 - `go2w_control` 的 `stair_executor` 现在还会在 stair owner 激活时发布 12 关节 leg hold command。
   这只是把姿态出口显式化，不代表真实楼梯行走调参完成。
+- `go2w_stand_initializer` 现在支持 `--motion-mode wheeled|legged`，real-model launch
+  显式传入 `--motion-mode legged` 并打印 profile 摘要；这只是启动姿态和诊断基线，
+  不是自动切换步态控制器。
 
 ## 上下文变长后的防失真做法
 - 每完成一个阶段或关键任务，更新 `architecture_state.md`。

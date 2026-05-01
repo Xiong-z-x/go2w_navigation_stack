@@ -59,6 +59,11 @@ class MotionModeProfile:
     max_linear_velocity_mps: float
     max_angular_velocity_rps: float
     stand_transition_sec: float
+    body_height_m: float
+    foot_raise_height_m: float
+    gait_type: int
+    speed_level: int
+    default_stair_linear_velocity_mps: float
 
 
 @dataclass(frozen=True)
@@ -74,6 +79,29 @@ def motion_mode_for_owner(owner: str) -> str:
     return OWNER_TO_MODE[normalized]
 
 
+def profile_for_motion_mode(mode: str) -> MotionModeProfile:
+    normalized = mode.strip().lower()
+    profiles = get_go2w_motion_profiles()
+    if normalized == "wheeled":
+        return profiles.wheeled
+    if normalized == "legged":
+        return profiles.legged
+    raise ValueError(f"unsupported motion mode: {mode}")
+
+
+def describe_motion_profile(profile: MotionModeProfile) -> str:
+    return (
+        f"owner={profile.owner} "
+        f"mode={profile.mode} "
+        f"body_height_m={profile.body_height_m:.2f} "
+        f"foot_raise_height_m={profile.foot_raise_height_m:.2f} "
+        f"gait_type={profile.gait_type} "
+        f"speed_level={profile.speed_level} "
+        f"default_stair_linear_velocity_mps={profile.default_stair_linear_velocity_mps:.3f} "
+        f"stand_transition_sec={profile.stand_transition_sec:.1f}"
+    )
+
+
 def get_go2w_motion_profiles() -> Go2WMotionProfiles:
     common = {
         "leg_joints": LEG_JOINTS,
@@ -82,20 +110,28 @@ def get_go2w_motion_profiles() -> Go2WMotionProfiles:
         "wheels_per_side": 2,
         "wheel_radius_m": 0.10,
         "wheel_separation_m": 0.38,
-        "max_linear_velocity_mps": 1.0,
         "max_angular_velocity_rps": 1.5,
         "stand_transition_sec": 2.0,
+        "body_height_m": 0.32,
+        "speed_level": 0,
     }
     return Go2WMotionProfiles(
         wheeled=MotionModeProfile(
             owner="flat",
             mode="wheeled",
+            max_linear_velocity_mps=1.0,
+            foot_raise_height_m=0.03,
+            gait_type=1,
+            default_stair_linear_velocity_mps=0.0,
             **common,
         ),
         legged=MotionModeProfile(
             owner="stair",
             mode="legged",
+            max_linear_velocity_mps=0.15,
+            foot_raise_height_m=0.09,
+            gait_type=3,
+            default_stair_linear_velocity_mps=0.025,
             **common,
         ),
     )
-

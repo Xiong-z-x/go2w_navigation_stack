@@ -38,7 +38,8 @@ def test_policy_uses_legged_motion_profile() -> None:
 
     assert policy.motion_mode == "legged"
     assert policy.stand_pose_joint_count == 12
-    assert policy.stair_linear_velocity_mps == 0.03
+    assert policy.stair_linear_velocity_mps == 0.025
+    assert policy.profile.default_stair_linear_velocity_mps == 0.025
 
 
 def test_stair_velocity_is_clamped_by_profile_limit() -> None:
@@ -51,6 +52,12 @@ def test_stair_velocity_is_clamped_by_profile_limit() -> None:
     )
 
     assert policy.stair_linear_velocity_mps == 0.02
+
+
+def test_stair_velocity_override_is_preserved_within_profile_limit() -> None:
+    policy = StairExecutionPolicy(stair_linear_velocity_mps=0.01)
+
+    assert policy.stair_linear_velocity_mps == 0.01
 
 
 def test_leg_hold_command_uses_profile_stand_pose() -> None:
