@@ -16,6 +16,7 @@
 | Python ROS entrypoint 拒绝 launch_ros 追加参数 | `go2w_flat_nav_executor` 初版使用严格 `argparse.parse_args()`，遇到 `--ros-args` 退出 | 改为 `parse_known_args()` 并将 ROS 参数交给 `rclpy.init(args=...)` | 已修复 |
 | Route tracking feedback / Route Operation 缺少 mission-side observation gate | Phase 4C-min 只证明 `NavigateToPose` flat Action gate，未观察 `ComputeAndTrackRoute` feedback 的 staircase edge 和 operation trigger | 新增 Phase 4D-min feedback executor、mission observer 和 `tools/verify_phase4d_route_tracking_feedback.sh`，验证 success、missing operation、unavailable action | 已修复 |
 | Phase 4 verifier domain id 可能越过 Fast-DDS 可用范围 | Phase 4D 初版曾生成过高 `ROS_DOMAIN_ID`；Phase 4C 旧公式理论上也可能超过 231 | Phase 4C/4D verifier 统一使用 `(($$ % 90) + 130)` 范围，避免 domain 范围型假失败 | 已修复 |
+| Phase 4 缺少总验收入口 | Phase 4A/4B/4C/4D 已有独立 verifier，但缺少一键串联的 Phase 4 完整验收证据 | 新增 `tools/verify_phase4_runtime_acceptance.sh` 和 `docs/verification/phase4_runtime_acceptance.md`，串联 pre-handoff、Phase 4A/4B/4C/4D、build/test 和 `colcon test-result` | 已修复 |
 
 ## 保留但已标注的历史内容
 - `docs/superpowers/` 中的早期 Phase 2/3 计划和设计文档保留为历史记录。

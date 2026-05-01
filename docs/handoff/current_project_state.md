@@ -14,10 +14,10 @@ simulation-first 的自主导航栈，最终实现：
 核心工程原则仍是：先闭环，再升级智能。
 
 ## 当前阶段
-- 当前正式阶段：`Phase 4D-min`
-- 当前状态：Phase 3A、Phase 3B、Phase 3C、Phase 4 迁移前封板、Phase 4A、Phase 4B-min、Phase 4C-min、Phase 4D-min 均已验收。
-- 当前 Phase 4D-min 范围：最小 route tracking feedback observation gate，覆盖 `ComputeAndTrackRoute` feedback 消费、staircase edge `500` 检测、`operations_triggered` 中 `stair_exec` 观测，以及 missing operation / unavailable action 诊断。
-- 下一步：只能在新的完整任务单或当前自主审批模式下的自批准任务单中推进 Phase 4D-min 之后的最小单主题任务。
+- 当前正式阶段：`Phase 4 accepted`
+- 当前状态：Phase 3A、Phase 3B、Phase 3C、Phase 4 迁移前封板、Phase 4A、Phase 4B-min、Phase 4C-min、Phase 4D-min 和 Phase 4 总体验收均已验收。
+- 当前 Phase 4 accepted 范围：manual-connector runtime chain，覆盖楼梯 handoff、mission route segmentation、flat/stair/flat Action 调度、`ComputeAndTrackRoute` feedback observation，以及 pre-handoff、Phase 4A/4B/4C/4D runtime verifiers、构建和测试的聚合验收。
+- 下一步：只能在新的完整任务单或当前自主审批模式下的自批准任务单中推进 post-Phase-4 的最小单主题任务。
 
 ## 当前环境基线
 - Ubuntu 22.04 / WSL2
@@ -66,6 +66,9 @@ Gazebo GPU rendering 不是当前验收合同。RViz 可单独使用 WSLg/NVIDIA
 - Phase 4D-min：通过 `ComputeAndTrackRoute` feedback verifier 和 mission observer
   验证 staircase edge `500` 可观测、`stair_exec` route operation trigger 可观测、
   missing operation 与 unavailable action 可诊断。
+- Phase 4 accepted：通过 `tools/verify_phase4_runtime_acceptance.sh` 串联
+  pre-handoff、Phase 4A/4B/4C/4D runtime verifiers、Phase 4 相关包 build/test 和
+  `colcon test-result --verbose`。
 
 ## 当前未完成内容
 - 未导入真实 Unitree Go2W 模型。

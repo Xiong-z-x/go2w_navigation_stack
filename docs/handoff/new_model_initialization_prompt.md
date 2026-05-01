@@ -22,7 +22,8 @@
 12. docs/verification/phase4b_mission_segment_runtime.md
 13. docs/verification/phase4c_flat_segment_gate.md
 14. docs/verification/phase4d_route_tracking_feedback.md
-15. README.md
+15. docs/verification/phase4_runtime_acceptance.md
+16. README.md
 
 不要跳过这些上下文。读完后先核对 git 状态、当前 Active Phase、唯一允许下一步
 边界和本地工作树是否有未提交改动。若文档与代码或脚本冲突，先报告冲突并验证，
@@ -37,10 +38,10 @@ ROS 2 Humble / Gazebo Fortress 环境中，按 simulation-first 路线构建从 
 核心原则：先闭环，再升级智能。不要为了“更先进”破坏当前可运行主线。
 
 三、当前阶段事实：
-当前正式阶段是已验收的 Phase 4D-min。Phase 1、Phase 2、Phase 3A、Phase 3B、
-Phase 3C、Phase 4 迁移前封板、Phase 4A、Phase 4B-min、Phase 4C-min 和
-Phase 4D-min 均已有仓库内验收证据。Phase 4D-min 只完成最小 route tracking
-feedback observation gate，不代表 production Mission Orchestrator、真实 Nav2 route
+当前正式阶段是已验收的 Phase 4 accepted。Phase 1、Phase 2、Phase 3A、Phase 3B、
+Phase 3C、Phase 4 迁移前封板、Phase 4A、Phase 4B-min、Phase 4C-min、Phase 4D-min
+和 Phase 4 accepted 均已有仓库内验收证据。Phase 4 accepted 只完成 manual-connector
+runtime chain 的总验收，不代表 production Mission Orchestrator、真实 Nav2 route
 tracking against robot motion 或真实跨楼层自主导航。
 
 四、Phase 4A 已验收边界：
@@ -81,10 +82,16 @@ perception TF authority 重构、map_server/AMCL 或真实多楼层自主系统�
 - 验证 operations_triggered 中的 stair_exec 可观测。
 - 验证 missing operation trigger 和 unavailable action 状态可诊断。
 
-Phase 4D-min 之后的任务不应顺手扩展成 production mission orchestration、真实爬楼
+Phase 4 accepted 之后的任务不应顺手扩展成 production mission orchestration、真实爬楼
 控制器调参、自动楼梯检测、elevation mapping、traversability、Unitree 模型导入、
 perception TF authority 重构、map_server/AMCL 或真实多楼层自主系统。任何下一步
 都必须另有完整任务单或当前自主审批模式下的自批准任务单。
+
+Phase 4 accepted 总验收：
+- 通过 `tools/verify_phase4_runtime_acceptance.sh` 串联 pre-handoff、Phase 4A/4B/4C/4D
+  runtime verifiers、Phase 4 相关包 build/test 与 `colcon test-result --verbose`。
+- 该总验收确认 Phase 4 的 manual-connector runtime chain 已闭环，但不升级为
+  production Mission Orchestrator。
 
 八、必须遵守的架构原则：
 - system_blueprint.md 和 interface_contracts.md 是最高架构事实源。
@@ -124,9 +131,10 @@ perception TF authority 重构、map_server/AMCL 或真实多楼层自主系统�
 4. 运行 ./tools/verify_phase4b_mission_segments.sh。
 5. 运行 ./tools/verify_phase4c_flat_segment_gate.sh。
 6. 运行 ./tools/verify_phase4d_route_tracking_feedback.sh。
-7. 读取 architecture_state.md 的 Accepted Work and Only Allowed Next Task。
-8. 如果要继续 Phase 4D-min 之后的任务，先生成完整 6 项任务单或自批准任务单。
-9. 只做一个最小任务，不混入真实楼梯控制、自动连接器、AMCL 或模型导入。
+7. 运行 ./tools/verify_phase4_runtime_acceptance.sh。
+8. 读取 architecture_state.md 的 Accepted Work and Only Allowed Next Task。
+9. 如果要继续 Phase 4 accepted 之后的任务，先生成完整 6 项任务单或自批准任务单。
+10. 只做一个最小任务，不混入真实楼梯控制、自动连接器、AMCL 或模型导入。
 
 十二、持续维护要求：
 每次阶段推进后，必须更新 architecture_state.md、必要的 docs/verification/*

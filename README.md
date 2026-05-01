@@ -13,6 +13,7 @@ simulation-first 路线推进。
 
 - `docs/handoff/README.md`
 - `docs/verification/phase4d_route_tracking_feedback.md`
+- `docs/verification/phase4_runtime_acceptance.md`
 - `docs/verification/phase4c_flat_segment_gate.md`
 - `docs/verification/phase4b_mission_segment_runtime.md`
 - `docs/verification/phase4a_stair_handoff_acceptance.md`
@@ -21,7 +22,7 @@ simulation-first 路线推进。
 
 ## 当前状态
 
-- 当前正式阶段：`Phase 4D-min`
+- 当前正式阶段：`Phase 4 accepted`
 - `Phase 1` 状态：仿真可控闭环已完成并进入可审计验收状态
 - `Phase 2` 状态：FAST-LIO2 输入/输出、感知侧 `odom -> base_link`
   TF authority、稳定 perception baseline、首个 Nav2 costmap consumer gate
@@ -35,8 +36,9 @@ simulation-first 路线推进。
 - `Phase 4B-min` 状态：最小 mission segment runtime 已完成并验收
 - `Phase 4C-min` 状态：最小 flat/stair/flat execution gate 已完成并验收
 - `Phase 4D-min` 状态：最小 route tracking feedback observation gate 已完成并验收
+- `Phase 4` 状态：Phase 4A、Phase 4B-min、Phase 4C-min、Phase 4D-min 和总验收 gate 已完成并验收
 
-不要把 Phase 4D-min runtime 误判成 production mission orchestration、真实 Nav2
+不要把 Phase 4 accepted 误判成 production mission orchestration、真实 Nav2
 route tracking against robot motion、真实 `nav2_route` operation plugin、真实楼梯
 控制器调参、多楼层自主行为、elevation mapping 或 traversability。
 
@@ -543,6 +545,31 @@ docs/verification/phase4d_route_tracking_feedback.md
 该阶段只验证 mission 侧能消费 `ComputeAndTrackRoute` feedback 形态并观察 route
 operation 触发信号；feedback source 仍是 verifier skeleton，不是真实机器人运动上的
 route tracking，也没有执行真实 `nav2_route` operation plugin。
+
+## 当前 Phase 4 accepted 总验收
+
+Phase 4 accepted 已通过一键总验收 gate：
+
+- `tools/verify_phase4_runtime_acceptance.sh` 串联 pre-handoff、Phase 4A/4B/4C/4D
+  runtime verifiers、Phase 4 相关包构建与测试
+- `docs/verification/phase4_runtime_acceptance.md` 记录最新总验收证据
+- `colcon test-result --verbose` 在 Phase 4 相关包上保持 0 errors / 0 failures
+
+验证命令：
+
+```bash
+./tools/verify_phase4_runtime_acceptance.sh
+```
+
+验收记录见：
+
+```bash
+docs/verification/phase4_runtime_acceptance.md
+```
+
+该总验收只确认 Phase 4 manual-connector runtime chain 已闭环，不引入 production
+Mission Orchestrator、真实 Nav2 route tracking against robot motion、真实楼梯
+控制器调参、多楼层自主行为或 automatic connector generation。
 
 Phase 4 迁移前交接包一致性检查仍可用于检查历史交接包结构：
 

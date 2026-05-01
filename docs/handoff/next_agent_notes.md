@@ -67,13 +67,14 @@ Phase 4A 当前只证明了控制权交接骨架：
 - Unitree 模型导入。
 - perception TF authority 重构。
 
-## Phase 4D-min 后续防漂移边界
+## Phase 4 accepted 后续防漂移边界
 Phase 4C-min 已完成 hand-authored staircase connector 上的最小 flat/stair/flat
 执行门；Phase 4D-min 已完成 `ComputeAndTrackRoute` feedback / Route Operation
-observation gate。后续最小任务必须另有完整任务单或当前自主审批模式下的自批准任务单，
-可以围绕 Phase 4 aggregate acceptance gate、mission recovery、或 production-grade
-Mission API skeleton 做单主题推进。不要把下一步扩大为真实多楼层
-自主、真实楼梯控制器调参、自动楼梯检测、traversability 或 `map -> odom` 定位链。
+observation gate；Phase 4 accepted 已完成总验收。后续最小任务必须另有完整任务单或
+当前自主审批模式下的自批准任务单，可以围绕 Phase 5 terrain-aware connector
+discovery、mission recovery、或 production-grade Mission API skeleton 做单主题推进。
+不要把下一步扩大为真实多楼层自主、真实楼梯控制器调参、自动楼梯检测、
+traversability 或 `map -> odom` 定位链。
 
 ## Runtime 验证注意
 - Phase 4B 回归曾出现一次非复现的 ROS discovery/lifecycle 等待失败：
