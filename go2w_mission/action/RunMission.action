@@ -1,0 +1,19 @@
+int64 start_id
+int64 goal_id
+string graph_file
+string route_frame_id
+float32 expected_stair_duration_sec
+float32 result_timeout_sec
+float32 flat_result_timeout_sec
+---
+bool success
+string result_code
+string message
+uint32 segment_count
+string segment_summary
+---
+string state
+uint32 current_segment_index
+string current_segment_type
+string active_owner
+float32 progress

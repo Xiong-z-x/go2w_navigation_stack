@@ -19,6 +19,7 @@ simulation-first 路线推进。
 - `docs/verification/phase4c_flat_segment_gate.md`
 - `docs/verification/phase4b_mission_segment_runtime.md`
 - `docs/verification/phase4a_stair_handoff_acceptance.md`
+- `docs/verification/mission_api_skeleton.md`
 - `docs/verification/go2w_real_model_route_following.md`
 - `docs/handoff/phase4_migration_handoff_report.md`
 - `docs/handoff/new_model_initialization_prompt.md`
@@ -45,6 +46,10 @@ simulation-first 路线推进。
   wheeled/legged mode state 和启动站立初始化已作为 opt-in 路径完成验证；同层
   real-model route-following verifier 也已通过短 `NavigateToPose` 目标验证；旧
   `sim.launch.py` placeholder 路径仍是默认基线
+- `go2w_mission` 还额外提供 opt-in `RunMission` Action skeleton 与 mission API
+  verifier，能诊断 route segmentation、flat/stair dispatch、invalid goal、
+  cancel、timeout、route unavailable 与 flat action unavailable，但仍不是 production
+  Mission Orchestrator。
 
 不要把 Phase 4 accepted 误判成 production mission orchestration、真实 Nav2
 route tracking against robot motion、真实 `nav2_route` operation plugin、真实楼梯

@@ -19,6 +19,9 @@
   Mission Orchestrator。它已经直接接通真实 `nav2_route` route_server 和
   `ComputeAndTrackRoute`，并观察到 `500` 与 `AdjustSpeedLimit`，但仍只是在受控 TF
   trajectory fixture 上做观察，不是机器人实运动。
+- 不要把 `go2w_mission` 的 `RunMission` skeleton 当成 production Mission
+  Orchestrator。它只是把 route compute、flat/stair dispatch 和诊断结果码串起来，
+  仍依赖现有 route server、`NavigateToPose` verifier 和 `/stair_exec` skeleton。
 - 不要把 `nav2_route` 当成 3D 地形规划器。它不是自动楼梯识别或 traversability。
 - 不要重新启用 `diff_drive_controller` 的 `odom -> base_link` TF。该边当前属于
   perception authority。
@@ -79,10 +82,10 @@ Phase 4C-min 已完成 hand-authored staircase connector 上的最小 flat/stair
 observation gate；Phase 5A 已补上 live route-server-backed route tracking 观察门；
 Go2W real model / motion-mode baseline 已补上 opt-in 真实模型、四 foot wheel
 controller profile、`flat -> wheeled` / `stair -> legged` 状态和启动站立验证；
-Phase 4 accepted 已完成总验收。后续最小任务必须另有完整任务单或当前自主审批模式
-下的自批准任务单，可以围绕 real-model route-following expansion、stair dynamics /
-control tuning、Phase 5 terrain-aware connector discovery、mission recovery、或
-production-grade Mission API skeleton 做单主题推进。不要把下一步扩大为真实多楼层
+Phase 4 accepted 已完成总验收；`RunMission` skeleton 也已完成并验证。后续最小任务
+必须另有完整任务单或当前自主审批模式下的自批准任务单，可以围绕 real-model
+route-following expansion、stair dynamics / control tuning、Phase 5 terrain-aware
+connector discovery、mission recovery 做单主题推进。不要把下一步扩大为真实多楼层
 自主、自动楼梯检测、traversability 或 `map -> odom` 定位链。
 
 ## Runtime 验证注意

@@ -22,6 +22,7 @@
 | Stair executor 的 motion profile 基线仍是隐式的 | `go2w_stair_executor` skeleton 只发固定 stair cmd，没有明确复用 Go2W legged profile | `StairExecutionPolicy` 现在读取 legged motion profile、发布保守 stair 线速度上限，并补充 unit tests；Phase 4A runtime 重新验证未回归 | 已修复 |
 | Stair executor 仍没有显式 leg hold 命令出口 | 仅有 `/go2w/control/stair_cmd_vel` 还不足以让 stair skeleton 对接 legged posture baseline | `go2w_stair_executor` 现在在 stair owner 激活时发布 12 关节 leg hold command 到 `/leg_position_controller/commands`，并通过单测与 Phase 4A runtime 复验 | 已修复 |
 | Phase 4 verifier domain id 可能越过 Fast-DDS 可用范围 | Phase 4D 初版曾生成过高 `ROS_DOMAIN_ID`；Phase 4C 旧公式理论上也可能超过 231 | Phase 4C/4D verifier 统一使用 `(($$ % 90) + 130)` 范围，避免 domain 范围型假失败 | 已修复 |
+| Mission API skeleton 包形态与 launch 参数不兼容 | `go2w_mission` 初版同时使用 `ament_python_install_package(${PROJECT_NAME})` 和 `rosidl_generate_interfaces`，且入口直接严格解析 `--ros-args` | 改为显式安装 Python 源码目录、保留 action 生成、并让入口使用 `parse_known_args()` + `rclpy.init(args=...)` 处理 launch 追加参数 | 已修复 |
 | Phase 4 缺少总验收入口 | Phase 4A/4B/4C/4D 已有独立 verifier，但缺少一键串联的 Phase 4 完整验收证据 | 新增 `tools/verify_phase4_runtime_acceptance.sh` 和 `docs/verification/phase4_runtime_acceptance.md`，串联 pre-handoff、Phase 4A/4B/4C/4D、build/test 和 `colcon test-result` | 已修复 |
 
 ## 保留但已标注的历史内容

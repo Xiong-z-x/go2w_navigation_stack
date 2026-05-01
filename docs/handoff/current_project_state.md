@@ -49,7 +49,9 @@ Gazebo GPU rendering 不是当前验收合同。RViz 可单独使用 WSLg/NVIDIA
   Phase 4B-min 已新增 one-shot mission segment runtime；Phase 4C-min 已将 flat
   segment 接入 navigation-owned `NavigateToPose` gate；Phase 4D-min 已新增
   route tracking feedback observer；Phase 5A 已新增 live route tracking probe；
-  尚未实现 production Mission Orchestrator。
+  现已额外提供 opt-in `RunMission` Action skeleton / mission API verifier，用于
+  route segmentation、flat/stair dispatch 和诊断结果码，但尚未实现 production
+  Mission Orchestrator。
 
 ## 已完成闭环
 - Phase 1：Gazebo + `gz_ros2_control` + `/cmd_vel` 底盘可控闭环。
@@ -87,6 +89,7 @@ Gazebo GPU rendering 不是当前验收合同。RViz 可单独使用 WSLg/NVIDIA
 
 ## 当前未完成内容
 - 真实 Go2W 模型仍是 opt-in 路径，尚未替换默认 placeholder 仿真基线。
+- `go2w_mission` 的 `RunMission` 仍是 skeleton，不是 production Mission Orchestrator。
 - 未实现 production Mission Orchestrator。
 - Phase 4C-min 的 flat executor 仍是 verifier skeleton，尚未被 production Nav2/nav2_route route tracking 实现替换；但 opt-in real-model same-floor route-following verifier 已通过短目标验证。
 - Phase 5A 已接入真实 `nav2_route` route_server feedback，但仍未验证真实机器人运动上的
