@@ -102,6 +102,8 @@ production-grade Mission API skeleton 做单主题推进。不要把下一步扩
   `robot_radius: 0.28`、`footprint_padding: 0.01`、`origin_z: -0.40`、`z_voxels: 16`。
   `voxel_grid` 在这个 runtime 里明确提示最多只支持 16 个 z values，所以不要把
   `z_voxels` 提到 16 以上。
+- `go2w_control` 的 `stair_executor` 现在会读取 legged motion profile 并钳制 stair 线速度。
+  这只是让 skeleton 和 motion baseline 对齐，不是已经调好的真实楼梯步态。
 
 ## 上下文变长后的防失真做法
 - 每完成一个阶段或关键任务，更新 `architecture_state.md`。

@@ -2,15 +2,32 @@ from __future__ import annotations
 
 import time
 
+from go2w_control_runtime.motion_profiles import (
+    MotionModeProfile,
+    get_go2w_motion_profiles,
+)
+
+
+DEFAULT_STAIR_LINEAR_VELOCITY_MPS = 0.03
+
 
 class StairExecutionPolicy:
     def __init__(
         self,
         min_duration_sec: float = 0.05,
         timeout_duration_sec: float = 5.0,
+        profile: MotionModeProfile | None = None,
+        stair_linear_velocity_mps: float = DEFAULT_STAIR_LINEAR_VELOCITY_MPS,
     ) -> None:
         self.min_duration_sec = min_duration_sec
         self.timeout_duration_sec = timeout_duration_sec
+        self.profile = profile or get_go2w_motion_profiles().legged
+        self.motion_mode = self.profile.mode
+        self.stand_pose_joint_count = len(self.profile.stand_pose)
+        self.stair_linear_velocity_mps = min(
+            max(0.0, stair_linear_velocity_mps),
+            self.profile.max_linear_velocity_mps,
+        )
 
     def result_code(self, *, force_fail: bool, canceled: bool) -> str:
         if canceled:
@@ -42,11 +59,11 @@ def _string_msg(value: str):
     return msg
 
 
-def _stair_twist():
+def _stair_twist(linear_x: float = DEFAULT_STAIR_LINEAR_VELOCITY_MPS):
     from geometry_msgs.msg import Twist
 
     msg = Twist()
-    msg.linear.x = 0.03
+    msg.linear.x = linear_x
     return msg
 
 
@@ -76,7 +93,7 @@ def main() -> None:
                 10,
             )
             self._stair_cmd_pub = self.create_publisher(
-                _stair_twist().__class__,
+                _stair_twist(self._policy.stair_linear_velocity_mps).__class__,
                 "/go2w/control/stair_cmd_vel",
                 10,
             )
@@ -109,7 +126,9 @@ def main() -> None:
                 feedback.progress = float(progress)
                 feedback.owner = "stair"
                 goal_handle.publish_feedback(feedback)
-                self._stair_cmd_pub.publish(_stair_twist())
+                self._stair_cmd_pub.publish(
+                    _stair_twist(self._policy.stair_linear_velocity_mps)
+                )
 
                 if goal_handle.is_cancel_requested:
                     self._stair_cmd_pub.publish(_zero_twist())

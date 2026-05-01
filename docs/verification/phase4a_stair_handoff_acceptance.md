@@ -19,7 +19,8 @@ stair detection, automatic connector generation, `map_server`, AMCL, or
   - owner `stair` forwards `/go2w/control/stair_cmd_vel` to `/cmd_vel`
   - non-owned command streams are muted
 - `go2w_control_runtime.stair_executor` provides the `/stair_exec` Action server
-  skeleton and publishes observable command ownership.
+  skeleton, publishes observable command ownership, and now reuses the Go2W
+  legged motion profile as a conservative stair-command baseline.
 - `go2w_mission.phase4a_handoff_demo` uses the Phase 3C hospital route graph,
   calls `/compute_route`, detects the staircase connector edge, and calls
   `/stair_exec`.
@@ -166,4 +167,5 @@ outcomes.
 - No automatic stair detection, traversability, or automatic connector
   generation is implemented.
 - The staircase Action skeleton publishes only minimal diagnostic command
-  behavior; it is not a tuned locomotion controller.
+  behavior; it is not a tuned locomotion controller, even though it now clamps
+  its stair baseline to the legged motion profile.

@@ -48,6 +48,7 @@ go2w_real_model_baseline_result: PASS
 - `command_gate` now publishes `/go2w/control/active_mode`, mapping `flat -> wheeled` and `stair -> legged`.
 - The opt-in same-floor route-following verifier is documented separately in
   `docs/verification/go2w_real_model_route_following.md`.
+- `go2w_stair_executor` now reuses the same legged motion profile as its conservative stair-command baseline and clamps stair linear velocity to that profile ceiling. This keeps the control skeleton aligned with the motion-mode baseline, but it is still not a real stair controller.
 
 ## Open Validation Items
 - The real model path has not yet replaced the default placeholder path.

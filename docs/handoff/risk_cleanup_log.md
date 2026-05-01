@@ -19,6 +19,7 @@
 | Unitree Go2W 真实模型未导入 | placeholder 两轮模型无法代表真实 Go2W 关节、foot wheel、传感器挂点和站立初始化 | 新增 opt-in `go2w_real.urdf`、官方 mesh 资产、`sim_go2w_real.launch.py`、四 foot wheel `diff_drive_controller`、腿部 position controller、`go2w_stand_initializer` 和 `tools/verify_go2w_real_model_baseline.sh` | 已部分修复 |
 | 真实模型 headless controller 激活初版超时 | 首轮 real-model verifier 中 `joint_state_broadcaster` 使用默认 5 秒 switch timeout，且 foot wheel mesh collision 使 Gazebo 控制器激活变慢 | 将四个 foot wheel collision 简化为与控制半径一致的圆柱，并给 real-model spawner 设置显式 `--switch-timeout` / `--service-call-timeout` | 已修复 |
 | 真实模型同层 route-following 初版失败 | real-model Nav2 目标开始后出现 costmap sensor origin 越过下边界的警告，随后一次修正又把 `z_voxels` 提到 22，触发 voxel grid 上限错误 | 新增 `go2w_navigation/config/phase5_real_model_nav2_same_floor.yaml` 和 `tools/verify_go2w_real_model_route_following.sh`，最终采用 `robot_radius: 0.28`、`footprint_padding: 0.01`、`origin_z: -0.40`、`z_voxels: 16` 并通过短同层 `NavigateToPose` 验证 | 已修复 |
+| Stair executor 的 motion profile 基线仍是隐式的 | `go2w_stair_executor` skeleton 只发固定 stair cmd，没有明确复用 Go2W legged profile | `StairExecutionPolicy` 现在读取 legged motion profile、发布保守 stair 线速度上限，并补充 unit tests；Phase 4A runtime 重新验证未回归 | 已修复 |
 | Phase 4 verifier domain id 可能越过 Fast-DDS 可用范围 | Phase 4D 初版曾生成过高 `ROS_DOMAIN_ID`；Phase 4C 旧公式理论上也可能超过 231 | Phase 4C/4D verifier 统一使用 `(($$ % 90) + 130)` 范围，避免 domain 范围型假失败 | 已修复 |
 | Phase 4 缺少总验收入口 | Phase 4A/4B/4C/4D 已有独立 verifier，但缺少一键串联的 Phase 4 完整验收证据 | 新增 `tools/verify_phase4_runtime_acceptance.sh` 和 `docs/verification/phase4_runtime_acceptance.md`，串联 pre-handoff、Phase 4A/4B/4C/4D、build/test 和 `colcon test-result` | 已修复 |
 
@@ -38,6 +39,6 @@
 | Phase 3C route graph 是手工 floor atlas | 目的是给 Phase 4 手工连接器提供基线，不是自动建图结果 | Phase 4 先证明控制交接；Phase 5 再自动连接器 |
 | 没有 production Mission Orchestrator | Phase 4B-min 只新增 one-shot mission segment runtime，不是长生命周期调度器 | 后续用独立完整任务单推进 production-grade mission API、恢复策略或状态持久化 |
 | Phase 4C-min flat executor 仍是 verifier skeleton | 本阶段只证明 mission 到 navigation-owned `NavigateToPose` gate 的调度；当前 real-model short `NavigateToPose` verifier 尚未替换 mission runtime skeleton | 后续 production mission / real route-tracking integration 任务处理 |
-| 真实楼梯执行控制器调参仍未覆盖 | Phase 5A 只验证 live route-server 反馈观察，不覆盖物理楼梯运动学 | 后续 dedicated stair executor/control tuning 任务处理 |
+| 真实楼梯执行控制器调参仍未覆盖 | Phase 5A 只验证 live route-server 反馈观察；当前 stair executor 只是 profile-aware skeleton，不覆盖物理楼梯运动学 | 后续 dedicated stair executor/control tuning 任务处理 |
 | ROS discovery/lifecycle 偶发等待 | 曾有一次 Phase 4B 回归中 `route_server` 进程已启动但 lifecycle service 未被发现；换新 domain 复跑通过 | 先清理残留并换新 `ROS_DOMAIN_ID` 复跑；若复现，再单独加 discovery 诊断 |
 | 没有 `map -> odom` 定位融合链 | Phase 3A 有意运行在 `odom`，Phase 3C 只提供 `map` 资产 | 后续定位/地图服务任务单再引入 |
