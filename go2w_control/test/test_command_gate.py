@@ -5,6 +5,7 @@ def test_default_owner_is_flat() -> None:
     gate = CommandGateCore()
 
     assert gate.active_owner == "flat"
+    assert gate.active_mode == "wheeled"
 
 
 def test_flat_owner_forwards_only_flat_commands() -> None:
@@ -18,6 +19,7 @@ def test_stair_owner_forwards_only_stair_commands() -> None:
     gate = CommandGateCore()
 
     assert gate.set_owner("stair") is True
+    assert gate.active_mode == "legged"
     assert gate.should_forward("flat") is False
     assert gate.should_forward("stair") is True
 
@@ -28,6 +30,7 @@ def test_invalid_owner_is_rejected_without_state_change() -> None:
     assert gate.set_owner("flying") is False
 
     assert gate.active_owner == "flat"
+    assert gate.active_mode == "wheeled"
     assert gate.last_rejected_owner == "flying"
 
 

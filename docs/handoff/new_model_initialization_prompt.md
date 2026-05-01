@@ -23,7 +23,9 @@
 13. docs/verification/phase4c_flat_segment_gate.md
 14. docs/verification/phase4d_route_tracking_feedback.md
 15. docs/verification/phase4_runtime_acceptance.md
-16. README.md
+16. docs/verification/go2w_real_model_motion_mode_baseline.md
+17. docs/verification/go2w_real_model_route_following.md
+18. README.md
 
 不要跳过这些上下文。读完后先核对 git 状态、当前 Active Phase、唯一允许下一步
 边界和本地工作树是否有未提交改动。若文档与代码或脚本冲突，先报告冲突并验证，
@@ -44,6 +46,11 @@ Phase 3C、Phase 4 迁移前封板、Phase 4A、Phase 4B-min、Phase 4C-min、Ph
 runtime chain 的总验收，不代表 production Mission Orchestrator、真实 Nav2 route
 tracking against robot motion 或真实跨楼层自主导航。
 
+Phase 4 accepted 之后，仓库还新增了三项 opt-in 证据门：Phase 5A live route tracking
+observation gate、Go2W real model / motion-mode baseline，以及 real-model same-floor
+route-following verifier。它们不改变正式 active phase 标签，也不代表真实楼梯动力学
+或 production gait controller 已完成。
+
 四、Phase 4A 已验收边界：
 - 使用 Phase 3C 手工 route graph 中的 staircase connector metadata。
 - 通过 route_server 计算经过 staircase edge 500 的 route。
@@ -59,7 +66,7 @@ tracking against robot motion 或真实跨楼层自主导航。
 - 验证成功、失败、取消、超时、route unavailable、connector unavailable 状态可诊断。
 
 Phase 4B-min 当时的后续任务不应顺手扩展成 production mission orchestration、真实爬楼
-控制器调参、自动楼梯检测、elevation mapping、traversability、Unitree 模型导入、
+控制器调参、自动楼梯检测、elevation mapping、traversability、将 opt-in real-model 路径切为默认基线、
 perception TF authority 重构或真实多楼层自主系统。任何下一步都必须另有完整任务单。
 
 六、Phase 4C-min 已验收边界：
@@ -70,7 +77,7 @@ perception TF authority 重构或真实多楼层自主系统。任何下一步�
 - 验证 flat failure、flat cancel、flat timeout、flat unavailable 状态可诊断。
 
 Phase 4C-min 之后的任务不应顺手扩展成 production mission orchestration、真实爬楼
-控制器调参、自动楼梯检测、elevation mapping、traversability、Unitree 模型导入、
+控制器调参、自动楼梯检测、elevation mapping、traversability、将 opt-in real-model 路径切为默认基线、
 perception TF authority 重构、map_server/AMCL 或真实多楼层自主系统。任何下一步
 都必须另有完整任务单或当前自主审批模式下的自批准任务单。
 
@@ -83,7 +90,7 @@ perception TF authority 重构、map_server/AMCL 或真实多楼层自主系统�
 - 验证 missing operation trigger 和 unavailable action 状态可诊断。
 
 Phase 4 accepted 之后的任务不应顺手扩展成 production mission orchestration、真实爬楼
-控制器调参、自动楼梯检测、elevation mapping、traversability、Unitree 模型导入、
+控制器调参、自动楼梯检测、elevation mapping、traversability、将 opt-in real-model 路径切为默认基线、
 perception TF authority 重构、map_server/AMCL 或真实多楼层自主系统。任何下一步
 都必须另有完整任务单或当前自主审批模式下的自批准任务单。
 

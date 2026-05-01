@@ -15,7 +15,7 @@ simulation-first 的自主导航栈，最终实现：
 
 ## 当前阶段
 - 当前正式阶段：`Phase 4 accepted`
-- 当前状态：Phase 3A、Phase 3B、Phase 3C、Phase 4 迁移前封板、Phase 4A、Phase 4B-min、Phase 4C-min、Phase 4D-min 和 Phase 4 总体验收均已验收。
+- 当前状态：Phase 3A、Phase 3B、Phase 3C、Phase 4 迁移前封板、Phase 4A、Phase 4B-min、Phase 4C-min、Phase 4D-min、Phase 4 总体验收、Phase 5A live route tracking observation gate、opt-in Go2W real model / motion-mode baseline 和 opt-in real-model same-floor route-following verifier 均已有仓库内验收证据。
 - 当前 Phase 4 accepted 范围：manual-connector runtime chain，覆盖楼梯 handoff、mission route segmentation、flat/stair/flat Action 调度、`ComputeAndTrackRoute` feedback observation，以及 pre-handoff、Phase 4A/4B/4C/4D runtime verifiers、构建和测试的聚合验收。
 - 下一步：只能在新的完整任务单或当前自主审批模式下的自批准任务单中推进 post-Phase-4 的最小单主题任务。
 
@@ -31,20 +31,24 @@ Gazebo GPU rendering 不是当前验收合同。RViz 可单独使用 WSLg/NVIDIA
 环境，但这不改变 Gazebo 软件渲染基线。
 
 ## 当前核心模块状态
-- `go2w_description`：占位机器人 URDF、RViz 配置、robot_state_publisher launch。
+- `go2w_description`：占位机器人 URDF、opt-in 真实 Go2W URDF/mesh baseline、
+  RViz 配置、robot_state_publisher launch。
 - `go2w_sim`：Fortress-only Gazebo launch、empty world、Phase 3A feature world、
-  Phase 3C hospital world、桥接与 controller orchestration。
+  Phase 3C hospital world、桥接与 controller orchestration、opt-in
+  `sim_go2w_real.launch.py`。
 - `go2w_control`：Phase 4A 已新增 `StairExec` Action、command gate、
-  minimal stair executor skeleton；尚未实现真实楼梯运动控制器。
+  owner->motion-mode state、Go2W motion profiles、stand initializer、minimal
+  stair executor skeleton；尚未实现真实楼梯运动控制器。
 - `go2w_perception`：FAST-LIO 输入/输出 adapter、perception TF authority、
   `odom -> base_link` 发布链与测试。
 - `go2w_navigation`：Phase 2H costmap gate、Phase 3A Nav2 同层闭环、
   Phase 3B/3C route graph baseline、Phase 4C-min flat navigation executor skeleton、
-  Phase 4D-min route tracking feedback executor skeleton。
+  Phase 4D-min route tracking feedback executor skeleton、Phase 5 real-model same-floor
+  Nav2 params file 和 route-following verifier。
 - `go2w_mission`：Phase 4A 已新增 handoff demo 和最小 launch 验证路径；
   Phase 4B-min 已新增 one-shot mission segment runtime；Phase 4C-min 已将 flat
   segment 接入 navigation-owned `NavigateToPose` gate；Phase 4D-min 已新增
-  route tracking feedback observer；
+  route tracking feedback observer；Phase 5A 已新增 live route tracking probe；
   尚未实现 production Mission Orchestrator。
 
 ## 已完成闭环
@@ -69,13 +73,24 @@ Gazebo GPU rendering 不是当前验收合同。RViz 可单独使用 WSLg/NVIDIA
 - Phase 4 accepted：通过 `tools/verify_phase4_runtime_acceptance.sh` 串联
   pre-handoff、Phase 4A/4B/4C/4D runtime verifiers、Phase 4 相关包 build/test 和
   `colcon test-result --verbose`。
+- Phase 5A：通过 `tools/verify_phase5a_live_route_tracking.sh` 直接观察真实
+  `nav2_route` route_server / `ComputeAndTrackRoute` feedback 中的 staircase edge
+  `500` 和 `AdjustSpeedLimit` operation metadata。
+- Go2W real model / motion-mode baseline：通过
+  `tools/verify_go2w_real_model_baseline.sh` 验证 opt-in 真实模型、四 foot wheel
+  `diff_drive_controller`、腿部 position controller、sensor topics、joint states
+  和启动站立初始化。
+- Go2W real model same-floor route-following verifier：通过
+  `tools/verify_go2w_real_model_route_following.sh` 验证 opt-in 真实模型上的短
+  `NavigateToPose` 同层目标、`phase5_real_model_nav2_same_floor.yaml` 参数文件、
+  perception-owned `odom -> base_link`、`/cmd_vel` 运动和 Nav2 生命周期。
 
 ## 当前未完成内容
-- 未导入真实 Unitree Go2W 模型。
+- 真实 Go2W 模型仍是 opt-in 路径，尚未替换默认 placeholder 仿真基线。
 - 未实现 production Mission Orchestrator。
-- Phase 4C-min 的 flat executor 仍是 verifier skeleton，未运行真实 Nav2 route tracking against robot motion。
-- Phase 4D-min 的 route feedback executor 仍是 verifier skeleton，未运行真实
-  `nav2_route` route tracking against robot motion，也未执行真实 route operation plugin。
+- Phase 4C-min 的 flat executor 仍是 verifier skeleton，尚未被 production Nav2/nav2_route route tracking 实现替换；但 opt-in real-model same-floor route-following verifier 已通过短目标验证。
+- Phase 5A 已接入真实 `nav2_route` route_server feedback，但仍未验证真实机器人运动上的
+  route tracking。
 - 未实现真实楼梯运动控制器和控制参数调优。
 - 未实现真实跨楼层自主行为。
 - 未实现 `map_server` / AMCL / `map -> odom` 定位链。

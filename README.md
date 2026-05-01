@@ -13,10 +13,13 @@ simulation-first 路线推进。
 
 - `docs/handoff/README.md`
 - `docs/verification/phase4d_route_tracking_feedback.md`
+- `docs/verification/phase5a_live_route_tracking.md`
+- `docs/verification/go2w_real_model_motion_mode_baseline.md`
 - `docs/verification/phase4_runtime_acceptance.md`
 - `docs/verification/phase4c_flat_segment_gate.md`
 - `docs/verification/phase4b_mission_segment_runtime.md`
 - `docs/verification/phase4a_stair_handoff_acceptance.md`
+- `docs/verification/go2w_real_model_route_following.md`
 - `docs/handoff/phase4_migration_handoff_report.md`
 - `docs/handoff/new_model_initialization_prompt.md`
 
@@ -37,10 +40,19 @@ simulation-first 路线推进。
 - `Phase 4C-min` 状态：最小 flat/stair/flat execution gate 已完成并验收
 - `Phase 4D-min` 状态：最小 route tracking feedback observation gate 已完成并验收
 - `Phase 4` 状态：Phase 4A、Phase 4B-min、Phase 4C-min、Phase 4D-min 和总验收 gate 已完成并验收
+- `Phase 5A` 证据门：live route tracking observation gate 已完成并验收，作为 Phase 4D-min 之外的 live route-server-backed 观察证据
+- Go2W real model / motion-mode baseline：真实 Go2W 模型、四足轮式 controller profile、
+  wheeled/legged mode state 和启动站立初始化已作为 opt-in 路径完成验证；同层
+  real-model route-following verifier 也已通过短 `NavigateToPose` 目标验证；旧
+  `sim.launch.py` placeholder 路径仍是默认基线
 
 不要把 Phase 4 accepted 误判成 production mission orchestration、真实 Nav2
 route tracking against robot motion、真实 `nav2_route` operation plugin、真实楼梯
 控制器调参、多楼层自主行为、elevation mapping 或 traversability。
+
+也不要把 opt-in 真实模型基线误判成真实步态控制或楼梯动力学闭环；它只证明模型、
+controller、传感器 topic、`flat -> wheeled` / `stair -> legged` 状态和启动站立
+命令可重复验证。
 
 ## 运行环境基线
 
@@ -134,6 +146,39 @@ colcon build --symlink-install --packages-select go2w_description go2w_sim
 - 验证启动日志使用 `ign gazebo-6`
 - 验证 `joint_state_broadcaster` 和 `diff_drive_controller` 为 `active`
 - 验证 `/clock`、`/imu`、`/lidar_points` 能产生消息
+
+真实 Go2W 模型与运动模式基线是独立 opt-in 路径：
+
+```bash
+./tools/verify_go2w_real_model_baseline.sh
+```
+
+该脚本会构建 `go2w_description`、`go2w_control`、`go2w_sim`，然后 headless
+启动：
+
+```bash
+ros2 launch go2w_sim sim_go2w_real.launch.py use_gpu:=false headless:=true launch_rviz:=false
+```
+
+验证内容包括：
+
+- 官方 Go2W 模型资产可加载
+- `joint_state_broadcaster`、`leg_position_controller`、`diff_drive_controller`
+  进入 `active`
+- `/joint_states` 包含腿部关节和 foot wheel 关节
+- `/clock`、`/imu`、`/lidar_points` 可发布
+- `diff_drive_controller.enable_odom_tf` 仍为 `False`
+- `go2w_stand_initializer` 可发布 12 关节站立命令
+
+同层 real-model route-following verifier 可重复验证短 `NavigateToPose` 目标：
+
+```bash
+./tools/verify_go2w_real_model_route_following.sh
+```
+
+该脚本使用 `go2w_navigation/config/phase5_real_model_nav2_same_floor.yaml`，
+以 real-model 参数文件保留 perception-owned `odom -> base_link`，验证短同层
+目标到达，不是 production route tracking，也不是楼梯动力学。
 
 如需在已启动仿真后检查 Phase 1 topic / TF 验收项：
 
@@ -546,6 +591,11 @@ docs/verification/phase4d_route_tracking_feedback.md
 operation 触发信号；feedback source 仍是 verifier skeleton，不是真实机器人运动上的
 route tracking，也没有执行真实 `nav2_route` operation plugin。
 
+Phase 5A live route tracking observation gate 已将 route-feedback 验证接到真实
+`nav2_route` route_server 和 `ComputeAndTrackRoute`，当前优先查看
+`docs/verification/phase5a_live_route_tracking.md`。它仍然只是受控 TF trajectory
+fixture 下的观察，不是物理楼梯动力学或 production Mission Orchestrator。
+
 ## 当前 Phase 4 accepted 总验收
 
 Phase 4 accepted 已通过一键总验收 gate：
@@ -580,7 +630,7 @@ Phase 4 迁移前交接包一致性检查仍可用于检查历史交接包结构
 后续任务禁止顺手推进：
 
 - production mission orchestration
-- real Nav2 route tracking against robot motion
+- production real Nav2 / nav2_route route tracking expansion beyond the accepted short real-model verifier
 - real staircase traversal controller tuning
 - multi-floor autonomous behavior
 - elevation mapping / traversability

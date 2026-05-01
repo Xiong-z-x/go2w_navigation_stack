@@ -15,6 +15,10 @@
   tracking 或真实 `nav2_route` operation plugin。它只证明 mission observer 能消费
   `ComputeAndTrackRoute` feedback，检测 staircase edge `500`，并观察
   `operations_triggered` 中的 `stair_exec`。
+- 不要把 Phase 5A live route tracking observation gate 当成物理楼梯动力学或 production
+  Mission Orchestrator。它已经直接接通真实 `nav2_route` route_server 和
+  `ComputeAndTrackRoute`，并观察到 `500` 与 `AdjustSpeedLimit`，但仍只是在受控 TF
+  trajectory fixture 上做观察，不是机器人实运动。
 - 不要把 `nav2_route` 当成 3D 地形规划器。它不是自动楼梯识别或 traversability。
 - 不要重新启用 `diff_drive_controller` 的 `odom -> base_link` TF。该边当前属于
   perception authority。
@@ -23,7 +27,9 @@
   `.go2w_external/`。
 - 不要混入 Gazebo Garden/Harmonic，也不要默认 Gazebo GPU rendering。
 - 不要在仓库根再创建嵌套 `src/`。本仓库自己就是 monorepo root。
-- 不要把 Unitree Go2W 真实模型加载视为已完成。当前仍是 placeholder。
+- 不要把 Go2W real model / motion-mode baseline 当成默认仿真基线或真实步态控制。
+  当前真实模型路径是 opt-in：`go2w_sim sim_go2w_real.launch.py`；旧
+  `go2w_sim sim.launch.py` placeholder 路径仍是既有验证默认。
 
 ## 最容易产生误判的地方
 - README 是操作摘要，不是架构事实源。
@@ -64,17 +70,20 @@ Phase 4A 当前只证明了控制权交接骨架：
 - 真正爬楼控制器调参。
 - 自动楼梯检测。
 - elevation mapping / traversability。
-- Unitree 模型导入。
+- 将 real-model opt-in 路径切成默认基线。
 - perception TF authority 重构。
 
 ## Phase 4 accepted 后续防漂移边界
 Phase 4C-min 已完成 hand-authored staircase connector 上的最小 flat/stair/flat
 执行门；Phase 4D-min 已完成 `ComputeAndTrackRoute` feedback / Route Operation
-observation gate；Phase 4 accepted 已完成总验收。后续最小任务必须另有完整任务单或
-当前自主审批模式下的自批准任务单，可以围绕 Phase 5 terrain-aware connector
-discovery、mission recovery、或 production-grade Mission API skeleton 做单主题推进。
-不要把下一步扩大为真实多楼层自主、真实楼梯控制器调参、自动楼梯检测、
-traversability 或 `map -> odom` 定位链。
+observation gate；Phase 5A 已补上 live route-server-backed route tracking 观察门；
+Go2W real model / motion-mode baseline 已补上 opt-in 真实模型、四 foot wheel
+controller profile、`flat -> wheeled` / `stair -> legged` 状态和启动站立验证；
+Phase 4 accepted 已完成总验收。后续最小任务必须另有完整任务单或当前自主审批模式
+下的自批准任务单，可以围绕 real-model route-following expansion、stair dynamics /
+control tuning、Phase 5 terrain-aware connector discovery、mission recovery、或
+production-grade Mission API skeleton 做单主题推进。不要把下一步扩大为真实多楼层
+自主、自动楼梯检测、traversability 或 `map -> odom` 定位链。
 
 ## Runtime 验证注意
 - Phase 4B 回归曾出现一次非复现的 ROS discovery/lifecycle 等待失败：
@@ -83,6 +92,16 @@ traversability 或 `map -> odom` 定位链。
   不要直接改 route graph 或 route server 配置。
 - ROS 2 Fast-DDS domain id 必须保持在可用范围内；Phase 4C/4D verifier 使用
   `(($$ % 90) + 130)`，避免旧公式偶发生成过高 domain id 导致假失败。
+- Real-model verifier 初版曾因 `joint_state_broadcaster` 默认 5 秒 switch timeout
+  和 foot wheel mesh collision 过重而超时。当前修正是：real-model launch 给
+  spawner 显式 `--switch-timeout` / `--service-call-timeout`，并将四个 foot wheel
+  collision 简化为与 `wheel_radius=0.10` 一致的圆柱。后续不要把这改回 mesh
+  collision，除非先有新的 headless runtime 证据。
+- Real-model same-floor route-following verifier 现已通过。对应 Nav2 参数文件是
+  `go2w_navigation/config/phase5_real_model_nav2_same_floor.yaml`，当前关键值是
+  `robot_radius: 0.28`、`footprint_padding: 0.01`、`origin_z: -0.40`、`z_voxels: 16`。
+  `voxel_grid` 在这个 runtime 里明确提示最多只支持 16 个 z values，所以不要把
+  `z_voxels` 提到 16 以上。
 
 ## 上下文变长后的防失真做法
 - 每完成一个阶段或关键任务，更新 `architecture_state.md`。

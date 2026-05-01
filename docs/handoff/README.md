@@ -39,8 +39,11 @@
 12. `docs/verification/phase4b_mission_segment_runtime.md`
 13. `docs/verification/phase4c_flat_segment_gate.md`
 14. `docs/verification/phase4d_route_tracking_feedback.md`
-15. `docs/verification/phase4_runtime_acceptance.md`
-16. `docs/handoff/new_model_initialization_prompt.md`
+15. `docs/verification/phase5a_live_route_tracking.md`
+16. `docs/verification/go2w_real_model_motion_mode_baseline.md`
+17. `docs/verification/go2w_real_model_route_following.md`
+18. `docs/verification/phase4_runtime_acceptance.md`
+19. `docs/handoff/new_model_initialization_prompt.md`
 
 ## 本目录文件职责
 - `current_project_state.md`：当前真实状态总览。
@@ -79,6 +82,24 @@ Phase 4D-min route tracking feedback observation gate 验收可用以下命令�
 
 ```bash
 ./tools/verify_phase4d_route_tracking_feedback.sh
+```
+
+Phase 5A live route tracking observation gate 验收可用以下命令复现：
+
+```bash
+./tools/verify_phase5a_live_route_tracking.sh
+```
+
+Go2W real model / motion-mode opt-in baseline 验收可用以下命令复现：
+
+```bash
+./tools/verify_go2w_real_model_baseline.sh
+```
+
+Go2W real model same-floor route-following 验收可用以下命令复现：
+
+```bash
+./tools/verify_go2w_real_model_route_following.sh
 ```
 
 Phase 4 总体验收可用以下命令复现：

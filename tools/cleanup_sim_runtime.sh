@@ -11,7 +11,7 @@ collect_target_pids() {
       is_ign_gazebo = args ~ /(^|[[:space:]\/])ign[[:space:]]+gazebo(-[0-9]+)?([[:space:]]|$)/
       is_gz_sim = args ~ /(^|[[:space:]\/])gz[[:space:]]+sim([[:space:]]|$)/
       is_rviz = comm == "rviz2" || args ~ /(^|[[:space:]\/])rviz2([[:space:]]|$)/
-      is_go2w_launch = args ~ /(^|[[:space:]\/])ros2[[:space:]]+launch[[:space:]]+go2w_sim[[:space:]]+sim\.launch\.py([[:space:]]|$)/
+      is_go2w_launch = args ~ /(^|[[:space:]\/])ros2[[:space:]]+launch[[:space:]]+go2w_sim[[:space:]]+(sim|sim_go2w_real)\.launch\.py([[:space:]]|$)/
       if (pid ~ /^[0-9]+$/ && (is_ign_gazebo || is_gz_sim || is_rviz || is_go2w_launch)) {
         print pid
       }

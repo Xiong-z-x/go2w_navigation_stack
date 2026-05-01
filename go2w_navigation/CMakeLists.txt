@@ -30,6 +30,9 @@ if(BUILD_TESTING)
   ament_add_pytest_test(test_phase4d_route_tracking_feedback_executor test/test_phase4d_route_tracking_feedback_executor.py
     APPEND_ENV PYTHONPATH=${CMAKE_CURRENT_SOURCE_DIR}
   )
+  ament_add_pytest_test(test_real_model_route_following_verifier test/test_real_model_route_following_verifier.py
+    APPEND_ENV PYTHONPATH=${CMAKE_CURRENT_SOURCE_DIR}
+  )
 endif()
 
 ament_package()

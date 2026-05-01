@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from go2w_control_runtime.motion_profiles import motion_mode_for_owner
+
 
 VALID_OWNERS = frozenset({"flat", "stair"})
 
@@ -19,6 +21,7 @@ class CommandGateCore:
         if initial_owner not in VALID_OWNERS:
             raise ValueError(f"invalid initial owner: {initial_owner}")
         self.active_owner = initial_owner
+        self.active_mode = motion_mode_for_owner(initial_owner)
         self.last_rejected_owner = ""
 
     def set_owner(self, owner: str) -> bool:
@@ -27,6 +30,7 @@ class CommandGateCore:
             self.last_rejected_owner = owner
             return False
         self.active_owner = normalized
+        self.active_mode = motion_mode_for_owner(normalized)
         self.last_rejected_owner = ""
         return True
 
@@ -67,6 +71,11 @@ def main() -> None:
                 "/go2w/control/active_owner",
                 10,
             )
+            self._mode_pub = self.create_publisher(
+                String,
+                "/go2w/control/active_mode",
+                10,
+            )
             self._decision_pub = self.create_publisher(
                 String,
                 "/go2w/control/command_gate_events",
@@ -91,12 +100,14 @@ def main() -> None:
                 10,
             )
             self._publish_owner()
+            self._publish_mode()
 
         def _on_owner(self, msg: String) -> None:
             if not self._core.set_owner(msg.data):
                 self._publish_event(f"owner_rejected:{msg.data}")
                 return
             self._publish_owner()
+            self._publish_mode()
             self._publish_event(f"owner_active:{self._core.active_owner}")
 
         def _on_cmd(self, source: str, msg: Twist) -> None:
@@ -109,6 +120,11 @@ def main() -> None:
             msg = String()
             msg.data = self._core.active_owner
             self._owner_pub.publish(msg)
+
+        def _publish_mode(self) -> None:
+            msg = String()
+            msg.data = self._core.active_mode
+            self._mode_pub.publish(msg)
 
         def _publish_event(self, value: str) -> None:
             msg = String()
