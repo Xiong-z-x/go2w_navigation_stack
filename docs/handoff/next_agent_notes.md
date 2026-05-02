@@ -1,5 +1,12 @@
 # 给下一个模型的注意事项与经验总结
 
+## 审计硬规则
+- 无证据不判完成。计划、TODO、注释、README 摘要和旧日志都不能单独当作完成证据。
+- 阶段审计必须输出四种状态：`已完成`、`部分完成`、`未完成`、`无法确认`。
+- 文档与代码冲突时，先验证当前行为，再更新文档，不要把历史叙述当成当前事实。
+- `docs/architecture/architecture_state.md`、`docs/handoff/current_project_state.md`、`docs/handoff/project_state_audit.md`、`docs/handoff/risk_cleanup_log.md` 和相关 verification 文档必须保持同一口径。
+- 历史计划和本地会话文件只作背景，不作当前事实源。
+
 ## 最容易犯错的地方
 - 不要把 Phase 3C route graph 当成已实现跨楼层自主导航。它只是手工资产和
   route_server baseline。
@@ -61,6 +68,7 @@
 ## 接手后最应该先确认
 - `git status --short --branch` 是否干净并与远端 main 对齐。
 - `docs/architecture/architecture_state.md` 当前 Active Phase。
+- `docs/handoff/project_state_audit.md` 是否与当前代码、脚本和 verification 文档同一口径。
 - `docs/handoff/pre_migration_final_freeze_report.md` 中的最终封板结论和下一任务建议。
 - `tools/verify_phase4_pre_handoff.sh` 是否通过。
 - `.go2w_external/` 是否存在；若不存在，先跑

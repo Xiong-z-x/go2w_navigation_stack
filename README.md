@@ -13,6 +13,7 @@ simulation-first 路线推进。
 
 - `docs/handoff/README.md`
 - `docs/handoff/pre_migration_final_freeze_report.md`
+- `docs/handoff/project_state_audit.md`
 - `docs/verification/phase4d_route_tracking_feedback.md`
 - `docs/verification/phase5a_live_route_tracking.md`
 - `docs/verification/go2w_real_model_motion_mode_baseline.md`

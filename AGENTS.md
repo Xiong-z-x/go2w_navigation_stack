@@ -34,6 +34,14 @@ If any conflict appears:
 - do not rewrite stable interfaces,
 - instead, report the conflict explicitly.
 
+## Facts, Audit, and Documentation Discipline
+- No evidence, no completion. Do not mark any stage or technical point as complete unless code, configuration, scripts, tests, or runtime evidence support it.
+- Every phase audit must use the four labels `已完成` / `部分完成` / `未完成` / `无法确认`. Do not replace them with vague wording.
+- Plans, comments, TODOs, README summaries, and old logs are not completion evidence by themselves.
+- If documentation and code disagree, treat the disagreement as a real conflict, verify the current behavior, and update the docs so they match the verified state.
+- Keep `docs/architecture/architecture_state.md`, `docs/handoff/current_project_state.md`, `docs/handoff/project_state_audit.md`, `docs/handoff/risk_cleanup_log.md`, `docs/handoff/next_agent_notes.md`, and the relevant verification docs in the same factual frame.
+- Historical documents are history only. They may explain why something changed, but they do not override current source-of-truth files.
+
 Before opening a new Phase 4 or post-Phase-4A implementation conversation, also
 read the handoff index:
 

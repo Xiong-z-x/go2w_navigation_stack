@@ -4,6 +4,13 @@
 This document is the single source of truth for the current implementation state of the Go2W cross-floor navigation stack.
 It records the active phase, the frozen contracts, the open decisions, and the only approved next task boundary.
 
+## Status Judgment Rule
+- All phase and capability judgments in this repository should use one of four labels: `已完成`, `部分完成`, `未完成`, `无法确认`.
+- `已完成` requires cross-checked code, config, script, test, or runtime evidence.
+- `部分完成` means the capability exists but does not yet cover the full target scope, or it is intentionally kept opt-in / candidate only.
+- `无法确认` means there is not enough evidence to judge; do not guess.
+- Plans, TODOs, comments, and old logs are not enough to mark a capability complete.
+
 ## Current Phase
 - Active Phase: `Phase 4 accepted`
 - Phase Status: Phase 4 accepted on the current `main` baseline as the complete Phase 4 manual-connector runtime chain. Phase 1, Phase 2, Phase 3A, Phase 3B, Phase 3C, Phase 4 pre-migration handoff, Phase 4A, Phase 4B-min, Phase 4C-min, and Phase 4D-min remain accepted baselines. Phase 4 accepted proves that the aggregate acceptance gate passes across pre-handoff, Phase 4A/B/C/D verifiers, package build, and package tests. It does not implement production mission orchestration, real Nav2 route tracking against robot motion, a real `nav2_route` operation plugin, real stair locomotion, real cross-floor autonomy, elevation mapping, traversability, automatic stair detection, automatic connector generation, `map_server`, AMCL, or `map -> odom` localization.
@@ -34,6 +41,7 @@ It records the active phase, the frozen contracts, the open decisions, and the o
 - `docs/agent_collaboration_policy.md`
 - `docs/architecture/architecture_state.md`
 - `docs/handoff/README.md` for Phase 4 migration handoff navigation
+- `docs/handoff/project_state_audit.md` for the compact phase audit, gap analysis, and source-map summary
 - `docs/handoff/pre_migration_final_freeze_report.md` for final migration-freeze summary and next-task guidance
 
 ### Non-Canonical Documentation

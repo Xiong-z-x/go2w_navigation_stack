@@ -38,6 +38,7 @@
 | Mission flat goal 丢失了目标 yaw | `build_flat_goal_from_segment()` 只传 x/y，`_to_pose_stamped()` 又把朝向硬写成单位四元数，DWB 在 real-model flat gate 里更容易 abort | route graph 的 target node 写入 `yaw`，mission flat goal 从 graph 读取 yaw 并转换成四元数 | 已修复 |
 | 修改 mission / Nav2 源码后复跑却仍用旧 install space | `behavior_tree` 等 launch 参数和 Python entrypoint 会继续取旧 install 中的已生成产物 | 明确要求改动后先重建 affected packages 或确认 install space 非旧版本，再跑 real Nav2 / mission 验证 | 已修复 |
 | 宽 `pkill -f` 可能误杀当前 shell 或工作区调试进程 | 误把进程名或脚本名匹配到当前会话，导致验证过程自身被中断 | 收窄清理脚本的匹配范围，避免 broad `pkill -f`，并在注意文档中标注风险 | 已修复 |
+| 阶段完成度容易被计划 / 摘要 / 旧日志误报 | 旧计划、README 摘要、TODO 和旧日志容易被误读成 current fact，导致阶段完成度虚高 | 新增 `docs/handoff/project_state_audit.md`，并在 `AGENTS.md`、`architecture_state.md`、`next_agent_notes.md` 中固化四态判定规则 | 已修复 |
 | real-model path 是否扩大为 regression 或默认基线缺少结论 | 真实模型已有 baseline 与短同层 route-following，但不足以安全替换默认 placeholder | 新增 opt-in `tools/verify_go2w_real_model_regression.sh` 串联 baseline、route-following、stair fixture；明确不切默认基线 | 已修复 |
 | 迁移前交接材料容易把 route-following 历史 PASS 误读成稳定门禁 | 迁移前封板时后续硬化运行显示 route-following 仍可能在 DWB 局部规划阶段 abort，而部分文档仍突出 real-model regression PASS | 先新增并置顶稳定 `tools/verify_go2w_control_chain_regression.sh` 口径；随后 dedicated route-following hardening 复现并修复 DWB abort，更新为 opt-in regression candidate 口径 | 已修复 |
 | `verify_go2w_real_model_regression.sh` 使用未定义 `REPO_ROOT` | 脚本在 cleanup 阶段调用 `${REPO_ROOT}/tools/cleanup_sim_runtime.sh`，但文件顶部只定义了 `SCRIPT_DIR` | 补充 `REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"`，并纳入 bash/shellcheck 验证 | 已修复 |

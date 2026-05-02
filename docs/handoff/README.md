@@ -15,6 +15,7 @@
 - 当前阶段：已验收 `Phase 4 accepted`
 - 当前主线：ROS 2 Humble + Gazebo Fortress-only + FAST-LIO external cache
 - 当前最终封板：`docs/handoff/pre_migration_final_freeze_report.md`
+- 当前审计总览：`docs/handoff/project_state_audit.md`
 - 下一任务边界：post-Phase-4 的最小单主题任务，必须另有完整任务单或当前自主审批模式下的自批准任务单
 
 ## 事实源优先级
@@ -36,29 +37,31 @@
 4. `docs/architecture/interface_contracts.md`
 5. `docs/architecture/architecture_state.md`
 6. `docs/handoff/pre_migration_final_freeze_report.md`
-7. `docs/handoff/phase4_migration_handoff_report.md`
-8. `docs/handoff/current_project_state.md`
-9. `docs/handoff/risk_cleanup_log.md`
-10. `docs/handoff/reading_order_and_file_map.md`
-11. `docs/handoff/next_agent_notes.md`
-12. `docs/verification/phase4a_stair_handoff_acceptance.md`
-13. `docs/verification/phase4b_mission_segment_runtime.md`
-14. `docs/verification/phase4c_flat_segment_gate.md`
-15. `docs/verification/phase4d_route_tracking_feedback.md`
-16. `docs/verification/phase5a_live_route_tracking.md`
-17. `docs/verification/go2w_real_model_motion_mode_baseline.md`
-18. `docs/verification/go2w_control_chain_regression.md`
-19. `docs/verification/go2w_real_model_route_following.md`
-20. `docs/verification/go2w_mission_real_flat_execution.md`
-21. `docs/verification/phase4e_stair_fixture.md`
-22. `docs/verification/phase4e_mission_recovery.md`
-23. `docs/verification/go2w_real_model_regression.md`
-24. `docs/verification/phase4e_stair_tuning_overrides.md`
-25. `docs/verification/phase4_runtime_acceptance.md`
-26. `docs/handoff/new_model_initialization_prompt.md`
+7. `docs/handoff/current_project_state.md`
+8. `docs/handoff/project_state_audit.md`
+9. `docs/handoff/phase4_migration_handoff_report.md`
+10. `docs/handoff/risk_cleanup_log.md`
+11. `docs/handoff/reading_order_and_file_map.md`
+12. `docs/handoff/next_agent_notes.md`
+13. `docs/verification/phase4a_stair_handoff_acceptance.md`
+14. `docs/verification/phase4b_mission_segment_runtime.md`
+15. `docs/verification/phase4c_flat_segment_gate.md`
+16. `docs/verification/phase4d_route_tracking_feedback.md`
+17. `docs/verification/phase5a_live_route_tracking.md`
+18. `docs/verification/go2w_real_model_motion_mode_baseline.md`
+19. `docs/verification/go2w_control_chain_regression.md`
+20. `docs/verification/go2w_real_model_route_following.md`
+21. `docs/verification/go2w_mission_real_flat_execution.md`
+22. `docs/verification/phase4e_stair_fixture.md`
+23. `docs/verification/phase4e_mission_recovery.md`
+24. `docs/verification/go2w_real_model_regression.md`
+25. `docs/verification/phase4e_stair_tuning_overrides.md`
+26. `docs/verification/phase4_runtime_acceptance.md`
+27. `docs/handoff/new_model_initialization_prompt.md`
 
 ## 本目录文件职责
 - `current_project_state.md`：当前真实状态总览。
+- `project_state_audit.md`：阶段完成度审计、权威源映射、风险与差距分析。
 - `risk_cleanup_log.md`：封板前风险识别、修复与剩余限制。
 - `phase4_migration_handoff_report.md`：迁移前总报告。
 - `pre_migration_final_freeze_report.md`：最终封板总自检、风险处理、后续路线和下一任务建议。

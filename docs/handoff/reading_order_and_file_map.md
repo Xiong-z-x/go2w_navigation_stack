@@ -8,10 +8,11 @@
 
 ## 第二层：迁移前状态与风险
 1. `docs/handoff/pre_migration_final_freeze_report.md`：最终封板总自检、风险处理、后续路线和下一任务建议。
-2. `docs/handoff/phase4_migration_handoff_report.md`：迁移前总报告。
-3. `docs/handoff/current_project_state.md`：当前状态总览。
-4. `docs/handoff/risk_cleanup_log.md`：已修风险与剩余限制。
-5. `docs/handoff/next_agent_notes.md`：新模型最容易踩的坑。
+2. `docs/handoff/current_project_state.md`：当前状态总览。
+3. `docs/handoff/project_state_audit.md`：阶段完成度审计、权威源映射、风险与最终目标差距分析。
+4. `docs/handoff/phase4_migration_handoff_report.md`：迁移前总报告。
+5. `docs/handoff/risk_cleanup_log.md`：已修风险与剩余限制。
+6. `docs/handoff/next_agent_notes.md`：新模型最容易踩的坑。
 
 ## 第三层：运行和验收记录
 - `README.md`：操作入口和当前状态摘要，不是架构事实源。
