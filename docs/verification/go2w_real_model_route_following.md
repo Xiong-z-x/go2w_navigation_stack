@@ -2,7 +2,7 @@
 
 ## Scope
 This document records the opt-in real-model same-floor route-following verifier.
-It proves that the imported Go2W model can execute a short `odom`-frame
+It proves that the imported Go2W model can execute a short, heading-aligned
 `NavigateToPose` goal through Nav2 while keeping perception ownership of
 `odom -> base_link`.
 
@@ -17,6 +17,12 @@ hardware gait control, `map_server`, AMCL, or `map -> odom` localization.
   `go2w_navigation/config/phase5_real_model_nav2_same_floor.yaml`.
 - The verifier keeps the Phase 3A same-floor Nav2 launch surface, but passes
   the real-model params file through `params_file:=...`.
+- The route target is generated from the start pose heading frame and then
+  expressed in `odom`, which is more stable than a raw world-x displacement on
+  the real-model fixture.
+- The current script also preflights short goal candidates with Nav2
+  `ComputePathToPose` and logs the selected candidate before sending
+  `NavigateToPose`.
 - The costmap tuning is real-model-specific:
   - `robot_radius: 0.28`
   - `footprint_padding: 0.01`
@@ -26,9 +32,9 @@ hardware gait control, `map_server`, AMCL, or `map -> odom` localization.
   reported that it supports at most 16 z values during debugging.
 
 ## Verification Run
-- Date: `2026-05-01T19:11+08:00`
+- Date: `2026-05-02T11:08+08:00`
 - Command: `GO2W_REAL_ROUTE_REBUILD_REPO=0 ./tools/verify_go2w_real_model_route_following.sh`
-- Evidence directory: `/tmp/go2w_real_model_route_following_13161`
+- Evidence directory: `/tmp/go2w_real_model_route_following_8192`
 - Result: `go2w_real_model_route_following_result: PASS`
 
 ## Verified Facts
@@ -50,7 +56,7 @@ hardware gait control, `map_server`, AMCL, or `map -> odom` localization.
 - Local and global costmaps published in `odom`.
 - No forbidden mission, route, stair, elevation, traversability, AMCL, or
   map-server nodes were present.
-- A short `NavigateToPose` goal succeeded on the real model.
+- A short heading-aligned `NavigateToPose` goal succeeded on the real model.
 - `/cmd_vel` was nonzero during execution.
 - Perception odometry and diff-drive odometry both changed.
 - Sim, perception, FAST-LIO, and Nav2 logs had zero runtime exception matches.
@@ -82,9 +88,9 @@ global_costmap_topic_once: PASS
 local_costmap_frame: odom
 forbidden_extra_nodes: ABSENT
 real_route_goal_status: SUCCEEDED
-real_route_perception_odom_delta_xy: 0.183221
-real_route_diff_drive_odom_delta_xy: 0.146164
-real_route_cmd_vel_nonzero_count: 560
+real_route_perception_odom_delta_xy: 0.271766
+real_route_diff_drive_odom_delta_xy: 0.212430
+real_route_cmd_vel_nonzero_count: 55
 real_route_goal_result: PASS
 sim_runtime_exception_count: 0
 perception_runtime_exception_count: 0
@@ -101,6 +107,14 @@ go2w_real_model_route_following_result: PASS
   `tools/verify_go2w_real_model_route_following.sh`.
 - The verifier launches the real model, perception TF authority, FAST-LIO, and
   the Phase 3A Nav2 bringup with the real-model params file.
+- The goal target used to be built from a raw world-x offset and occasionally
+  aborted with zero-length plans on the real-model fixture. The accepted fix is
+  to project the configured forward/lateral offsets from the start pose heading
+  frame into `odom` before sending the goal.
+- Later robustness runs showed that `ComputePathToPose` can still return a
+  non-empty path while `NavigateToPose` aborts in DWB on some spawn states.
+  This verifier therefore remains a standalone opt-in smoke and is not part of
+  the stable control-chain regression wrapper.
 - An earlier verifier iteration failed when the local/global voxel layers could
   not raytrace from the real-model sensor origin because `origin_z: -0.20` was
   too high. The accepted fix lowers the real-model costmap origin to `-0.40`.
@@ -112,6 +126,9 @@ go2w_real_model_route_following_result: PASS
 - The real model path remains opt-in and does not replace `sim.launch.py`.
 - This verifies a short same-floor `NavigateToPose` goal, not production
   `nav2_route` route tracking.
+- The verifier is not currently a stable control-chain gate; use
+  `tools/verify_go2w_control_chain_regression.sh` for the stable control-chain
+  regression.
 - The `nav2_route` live feedback gate still runs under a controlled TF fixture,
   not the real-model motion chain.
 - Stair traversal, stair dynamics, and legged controller tuning remain open.

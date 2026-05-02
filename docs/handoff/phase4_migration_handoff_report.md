@@ -11,10 +11,19 @@ real-model regression wrapper 已在 2026-05-02 前后补充验收。最新状�
 `docs/verification/phase4_runtime_acceptance.md`、
 `docs/verification/phase5a_live_route_tracking.md`、
 `docs/verification/go2w_real_model_motion_mode_baseline.md`、
+`docs/verification/go2w_control_chain_regression.md`、
 `docs/verification/go2w_real_model_route_following.md`、
 `docs/verification/phase4e_stair_fixture.md`、
 `docs/verification/phase4e_mission_recovery.md` 和
 `docs/verification/go2w_real_model_regression.md` 为准。
+
+2026-05-02 迁移前最终封板补充：real-model same-floor route-following 有历史
+PASS 证据，但后续硬化运行仍发现部分 spawn 状态下 `NavigateToPose` 可在 DWB
+局部规划阶段 abort。因此当前迁移前稳定控制链判断以
+`docs/verification/go2w_control_chain_regression.md` 和
+`tools/verify_go2w_control_chain_regression.sh` 为准；包含 route-following 的
+`tools/verify_go2w_real_model_regression.sh` 保留为 opt-in、route-state-sensitive
+回归，不作为默认封板门禁。
 
 ## 1. 项目总目标
 构建 Go2W 跨楼层自主导航巡检系统的 ROS 2 Humble 主仓库。路线是
@@ -238,6 +247,7 @@ against robot motion、真实 `nav2_route` operation plugin、真实跨楼层自
 ./tools/verify_phase4d_route_tracking_feedback.sh
 ./tools/verify_phase4e_stair_fixture.sh
 ./tools/verify_phase4e_mission_recovery.sh
+./tools/verify_go2w_control_chain_regression.sh
 ./tools/verify_go2w_real_model_regression.sh
 ./tools/verify_phase4_runtime_acceptance.sh
 source /opt/ros/humble/setup.bash

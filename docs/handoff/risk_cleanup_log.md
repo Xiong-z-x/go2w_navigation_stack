@@ -32,6 +32,8 @@
 | leg trajectory / wheel lock / body height transition 没有最小可审计策略骨架 | 真实控制接口尚未引入，若直接宣称控制完成会越界 | 将 `prepare,wheel_lock,body_height_transition_down,execute_stairs,body_height_transition_up,release` 建成可诊断 phase plan；leg trajectory 当前明确为 12-joint conservative hold，不伪造不存在的 body-height 控制通道 | 已部分修复 |
 | Mission API 缺少状态持久化和恢复路径 | 旧 `RunMission` skeleton 是单次 action 调度，失败后没有可恢复 checkpoint | 新增 `mission_recovery.py`、JSON state store、same-goal resume、有限 retry 和 `tools/verify_phase4e_mission_recovery.sh`，验证 stair-unavailable 后从 segment index `1` 恢复到成功 | 已部分修复 |
 | real-model path 是否扩大为 regression 或默认基线缺少结论 | 真实模型已有 baseline 与短同层 route-following，但不足以安全替换默认 placeholder | 新增 opt-in `tools/verify_go2w_real_model_regression.sh` 串联 baseline、route-following、stair fixture；明确不切默认基线 | 已修复 |
+| 迁移前交接材料容易把 route-following 历史 PASS 误读成稳定门禁 | 后续硬化运行显示 route-following 仍可能在 DWB 局部规划阶段 abort，而部分文档仍突出 real-model regression PASS | 新增并置顶稳定 `tools/verify_go2w_control_chain_regression.sh` 口径，更新 handoff 索引、总报告、当前状态、注意事项和 regression 文档，明确 route-following 只是独立 opt-in smoke | 已修复 |
+| `verify_go2w_real_model_regression.sh` 使用未定义 `REPO_ROOT` | 脚本在 cleanup 阶段调用 `${REPO_ROOT}/tools/cleanup_sim_runtime.sh`，但文件顶部只定义了 `SCRIPT_DIR` | 补充 `REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"`，并纳入 bash/shellcheck 验证 | 已修复 |
 
 ## 保留但已标注的历史内容
 - `docs/superpowers/` 中的早期 Phase 2/3 计划和设计文档保留为历史记录。
@@ -46,6 +48,7 @@
 | Gazebo GPU rendering 仍不纳入默认基线 | WSLg + Gazebo Fortress/Ogre2 `use_gpu:=true` 已验证不稳定 | 保持 Gazebo `use_gpu:=false`，RViz/CUDA 链路单独验证 |
 | 占位 URDF 耦合 geometry/control/sensors | 旧 `sim.launch.py` 默认路径仍保留 placeholder 以保护既有 Phase 1-5 验证链 | 后续独立任务决定是否切默认或拆分模型/仿真传感器职责 |
 | 真实 Go2W 模型尚未成为默认仿真基线 | 当前 real-model 路径是 opt-in，已覆盖 baseline、最小同层 route-following 和 Phase 4E stair fixture regression，但尚未覆盖所有历史验收，也未证明真实楼梯动力学 | 后续 default re-baseline 任务再决定是否替换默认；当前结论是保留 opt-in wrapper |
+| real-model same-floor route-following 仍有 spawn-state 相关 abort | `ComputePathToPose` preflight 可返回非空路径，但 `NavigateToPose` 在部分启动姿态下仍会进入 DWB `No valid trajectories` / `Controller patience exceeded` | 当前将 route-following 保留为独立 opt-in smoke，并从稳定 `verify_go2w_control_chain_regression.sh` 中拆出；后续用 dedicated Nav2 real-model tuning 任务处理 |
 | Phase 3C route graph 是手工 floor atlas | 目的是给 Phase 4 手工连接器提供基线，不是自动建图结果 | Phase 4 先证明控制交接；Phase 5 再自动连接器 |
 | 没有完整 production Mission Orchestrator | 当前已有 `RunMission` skeleton、JSON checkpoint、同一 goal resume 和有限 retry，但仍不是完整长生命周期调度器 | 后续用独立完整任务单推进多任务队列、操作员恢复策略、优先级调度和更持久的状态后端 |
 | Phase 4C-min flat executor 仍是 verifier skeleton | 本阶段只证明 mission 到 navigation-owned `NavigateToPose` gate 的调度；当前 real-model short `NavigateToPose` verifier 尚未替换 mission runtime skeleton | 后续 production mission / real route-tracking integration 任务处理 |

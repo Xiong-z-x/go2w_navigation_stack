@@ -19,6 +19,9 @@
   Mission Orchestrator。它已经直接接通真实 `nav2_route` route_server 和
   `ComputeAndTrackRoute`，并观察到 `500` 与 `AdjustSpeedLimit`，但仍只是在受控 TF
   trajectory fixture 上做观察，不是机器人实运动。
+- 不要把 real-model same-floor route-following smoke 当成稳定 control-chain 门禁。
+  当前它仍会在部分 spawn 状态下进入 DWB local planner abort；稳定 control-chain
+  regression 已刻意把它拆出。
 - 不要把 `go2w_mission` 的 `RunMission` skeleton 当成 production Mission
   Orchestrator。它只是把 route compute、flat/stair dispatch 和诊断结果码串起来，
   当前虽已新增 JSON checkpoint、同一 goal resume 和有限 retry，仍依赖现有
@@ -113,11 +116,14 @@ policy、Phase 5 terrain-aware connector discovery 或未来 default real-model 
   `ros2 control list_controllers`，把 `controller_states_ready: PASS` 作为 controller
   激活证据。以后遇到 spawner 重试或 `Configured and activated` 日志缺失，先看控制器
   state，不要直接把 launch 判死。
-- Real-model same-floor route-following verifier 现已通过。对应 Nav2 参数文件是
+- Real-model same-floor route-following verifier 有历史 PASS 证据，但不是稳定
+  control-chain 门禁。对应 Nav2 参数文件是
   `go2w_navigation/config/phase5_real_model_nav2_same_floor.yaml`，当前关键值是
   `robot_radius: 0.28`、`footprint_padding: 0.01`、`origin_z: -0.40`、`z_voxels: 16`。
   `voxel_grid` 在这个 runtime 里明确提示最多只支持 16 个 z values，所以不要把
-  `z_voxels` 提到 16 以上。
+  `z_voxels` 提到 16 以上。后续硬化运行显示 `ComputePathToPose` 可返回非空路径而
+  `NavigateToPose` 仍在 DWB abort；要先用 dedicated Nav2/DWB real-model tuning 任务
+  处理，再考虑把它纳入稳定 regression。
 - `go2w_control` 的 `stair_executor` 现在会读取 legged motion profile 并钳制 stair 线速度。
   这只是让 skeleton 和 motion baseline 对齐，不是已经调好的真实楼梯步态。
 - `go2w_control` 的 `stair_executor` 现在还会在 stair owner 激活时发布 12 关节 leg hold command。
@@ -138,7 +144,8 @@ policy、Phase 5 terrain-aware connector discovery 或未来 default real-model 
 - Real-model broad regression 入口是 `tools/verify_go2w_real_model_regression.sh`。
   如果隔离 worktree 缺少 `.go2w_external/workspaces/fast_lio_ros2/install/setup.bash`，
   先运行 `./tools/prepare_phase2d_fastlio_external.sh`，不要把缺依赖误判成 Nav2 或
-  real-model 控制失败。
+  real-model 控制失败。该 wrapper 包含 route-following smoke，因此不应替代稳定的
+  `tools/verify_go2w_control_chain_regression.sh`。
 
 ## 上下文变长后的防失真做法
 - 每完成一个阶段或关键任务，更新 `architecture_state.md`。

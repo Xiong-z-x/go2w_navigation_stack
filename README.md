@@ -15,6 +15,7 @@ simulation-first 路线推进。
 - `docs/verification/phase4d_route_tracking_feedback.md`
 - `docs/verification/phase5a_live_route_tracking.md`
 - `docs/verification/go2w_real_model_motion_mode_baseline.md`
+- `docs/verification/go2w_control_chain_regression.md`
 - `docs/verification/go2w_real_model_regression.md`
 - `docs/verification/phase4e_stair_fixture.md`
 - `docs/verification/phase4e_mission_recovery.md`
@@ -49,8 +50,9 @@ simulation-first 路线推进。
 - Go2W real model / motion-mode baseline：真实 Go2W 模型、四足轮式 controller profile、
   wheeled/legged mode state、显式 `legged` startup profile 日志和启动站立初始化已作为 opt-in 路径完成验证；同层
   real-model route-following verifier 也已通过短 `NavigateToPose` 目标验证；Phase 4E
-  real-model stair fixture 和 opt-in real-model regression wrapper 也已通过；旧
-  `sim.launch.py` placeholder 路径仍是默认基线
+  real-model stair fixture、稳定 control-chain regression wrapper 和 opt-in real-model
+  regression wrapper 也已通过；route-following 仍是独立 smoke，不纳入稳定
+  control-chain wrapper；旧 `sim.launch.py` placeholder 路径仍是默认基线
 - `go2w_mission` 还额外提供 opt-in `RunMission` Action skeleton 与 mission API
   verifier，能诊断 route segmentation、flat/stair dispatch、invalid goal、
   cancel、timeout、route unavailable 与 flat action unavailable；当前已新增 JSON
@@ -198,7 +200,17 @@ ros2 launch go2w_sim sim_go2w_real.launch.py use_gpu:=false headless:=true launc
 
 该脚本使用 `go2w_navigation/config/phase5_real_model_nav2_same_floor.yaml`，
 以 real-model 参数文件保留 perception-owned `odom -> base_link`，验证短同层
-目标到达，不是 production route tracking，也不是楼梯动力学。
+目标到达，不是 production route tracking，也不是楼梯动力学。它当前仍是
+单独的 opt-in smoke，不纳入稳定 control-chain 回归门禁。
+
+稳定的 real-model control-chain 回归门禁可使用：
+
+```bash
+./tools/verify_go2w_control_chain_regression.sh
+```
+
+该 wrapper 只串联 real-model baseline、Phase 4E stair fixture、mission
+recovery 和 stair tuning smoke test，不包含同层 route-following smoke。
 
 Phase 4E real-model stair fixture 可重复验证 `/stair_exec` Action 闭环、command
 gate `flat/wheeled -> stair/legged -> flat/wheeled`、阶段化 stair executor 状态和

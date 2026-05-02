@@ -41,13 +41,14 @@
 14. `docs/verification/phase4d_route_tracking_feedback.md`
 15. `docs/verification/phase5a_live_route_tracking.md`
 16. `docs/verification/go2w_real_model_motion_mode_baseline.md`
-17. `docs/verification/go2w_real_model_route_following.md`
-18. `docs/verification/phase4e_stair_fixture.md`
-19. `docs/verification/phase4e_mission_recovery.md`
-20. `docs/verification/go2w_real_model_regression.md`
-21. `docs/verification/phase4e_stair_tuning_overrides.md`
-22. `docs/verification/phase4_runtime_acceptance.md`
-23. `docs/handoff/new_model_initialization_prompt.md`
+17. `docs/verification/go2w_control_chain_regression.md`
+18. `docs/verification/go2w_real_model_route_following.md`
+19. `docs/verification/phase4e_stair_fixture.md`
+20. `docs/verification/phase4e_mission_recovery.md`
+21. `docs/verification/go2w_real_model_regression.md`
+22. `docs/verification/phase4e_stair_tuning_overrides.md`
+23. `docs/verification/phase4_runtime_acceptance.md`
+24. `docs/handoff/new_model_initialization_prompt.md`
 
 ## 本目录文件职责
 - `current_project_state.md`：当前真实状态总览。
@@ -100,11 +101,23 @@ Go2W real model / motion-mode opt-in baseline 验收可用以下命令复现：
 ./tools/verify_go2w_real_model_baseline.sh
 ```
 
-Go2W real model same-floor route-following 验收可用以下命令复现：
+稳定 Go2W real-model control-chain regression 验收可用以下命令复现：
+
+```bash
+./tools/verify_go2w_control_chain_regression.sh
+```
+
+该 wrapper 是当前迁移前更稳健的 real-model 控制链门禁；它刻意不包含
+same-floor route-following smoke。
+
+Go2W real model same-floor route-following 独立 smoke 可用以下命令复现：
 
 ```bash
 ./tools/verify_go2w_real_model_route_following.sh
 ```
+
+该 smoke 有历史 PASS 证据，但最新硬化中仍观察到部分 spawn 状态下的 DWB abort；
+它不是稳定 control-chain 门禁，也不是默认迁移验收 gate。
 
 Phase 4E real-model stair fixture 验收可用以下命令复现：
 
@@ -118,11 +131,15 @@ Phase 4E mission recovery 验收可用以下命令复现：
 ./tools/verify_phase4e_mission_recovery.sh
 ```
 
-Go2W real-model opt-in regression 验收可用以下命令复现：
+Go2W real-model opt-in regression 可用以下命令复现：
 
 ```bash
 ./tools/verify_go2w_real_model_regression.sh
 ```
+
+该 wrapper 包含 route-following smoke，因此比 control-chain wrapper 更接近端到端
+真实模型动作链，但也更容易受 DWB 局部规划状态影响；默认交接判断应优先使用
+`verify_go2w_control_chain_regression.sh`。
 
 Phase 4E stair tuning smoke test 可用以下命令复现：
 

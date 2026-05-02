@@ -17,7 +17,7 @@ PARTITION="go2w_real_route_${$}"
 REBUILD_REPO="${GO2W_REAL_ROUTE_REBUILD_REPO:-1}"
 CLEAN_EVIDENCE="${GO2W_REAL_ROUTE_CLEAN_EVIDENCE:-0}"
 NAV_TIMEOUT_SECONDS="${GO2W_REAL_ROUTE_NAV_TIMEOUT_SECONDS:-120}"
-NAV_GOAL_OFFSET_X="${GO2W_REAL_ROUTE_GOAL_OFFSET_X:-0.250}"
+NAV_GOAL_OFFSET_X="${GO2W_REAL_ROUTE_GOAL_OFFSET_X:-0.150}"
 NAV_GOAL_OFFSET_Y="${GO2W_REAL_ROUTE_GOAL_OFFSET_Y:-0.000}"
 NAV_GOAL_YAW_OFFSET="${GO2W_REAL_ROUTE_GOAL_YAW_OFFSET:-0.0}"
 MIN_PERCEPTION_ODOM_DELTA="${GO2W_REAL_ROUTE_MIN_PERCEPTION_ODOM_DELTA:-0.003}"
@@ -419,7 +419,7 @@ import time
 import rclpy
 from action_msgs.msg import GoalStatus
 from geometry_msgs.msg import Twist
-from nav2_msgs.action import NavigateToPose
+from nav2_msgs.action import ComputePathToPose, NavigateToPose
 from nav_msgs.msg import Odometry
 from rclpy.action import ActionClient
 from rclpy.node import Node
@@ -462,6 +462,7 @@ def normalize_angle(angle: float) -> float:
 class RealRouteGoalClient(Node):
     def __init__(self) -> None:
         super().__init__("real_route_goal_client")
+        self._path_client = ActionClient(self, ComputePathToPose, "compute_path_to_pose")
         self._action_client = ActionClient(self, NavigateToPose, "navigate_to_pose")
         self._latest_odom = None
         self._start_odom = None
@@ -494,32 +495,163 @@ class RealRouteGoalClient(Node):
 
     def wait_for_odom(self, timeout_sec: float) -> bool:
         deadline = time.monotonic() + timeout_sec
-        while rclpy.ok() and self._start_odom is None and time.monotonic() < deadline:
+        settle_seconds = 5.0
+        settle_deadline = None
+        while rclpy.ok() and time.monotonic() < deadline:
             rclpy.spin_once(self, timeout_sec=0.1)
-        return self._start_odom is not None
+            if self._latest_odom is None or self._latest_diff_drive_odom is None:
+                continue
+            if settle_deadline is None:
+                settle_deadline = time.monotonic() + settle_seconds
+                continue
+            if time.monotonic() < settle_deadline:
+                continue
+            self._start_odom = self._latest_odom
+            self._start_diff_drive_odom = self._latest_diff_drive_odom
+            return True
+        return False
+
+    def build_goal_pose(self, start_pose, start_yaw: float, offset_x: float, offset_y: float, yaw_offset: float):
+        from geometry_msgs.msg import PoseStamped
+
+        target_yaw = normalize_angle(start_yaw + yaw_offset)
+        pose = PoseStamped()
+        pose.header.frame_id = "odom"
+        pose.header.stamp = self.get_clock().now().to_msg()
+        # Keep the target short, but project it from the current heading frame
+        # into odom so the verifier does not depend on a brittle raw world-x
+        # displacement.
+        pose.pose.position.x = (
+            float(start_pose.position.x)
+            + offset_x * math.cos(start_yaw)
+            - offset_y * math.sin(start_yaw)
+        )
+        pose.pose.position.y = (
+            float(start_pose.position.y)
+            + offset_x * math.sin(start_yaw)
+            + offset_y * math.cos(start_yaw)
+        )
+        pose.pose.position.z = 0.0
+        pose.pose.orientation = yaw_to_quat(target_yaw)
+        return pose, target_yaw
+
+    def candidate_offsets(self, offset_x: float, offset_y: float):
+        base_forward = max(float(offset_x), 0.05)
+        forward_candidates = [
+            base_forward,
+            max(base_forward * 0.75, 0.08),
+            max(base_forward * 0.60, 0.06),
+            max(base_forward * 0.50, 0.05),
+        ]
+        lateral_candidates = [
+            float(offset_y),
+            float(offset_y) + 0.05,
+            float(offset_y) - 0.05,
+        ]
+        seen = set()
+        for candidate_x in forward_candidates:
+            for candidate_y in lateral_candidates:
+                key = (round(candidate_x, 3), round(candidate_y, 3))
+                if key in seen:
+                    continue
+                seen.add(key)
+                yield candidate_x, candidate_y
+
+    def probe_path(self, goal_pose, timeout_sec: float) -> tuple[bool, int, float, str]:
+        if not self._path_client.wait_for_server(timeout_sec=10.0):
+            return False, 0, 0.0, "NO_PATH_SERVER"
+
+        goal = ComputePathToPose.Goal()
+        goal.goal = goal_pose
+        goal.planner_id = "GridBased"
+        goal.use_start = False
+
+        send_future = self._path_client.send_goal_async(goal)
+        rclpy.spin_until_future_complete(self, send_future, timeout_sec=10.0)
+        goal_handle = send_future.result()
+        if goal_handle is None or not goal_handle.accepted:
+            return False, 0, 0.0, "REJECTED"
+
+        result_future = goal_handle.get_result_async()
+        deadline = time.monotonic() + timeout_sec
+        while rclpy.ok() and not result_future.done() and time.monotonic() < deadline:
+            rclpy.spin_once(self, timeout_sec=0.1)
+
+        if not result_future.done():
+            cancel_future = goal_handle.cancel_goal_async()
+            rclpy.spin_until_future_complete(self, cancel_future, timeout_sec=5.0)
+            return False, 0, 0.0, "TIMEOUT"
+
+        wrapped = result_future.result()
+        status_name = STATUS_NAMES.get(wrapped.status, str(wrapped.status))
+        path_poses = wrapped.result.path.poses
+        path_pose_count = len(path_poses)
+        path_length_m = 0.0
+        previous_pose = None
+        for pose_stamped in path_poses:
+            if previous_pose is not None:
+                dx = float(pose_stamped.pose.position.x) - float(previous_pose.pose.position.x)
+                dy = float(pose_stamped.pose.position.y) - float(previous_pose.pose.position.y)
+                path_length_m += math.hypot(dx, dy)
+            previous_pose = pose_stamped
+        if wrapped.status != GoalStatus.STATUS_SUCCEEDED or path_pose_count == 0:
+            return False, path_pose_count, path_length_m, status_name
+        return True, path_pose_count, path_length_m, status_name
+
+    def select_reachable_goal(self, start_pose, start_yaw: float, offset_x: float, offset_y: float, yaw_offset: float, timeout_sec: float):
+        probe_timeout = min(10.0, max(4.0, timeout_sec / 6.0))
+        best_candidate = None
+        for index, (candidate_x, candidate_y) in enumerate(self.candidate_offsets(offset_x, offset_y), start=1):
+            goal_pose, _ = self.build_goal_pose(start_pose, start_yaw, candidate_x, candidate_y, yaw_offset)
+            reachable, path_pose_count, path_length_m, status_name = self.probe_path(goal_pose, probe_timeout)
+            print(
+                f"real_route_goal_candidate_{index}: offset_x={candidate_x:.3f} "
+                f"offset_y={candidate_y:.3f} status={status_name} path_poses={path_pose_count} "
+                f"path_length_m={path_length_m:.3f}"
+            )
+            if not reachable:
+                continue
+            score = (path_length_m, path_pose_count)
+            if best_candidate is None or score > best_candidate["score"]:
+                best_candidate = {
+                    "index": index,
+                    "offset_x": candidate_x,
+                    "offset_y": candidate_y,
+                    "score": score,
+                }
+        if best_candidate is None:
+            return None
+        return best_candidate["index"], best_candidate["offset_x"], best_candidate["offset_y"]
 
     def send_goal_and_wait(self, offset_x: float, offset_y: float, yaw_offset: float, timeout_sec: float) -> int:
         if not self.wait_for_odom(20.0):
             print("real_route_goal_error: no_start_odom")
             return 2
 
+        if not self._path_client.wait_for_server(timeout_sec=30.0):
+            print("real_route_goal_error: no_path_server")
+            return 2
         if not self._action_client.wait_for_server(timeout_sec=30.0):
             print("real_route_goal_error: no_action_server")
             return 2
 
         start_pose = self._start_odom.pose.pose
         start_yaw = quat_to_yaw(start_pose.orientation)
-        target_yaw = normalize_angle(start_yaw + yaw_offset)
+        selected = self.select_reachable_goal(start_pose, start_yaw, offset_x, offset_y, yaw_offset, timeout_sec)
+        if selected is None:
+            print("real_route_goal_error: no_reachable_goal")
+            return 2
+
+        selected_index, selected_offset_x, selected_offset_y = selected
         goal = NavigateToPose.Goal()
-        goal.pose.header.frame_id = "odom"
-        goal.pose.pose.position.x = float(start_pose.position.x) + offset_x
-        goal.pose.pose.position.y = float(start_pose.position.y) + offset_y
-        goal.pose.pose.position.z = 0.0
-        goal.pose.pose.orientation = yaw_to_quat(target_yaw)
+        goal.pose, target_yaw = self.build_goal_pose(start_pose, start_yaw, selected_offset_x, selected_offset_y, yaw_offset)
 
         print(f"real_route_goal_start_x: {start_pose.position.x:.6f}")
         print(f"real_route_goal_start_y: {start_pose.position.y:.6f}")
         print(f"real_route_goal_start_yaw: {start_yaw:.6f}")
+        print(f"real_route_goal_selected_candidate: {selected_index}")
+        print(f"real_route_goal_selected_offset_x: {selected_offset_x:.6f}")
+        print(f"real_route_goal_selected_offset_y: {selected_offset_y:.6f}")
         print(f"real_route_goal_target_x: {goal.pose.pose.position.x:.6f}")
         print(f"real_route_goal_target_y: {goal.pose.pose.position.y:.6f}")
         print(f"real_route_goal_target_yaw: {target_yaw:.6f}")

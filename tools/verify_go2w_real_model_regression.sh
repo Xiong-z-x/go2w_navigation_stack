@@ -2,6 +2,7 @@
 set -eo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 print_kv() {
   printf '%s: %s\n' "$1" "$2"
@@ -13,8 +14,14 @@ main() {
   "${SCRIPT_DIR}/verify_go2w_real_model_baseline.sh"
   print_kv "real_model_regression_baseline" "PASS"
 
+  "${REPO_ROOT}/tools/cleanup_sim_runtime.sh" >/dev/null 2>&1 || true
+  sleep 5
+
   "${SCRIPT_DIR}/verify_go2w_real_model_route_following.sh"
   print_kv "real_model_regression_route_following" "PASS"
+
+  "${REPO_ROOT}/tools/cleanup_sim_runtime.sh" >/dev/null 2>&1 || true
+  sleep 5
 
   "${SCRIPT_DIR}/verify_phase4e_stair_fixture.sh"
   print_kv "real_model_regression_stair_fixture" "PASS"

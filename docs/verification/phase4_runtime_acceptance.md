@@ -32,6 +32,8 @@ This is not production Mission Orchestrator, real Nav2 route tracking against ro
 ## Verification Evidence
 Timestamp: `2026-05-01T12:49+08:00`
 
+Migration-freeze refresh timestamp: `2026-05-02T13:36+08:00`
+
 Top-level acceptance gate:
 
 ```bash
@@ -57,6 +59,7 @@ The runtime evidence directory for this run was:
 
 ```text
 /tmp/go2w_phase4_runtime_acceptance_16465
+/tmp/go2w_phase4_runtime_acceptance_4740
 ```
 
 Package test summary:

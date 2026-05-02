@@ -15,7 +15,7 @@ simulation-first 的自主导航栈，最终实现：
 
 ## 当前阶段
 - 当前正式阶段：`Phase 4 accepted`
-- 当前状态：Phase 3A、Phase 3B、Phase 3C、Phase 4 迁移前封板、Phase 4A、Phase 4B-min、Phase 4C-min、Phase 4D-min、Phase 4 总体验收、Phase 5A live route tracking observation gate、opt-in Go2W real model / motion-mode baseline、opt-in real-model same-floor route-following verifier、Phase 4E real-model stair fixture、Phase 4E mission recovery 和 opt-in real-model regression wrapper 均已有仓库内验收证据。
+- 当前状态：Phase 3A、Phase 3B、Phase 3C、Phase 4 迁移前封板、Phase 4A、Phase 4B-min、Phase 4C-min、Phase 4D-min、Phase 4 总体验收、Phase 5A live route tracking observation gate、opt-in Go2W real model / motion-mode baseline、opt-in real-model same-floor route-following verifier、Phase 4E real-model stair fixture、Phase 4E mission recovery、稳定 control-chain regression wrapper 和 opt-in real-model regression wrapper 均已有仓库内验收证据。
 - 当前 Phase 4 accepted 范围：manual-connector runtime chain，覆盖楼梯 handoff、mission route segmentation、flat/stair/flat Action 调度、`ComputeAndTrackRoute` feedback observation，以及 pre-handoff、Phase 4A/4B/4C/4D runtime verifiers、构建和测试的聚合验收。
 - 下一步：只能在新的完整任务单或当前自主审批模式下的自批准任务单中推进 post-Phase-4 的最小单主题任务。当前已完成的 Phase 4E 硬化仍不等于真实楼梯动力学、完整 production Mission Orchestrator 或默认 real-model re-baseline。
 
@@ -104,6 +104,11 @@ Gazebo GPU rendering 不是当前验收合同。RViz 可单独使用 WSLg/NVIDIA
 - Phase 4E stair tuning smoke test：通过 `tools/verify_phase4e_stair_tuning_overrides.sh`
   验证 stair executor 可接受显式 body height / foot raise / gait / speed overrides，
   且默认 baseline 不变时仍能闭环成功。
+- Go2W control-chain regression wrapper：通过
+  `tools/verify_go2w_control_chain_regression.sh` 串联 real-model baseline、
+  Phase 4E stair fixture、mission recovery 和 stair tuning smoke test；该 wrapper
+  当前刻意不包含 real-model same-floor route-following smoke，因为后者在部分 spawn
+  状态下仍会进入 DWB local planner abort，不适合作为稳定控制链门禁。
 - Go2W real-model regression wrapper：通过
   `tools/verify_go2w_real_model_regression.sh` 串联 real-model baseline、
   real-model same-floor route-following 和 Phase 4E stair fixture。该 wrapper 是
@@ -111,9 +116,13 @@ Gazebo GPU rendering 不是当前验收合同。RViz 可单独使用 WSLg/NVIDIA
 
 ## 当前未完成内容
 - 真实 Go2W 模型仍是 opt-in 路径，虽已有 broader regression wrapper，但尚未替换默认 placeholder 仿真基线。
+- Go2W real-model same-floor route-following 仍是独立 smoke，不是稳定 control-chain 门禁；
+  当前 control-chain regression wrapper 已刻意将其拆出。
 - `go2w_mission` 的 `RunMission` 已有 checkpoint/retry/resume skeleton，但不是完整 production Mission Orchestrator。
 - 未实现完整 production Mission Orchestrator 的多任务队列、操作员恢复策略、优先级调度和长期任务管理。
 - Phase 4C-min 的 flat executor 仍是 verifier skeleton，尚未被 production Nav2/nav2_route route tracking 实现替换；但 opt-in real-model same-floor route-following verifier 已通过短目标验证。
+- 同层 real-model route-following 虽有历史 PASS 证据，但当前仍需 dedicated Nav2/DWB
+  调参任务才能进入稳定 regression；不要把它当作 production route tracking。
 - Phase 5A 已接入真实 `nav2_route` route_server feedback，但仍未验证真实机器人运动上的
   route tracking。
 - 未实现真实楼梯运动控制器和控制参数调优；当前 Phase 4E 只把 wheel lock、body height transition、leg hold 和 release 做成可观察阶段骨架。

@@ -8,6 +8,13 @@ The accepted policy is to expand the real-model path into a broader opt-in
 regression wrapper. The default `go2w_sim sim.launch.py` placeholder path is
 not replaced by the real-model path in this task.
 
+This wrapper is intentionally broader than the stable control-chain gate and
+includes the same-floor route-following smoke. Later hardening runs observed
+that `ComputePathToPose` can return a non-empty path while `NavigateToPose`
+still aborts in DWB on some real-model spawn states. For migration readiness
+or routine control-chain checks, prefer
+`tools/verify_go2w_control_chain_regression.sh`.
+
 ## Source Basis
 The wrapper composes three replayable gates:
 
@@ -77,6 +84,9 @@ The preparation completed with `fastlio_build_status: PASS` and
 - The real-model path remains opt-in.
 - This wrapper is broader than the earlier baseline, but it is still not a
   replacement for all historical placeholder-world Phase 1-5 gates.
+- Because this wrapper includes same-floor route-following, it is more
+  route-state-sensitive than `tools/verify_go2w_control_chain_regression.sh`
+  and should not be treated as the stable control-chain migration gate.
 - The stair fixture remains a phase-aware skeleton and does not prove physical
   stair traversal.
 - No default launch re-baseline was performed.
