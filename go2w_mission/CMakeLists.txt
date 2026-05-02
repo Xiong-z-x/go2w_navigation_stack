@@ -49,6 +49,9 @@ if(BUILD_TESTING)
   ament_add_pytest_test(test_mission_api_skeleton test/test_mission_api_skeleton.py
     APPEND_ENV PYTHONPATH=${CMAKE_CURRENT_SOURCE_DIR}
   )
+  ament_add_pytest_test(test_mission_recovery test/test_mission_recovery.py
+    APPEND_ENV PYTHONPATH=${CMAKE_CURRENT_SOURCE_DIR}
+  )
   ament_add_pytest_test(test_phase4d_route_tracking_observer test/test_phase4d_route_tracking_observer.py
     APPEND_ENV PYTHONPATH=${CMAKE_CURRENT_SOURCE_DIR}
   )

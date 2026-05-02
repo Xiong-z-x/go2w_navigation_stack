@@ -21,7 +21,14 @@
   trajectory fixture 上做观察，不是机器人实运动。
 - 不要把 `go2w_mission` 的 `RunMission` skeleton 当成 production Mission
   Orchestrator。它只是把 route compute、flat/stair dispatch 和诊断结果码串起来，
-  仍依赖现有 route server、`NavigateToPose` verifier 和 `/stair_exec` skeleton。
+  当前虽已新增 JSON checkpoint、同一 goal resume 和有限 retry，仍依赖现有
+  route server、`NavigateToPose` verifier 和 `/stair_exec` skeleton，不是完整生产调度器。
+- 不要把 Phase 4E real-model stair fixture 当成真实楼梯动力学。它只证明
+  `/stair_exec` 在 opt-in real-model fixture 下能完成 phase-aware action 闭环、
+  `flat/wheeled -> stair/legged -> flat/wheeled` 控制权交接、profile-limited
+  stair velocity 和 leg hold/release 诊断。
+- 不要把 real-model regression wrapper 当成默认基线切换。它只是把 real-model
+  baseline、same-floor route-following 和 Phase 4E stair fixture 串成 opt-in 回归。
 - 不要把 `nav2_route` 当成 3D 地形规划器。它不是自动楼梯识别或 traversability。
 - 不要重新启用 `diff_drive_controller` 的 `odom -> base_link` TF。该边当前属于
   perception authority。
@@ -82,11 +89,13 @@ Phase 4C-min 已完成 hand-authored staircase connector 上的最小 flat/stair
 observation gate；Phase 5A 已补上 live route-server-backed route tracking 观察门；
 Go2W real model / motion-mode baseline 已补上 opt-in 真实模型、四 foot wheel
 controller profile、`flat -> wheeled` / `stair -> legged` 状态和启动站立验证；
-Phase 4 accepted 已完成总验收；`RunMission` skeleton 也已完成并验证。后续最小任务
-必须另有完整任务单或当前自主审批模式下的自批准任务单，可以围绕 real-model
-route-following expansion、stair dynamics / control tuning、Phase 5 terrain-aware
-connector discovery、mission recovery 做单主题推进。不要把下一步扩大为真实多楼层
-自主、自动楼梯检测、traversability 或 `map -> odom` 定位链。
+Phase 4 accepted 已完成总验收；`RunMission` skeleton 也已完成并验证；Phase 4E
+又补上 real-model stair fixture、mission recovery checkpoint/resume 和 opt-in
+real-model regression wrapper。后续最小任务必须另有完整任务单或当前自主审批模式下的
+自批准任务单，可以围绕真实 stair trajectory / gait tuning、进一步 mission scheduling
+policy、Phase 5 terrain-aware connector discovery 或未来 default real-model re-baseline
+做单主题推进。不要把下一步扩大为真实多楼层自主、自动楼梯检测、traversability 或
+`map -> odom` 定位链。
 
 ## Runtime 验证注意
 - Phase 4B 回归曾出现一次非复现的 ROS discovery/lifecycle 等待失败：
@@ -116,6 +125,17 @@ connector discovery、mission recovery 做单主题推进。不要把下一步�
 - `go2w_stand_initializer` 现在支持 `--motion-mode wheeled|legged`，real-model launch
   显式传入 `--motion-mode legged` 并打印 profile 摘要；这只是启动姿态和诊断基线，
   不是自动切换步态控制器。
+- Phase 4E stair fixture verifier 是 `tools/verify_phase4e_stair_fixture.sh`。它会启动
+  opt-in real-model launch，拉起 `go2w_command_gate` 和 `go2w_stair_executor`，
+  发送 `/stair_exec` goal，并检查 owner/mode 日志、phase plan、每个 phase 状态和
+  action success。
+- Phase 4E mission recovery verifier 是 `tools/verify_phase4e_mission_recovery.sh`。
+  它先故意不启动 stair executor，使 mission 写入 `RECOVERABLE` checkpoint，再用同一
+  state file 重启并从 stair segment 恢复到 `MISSION_SUCCEEDED`。
+- Real-model broad regression 入口是 `tools/verify_go2w_real_model_regression.sh`。
+  如果隔离 worktree 缺少 `.go2w_external/workspaces/fast_lio_ros2/install/setup.bash`，
+  先运行 `./tools/prepare_phase2d_fastlio_external.sh`，不要把缺依赖误判成 Nav2 或
+  real-model 控制失败。
 
 ## 上下文变长后的防失真做法
 - 每完成一个阶段或关键任务，更新 `architecture_state.md`。

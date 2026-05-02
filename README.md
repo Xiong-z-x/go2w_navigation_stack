@@ -15,6 +15,9 @@ simulation-first 路线推进。
 - `docs/verification/phase4d_route_tracking_feedback.md`
 - `docs/verification/phase5a_live_route_tracking.md`
 - `docs/verification/go2w_real_model_motion_mode_baseline.md`
+- `docs/verification/go2w_real_model_regression.md`
+- `docs/verification/phase4e_stair_fixture.md`
+- `docs/verification/phase4e_mission_recovery.md`
 - `docs/verification/phase4_runtime_acceptance.md`
 - `docs/verification/phase4c_flat_segment_gate.md`
 - `docs/verification/phase4b_mission_segment_runtime.md`
@@ -44,11 +47,13 @@ simulation-first 路线推进。
 - `Phase 5A` 证据门：live route tracking observation gate 已完成并验收，作为 Phase 4D-min 之外的 live route-server-backed 观察证据
 - Go2W real model / motion-mode baseline：真实 Go2W 模型、四足轮式 controller profile、
   wheeled/legged mode state、显式 `legged` startup profile 日志和启动站立初始化已作为 opt-in 路径完成验证；同层
-  real-model route-following verifier 也已通过短 `NavigateToPose` 目标验证；旧
+  real-model route-following verifier 也已通过短 `NavigateToPose` 目标验证；Phase 4E
+  real-model stair fixture 和 opt-in real-model regression wrapper 也已通过；旧
   `sim.launch.py` placeholder 路径仍是默认基线
 - `go2w_mission` 还额外提供 opt-in `RunMission` Action skeleton 与 mission API
   verifier，能诊断 route segmentation、flat/stair dispatch、invalid goal、
-  cancel、timeout、route unavailable 与 flat action unavailable，但仍不是 production
+  cancel、timeout、route unavailable 与 flat action unavailable；当前已新增 JSON
+  checkpoint、同一 mission goal resume 和有限 retry，但仍不是完整 production
   Mission Orchestrator。
 
 不要把 Phase 4 accepted 误判成 production mission orchestration、真实 Nav2
@@ -57,7 +62,8 @@ route tracking against robot motion、真实 `nav2_route` operation plugin、真
 
 也不要把 opt-in 真实模型基线误判成真实步态控制或楼梯动力学闭环；它只证明模型、
 controller、传感器 topic、`flat -> wheeled` / `stair -> legged` 状态、controller
-state 轮询和启动站立命令可重复验证。
+state 轮询、启动站立命令、短同层目标、phase-aware `/stair_exec` fixture 和 opt-in
+regression wrapper 可重复验证。
 
 ## 运行环境基线
 
@@ -188,6 +194,28 @@ ros2 launch go2w_sim sim_go2w_real.launch.py use_gpu:=false headless:=true launc
 该脚本使用 `go2w_navigation/config/phase5_real_model_nav2_same_floor.yaml`，
 以 real-model 参数文件保留 perception-owned `odom -> base_link`，验证短同层
 目标到达，不是 production route tracking，也不是楼梯动力学。
+
+Phase 4E real-model stair fixture 可重复验证 `/stair_exec` Action 闭环、command
+gate `flat/wheeled -> stair/legged -> flat/wheeled`、阶段化 stair executor 状态和
+leg hold/release 诊断：
+
+```bash
+./tools/verify_phase4e_stair_fixture.sh
+```
+
+Mission recovery checkpoint/resume gate 可重复验证 stair executor 不可用时的
+`RECOVERABLE` checkpoint、重启后的同一 mission goal resume，以及最终
+`MISSION_SUCCEEDED`：
+
+```bash
+./tools/verify_phase4e_mission_recovery.sh
+```
+
+real-model 更大范围回归保持 opt-in，不替换默认 placeholder 基线：
+
+```bash
+./tools/verify_go2w_real_model_regression.sh
+```
 
 如需在已启动仿真后检查 Phase 1 topic / TF 验收项：
 

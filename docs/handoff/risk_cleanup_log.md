@@ -25,6 +25,10 @@
 | Phase 4 verifier domain id 可能越过 Fast-DDS 可用范围 | Phase 4D 初版曾生成过高 `ROS_DOMAIN_ID`；Phase 4C 旧公式理论上也可能超过 231 | Phase 4C/4D verifier 统一使用 `(($$ % 90) + 130)` 范围，避免 domain 范围型假失败 | 已修复 |
 | Mission API skeleton 包形态与 launch 参数不兼容 | `go2w_mission` 初版同时使用 `ament_python_install_package(${PROJECT_NAME})` 和 `rosidl_generate_interfaces`，且入口直接严格解析 `--ros-args` | 改为显式安装 Python 源码目录、保留 action 生成、并让入口使用 `parse_known_args()` + `rclpy.init(args=...)` 处理 launch 追加参数 | 已修复 |
 | Phase 4 缺少总验收入口 | Phase 4A/4B/4C/4D 已有独立 verifier，但缺少一键串联的 Phase 4 完整验收证据 | 新增 `tools/verify_phase4_runtime_acceptance.sh` 和 `docs/verification/phase4_runtime_acceptance.md`，串联 pre-handoff、Phase 4A/4B/4C/4D、build/test 和 `colcon test-result` | 已修复 |
+| real-model stair fixture 中 `/stair_exec` 缺少 phase-aware 闭环证据 | 旧证据只证明 `/stair_exec` skeleton 和 leg hold outlet，不足以观察 wheel lock/body-height/release 序列 | 新增 phase-aware stair executor plan/state、`/go2w/control/stair_execution_state` 诊断输出和 `tools/verify_phase4e_stair_fixture.sh`，验证 real-model fixture 下 action 成功、owner/mode 互斥和完整阶段序列 | 已修复 |
+| leg trajectory / wheel lock / body height transition 没有最小可审计策略骨架 | 真实控制接口尚未引入，若直接宣称控制完成会越界 | 将 `prepare,wheel_lock,body_height_transition_down,execute_stairs,body_height_transition_up,release` 建成可诊断 phase plan；leg trajectory 当前明确为 12-joint conservative hold，不伪造不存在的 body-height 控制通道 | 已部分修复 |
+| Mission API 缺少状态持久化和恢复路径 | 旧 `RunMission` skeleton 是单次 action 调度，失败后没有可恢复 checkpoint | 新增 `mission_recovery.py`、JSON state store、same-goal resume、有限 retry 和 `tools/verify_phase4e_mission_recovery.sh`，验证 stair-unavailable 后从 segment index `1` 恢复到成功 | 已部分修复 |
+| real-model path 是否扩大为 regression 或默认基线缺少结论 | 真实模型已有 baseline 与短同层 route-following，但不足以安全替换默认 placeholder | 新增 opt-in `tools/verify_go2w_real_model_regression.sh` 串联 baseline、route-following、stair fixture；明确不切默认基线 | 已修复 |
 
 ## 保留但已标注的历史内容
 - `docs/superpowers/` 中的早期 Phase 2/3 计划和设计文档保留为历史记录。
@@ -38,10 +42,10 @@
 | --- | --- | --- |
 | Gazebo GPU rendering 仍不纳入默认基线 | WSLg + Gazebo Fortress/Ogre2 `use_gpu:=true` 已验证不稳定 | 保持 Gazebo `use_gpu:=false`，RViz/CUDA 链路单独验证 |
 | 占位 URDF 耦合 geometry/control/sensors | 旧 `sim.launch.py` 默认路径仍保留 placeholder 以保护既有 Phase 1-5 验证链 | 后续独立任务决定是否切默认或拆分模型/仿真传感器职责 |
-| 真实 Go2W 模型尚未成为默认仿真基线 | 当前 real-model 路径是 opt-in，已覆盖最小同层 route-following，但尚未覆盖所有历史验收 | 后续 broad real-model regression / default re-baseline 任务再决定是否替换默认 |
+| 真实 Go2W 模型尚未成为默认仿真基线 | 当前 real-model 路径是 opt-in，已覆盖 baseline、最小同层 route-following 和 Phase 4E stair fixture regression，但尚未覆盖所有历史验收，也未证明真实楼梯动力学 | 后续 default re-baseline 任务再决定是否替换默认；当前结论是保留 opt-in wrapper |
 | Phase 3C route graph 是手工 floor atlas | 目的是给 Phase 4 手工连接器提供基线，不是自动建图结果 | Phase 4 先证明控制交接；Phase 5 再自动连接器 |
-| 没有 production Mission Orchestrator | Phase 4B-min 只新增 one-shot mission segment runtime，不是长生命周期调度器 | 后续用独立完整任务单推进 production-grade mission API、恢复策略或状态持久化 |
+| 没有完整 production Mission Orchestrator | 当前已有 `RunMission` skeleton、JSON checkpoint、同一 goal resume 和有限 retry，但仍不是完整长生命周期调度器 | 后续用独立完整任务单推进多任务队列、操作员恢复策略、优先级调度和更持久的状态后端 |
 | Phase 4C-min flat executor 仍是 verifier skeleton | 本阶段只证明 mission 到 navigation-owned `NavigateToPose` gate 的调度；当前 real-model short `NavigateToPose` verifier 尚未替换 mission runtime skeleton | 后续 production mission / real route-tracking integration 任务处理 |
-| 真实楼梯执行控制器调参仍未覆盖 | Phase 5A 只验证 live route-server 反馈观察；当前 stair executor 只是 profile-aware skeleton，虽已具备 leg hold outlet 但不覆盖物理楼梯运动学 | 后续 dedicated stair executor/control tuning 任务处理 |
+| 真实楼梯执行控制器调参仍未覆盖 | Phase 4E 已补 phase-aware `/stair_exec` fixture、wheel lock/body-height/release 诊断和 leg hold outlet，但仍不覆盖物理楼梯运动学 | 后续 dedicated stair trajectory / gait tuning 任务处理 |
 | ROS discovery/lifecycle 偶发等待 | 曾有一次 Phase 4B 回归中 `route_server` 进程已启动但 lifecycle service 未被发现；换新 domain 复跑通过 | 先清理残留并换新 `ROS_DOMAIN_ID` 复跑；若复现，再单独加 discovery 诊断 |
 | 没有 `map -> odom` 定位融合链 | Phase 3A 有意运行在 `odom`，Phase 3C 只提供 `map` 资产 | 后续定位/地图服务任务单再引入 |
