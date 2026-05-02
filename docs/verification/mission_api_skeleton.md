@@ -9,6 +9,11 @@
 - 成功、无效目标、取消、flat action 不可用四条路径都已通过 verifier。
 - 这仍然是 skeleton，不是 production Mission Orchestrator，也不等于真实机器人运动上的 route tracking 或楼梯动力学。
 
+## 额外硬化
+- `MissionApiRuntime` 现在在进入执行前会争抢单飞 admission slot。
+- 并发 `RunMission` goal 会返回 `MISSION_BUSY` / `mission_state_in_use`，而不是同时竞争单一 JSON state file。
+- 这仍然不是 multi-mission queueing，也不是 priority scheduling。
+
 ## 变更文件
 - `go2w_mission/action/RunMission.action`
 - `go2w_mission/go2w_mission/mission_api.py`
@@ -46,4 +51,25 @@ source /opt/ros/humble/setup.bash && ./tools/verify_mission_api_skeleton.sh
 ## 后续风险
 - 现在只验证了 skeleton 级路由分段和动作调度，不等于真实楼梯动力学。
 - 生产级 Mission Orchestrator、恢复策略、状态持久化仍未实现。
+- 并发 admission race 已被单飞 gate 收口，但真正的任务队列和优先级调度仍需独立任务单。
 - 后续若扩展真实楼梯控制，必须先单独写完整任务单，不要顺手把本 skeleton 直接改成最终版。
+
+## 追加验证
+- Date: `2026-05-02`
+- Command:
+
+```bash
+PYTHONPATH="$PWD/go2w_mission" python3 -m pytest go2w_mission/test/test_mission_api_skeleton.py -q
+```
+
+- Result:
+
+```text
+7 passed in 0.02s
+```
+
+- Key result:
+
+```text
+test_mission_api_single_flight_admission_gate_is_non_blocking: PASS
+```

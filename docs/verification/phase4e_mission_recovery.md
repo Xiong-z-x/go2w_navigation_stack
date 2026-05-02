@@ -73,6 +73,9 @@ mission_state_next_segment_index: 3
   route/segment identity.
 - A different nonterminal mission checkpoint is treated as busy rather than
   silently overwritten.
+- The mission API now also uses a single-flight admission gate, so concurrent
+  `RunMission` requests return `MISSION_BUSY` / `mission_state_in_use` instead
+  of racing the single JSON state file.
 - Retry is finite; the accepted verifier used the default retry limit and
   observed two retry attempts before the first run became recoverable.
 
@@ -81,7 +84,8 @@ mission_state_next_segment_index: 3
   Mission Orchestrator.
 - It does not yet provide multi-mission queueing, operator pause/resume
   policy, mission priority management, fleet-level scheduling, or durable
-  storage beyond a single local JSON state file.
+  storage beyond a single local JSON state file. Concurrent admission races
+  are now guarded by a single-flight slot, but that is still not full queueing.
 - It still depends on current route, flat navigation, and stair executor
   skeletons.
 - It does not replace real robot-motion route tracking or stair dynamics.

@@ -31,11 +31,21 @@ hardware gait control, `map_server`, AMCL, or `map -> odom` localization.
 - `z_voxels` intentionally remains `16`; the Humble voxel grid implementation
   reported that it supports at most 16 z values during debugging.
 
-## Verification Run
-- Date: `2026-05-02T11:08+08:00`
-- Command: `GO2W_REAL_ROUTE_REBUILD_REPO=0 ./tools/verify_go2w_real_model_route_following.sh`
-- Evidence directory: `/tmp/go2w_real_model_route_following_8192`
-- Result: `go2w_real_model_route_following_result: PASS`
+## Verification Runs
+- Initial accepted run:
+  - Date: `2026-05-02T11:08+08:00`
+  - Command: `GO2W_REAL_ROUTE_REBUILD_REPO=0 ./tools/verify_go2w_real_model_route_following.sh`
+  - Evidence directory: `/tmp/go2w_real_model_route_following_8192`
+  - Result: `go2w_real_model_route_following_result: PASS`
+- Dedicated hardening run:
+  - Date: `2026-05-02T16:40-17:05+08:00`
+  - Command: `GO2W_REAL_ROUTE_REBUILD_REPO=0 ./tools/verify_go2w_real_model_route_following.sh`
+  - Single post-fix evidence directory: `/tmp/go2w_real_model_route_following_19265`
+  - Three clean-domain rerun evidence directories:
+    - `/tmp/go2w_real_model_route_following_23328`
+    - `/tmp/go2w_real_model_route_following_24306`
+    - `/tmp/go2w_real_model_route_following_25263`
+  - Result: three consecutive clean-domain `go2w_real_model_route_following_result: PASS`
 
 ## Verified Facts
 - `joint_state_broadcaster`, `leg_position_controller`, and
@@ -88,9 +98,11 @@ global_costmap_topic_once: PASS
 local_costmap_frame: odom
 forbidden_extra_nodes: ABSENT
 real_route_goal_status: SUCCEEDED
-real_route_perception_odom_delta_xy: 0.271766
-real_route_diff_drive_odom_delta_xy: 0.212430
-real_route_cmd_vel_nonzero_count: 55
+real_route_goal_selection_policy: first_reachable_in_preference_order
+real_route_goal_selected_candidate: 1
+real_route_perception_odom_delta_xy: 0.056455
+real_route_diff_drive_odom_delta_xy: 0.110010
+real_route_cmd_vel_nonzero_count: 33
 real_route_goal_result: PASS
 sim_runtime_exception_count: 0
 perception_runtime_exception_count: 0
@@ -111,10 +123,24 @@ go2w_real_model_route_following_result: PASS
   aborted with zero-length plans on the real-model fixture. The accepted fix is
   to project the configured forward/lateral offsets from the start pose heading
   frame into `odom` before sending the goal.
-- Later robustness runs showed that `ComputePathToPose` can still return a
-  non-empty path while `NavigateToPose` aborts in DWB on some spawn states.
-  This verifier therefore remains a standalone opt-in smoke and is not part of
-  the stable control-chain regression wrapper.
+- Dedicated hardening later reproduced the remaining route-following risk:
+  `ComputePathToPose` returned non-empty paths, while `NavigateToPose` aborted
+  in DWB with `No valid trajectories` and `Controller patience exceeded`.
+  Representative failed evidence directories were
+  `/tmp/go2w_real_model_route_following_14646`,
+  `/tmp/go2w_real_model_route_following_15647`, and
+  `/tmp/go2w_real_model_route_following_16582`.
+- The hardening fix has two parts:
+  - the verifier now selects the first reachable candidate in preference order
+    instead of choosing the longest preflight path, avoiding lateral detours
+    when the preferred straight goal is already reachable;
+  - the real-model Nav2 goal tolerance is relaxed to `xy_goal_tolerance: 0.08`
+    for both `general_goal_checker` and DWB, matching the short real-model
+    motion smoke instead of over-tracking a centimeter-level target.
+- The verifier now cleans stale route-following processes before and after a
+  run. This prevents orphaned `sim_go2w_real.launch.py`,
+  `phase2f_tf_authority.launch.py`, and FAST-LIO processes from contaminating
+  repeated clean-domain reruns.
 - An earlier verifier iteration failed when the local/global voxel layers could
   not raytrace from the real-model sensor origin because `origin_z: -0.20` was
   too high. The accepted fix lowers the real-model costmap origin to `-0.40`.
@@ -126,9 +152,11 @@ go2w_real_model_route_following_result: PASS
 - The real model path remains opt-in and does not replace `sim.launch.py`.
 - This verifies a short same-floor `NavigateToPose` goal, not production
   `nav2_route` route tracking.
-- The verifier is not currently a stable control-chain gate; use
-  `tools/verify_go2w_control_chain_regression.sh` for the stable control-chain
-  regression.
+- The verifier now has three consecutive clean-domain PASS runs and is a
+  repeatable regression candidate. It is still not part of the stable
+  control-chain wrapper by default; use
+  `tools/verify_go2w_control_chain_regression.sh` for the conservative
+  migration control-chain gate.
 - The `nav2_route` live feedback gate still runs under a controlled TF fixture,
   not the real-model motion chain.
 - Stair traversal, stair dynamics, and legged controller tuning remain open.

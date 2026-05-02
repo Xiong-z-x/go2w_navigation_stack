@@ -19,13 +19,19 @@
   Mission Orchestrator。它已经直接接通真实 `nav2_route` route_server 和
   `ComputeAndTrackRoute`，并观察到 `500` 与 `AdjustSpeedLimit`，但仍只是在受控 TF
   trajectory fixture 上做观察，不是机器人实运动。
-- 不要把 real-model same-floor route-following smoke 当成稳定 control-chain 门禁。
-  当前它仍会在部分 spawn 状态下进入 DWB local planner abort；稳定 control-chain
-  regression 已刻意把它拆出。
+- 不要把 real-model same-floor route-following regression candidate 当成 production
+  route tracking。它已完成 dedicated hardening 并三次 clean-domain 通过，但仍只是
+  opt-in 短 `NavigateToPose` 运动链验证；稳定 control-chain regression 仍刻意把它拆出。
 - 不要把 `go2w_mission` 的 `RunMission` skeleton 当成 production Mission
   Orchestrator。它只是把 route compute、flat/stair dispatch 和诊断结果码串起来，
   当前虽已新增 JSON checkpoint、同一 goal resume 和有限 retry，仍依赖现有
   route server、`NavigateToPose` verifier 和 `/stair_exec` skeleton，不是完整生产调度器。
+- 不要把 `RunMission` 的并发入队误判成可并行执行。当前 mission API 只做单飞
+  admission gate；并发 goal 现在会返回 `MISSION_BUSY` / `mission_state_in_use`，
+  但这仍不是真正的任务队列。
+- 不要把 mission runtime real-model flat execution gate 当成 production Mission
+  Orchestrator。它已经把 flat segment 接到真实 Nav2 `/navigate_to_pose`，但仍只是
+  opt-in flat-only gate，和完整生产调度器不是一回事。
 - 不要把 Phase 4E real-model stair fixture 当成真实楼梯动力学。它只证明
   `/stair_exec` 在 opt-in real-model fixture 下能完成 phase-aware action 闭环、
   `flat/wheeled -> stair/legged -> flat/wheeled` 控制权交接、profile-limited
@@ -55,6 +61,7 @@
 ## 接手后最应该先确认
 - `git status --short --branch` 是否干净并与远端 main 对齐。
 - `docs/architecture/architecture_state.md` 当前 Active Phase。
+- `docs/handoff/pre_migration_final_freeze_report.md` 中的最终封板结论和下一任务建议。
 - `tools/verify_phase4_pre_handoff.sh` 是否通过。
 - `.go2w_external/` 是否存在；若不存在，先跑
   `./tools/prepare_phase2d_fastlio_external.sh`。
@@ -95,10 +102,10 @@ controller profile、`flat -> wheeled` / `stair -> legged` 状态和启动站立
 Phase 4 accepted 已完成总验收；`RunMission` skeleton 也已完成并验证；Phase 4E
 又补上 real-model stair fixture、mission recovery checkpoint/resume 和 opt-in
 real-model regression wrapper。后续最小任务必须另有完整任务单或当前自主审批模式下的
-自批准任务单，可以围绕真实 stair trajectory / gait tuning、进一步 mission scheduling
-policy、Phase 5 terrain-aware connector discovery 或未来 default real-model re-baseline
-做单主题推进。不要把下一步扩大为真实多楼层自主、自动楼梯检测、traversability 或
-`map -> odom` 定位链。
+自批准任务单，当前最优先的单主题起点是 production Mission Orchestrator skeleton
+hardening；后续再考虑真实 stair trajectory / gait tuning、Phase 5 terrain-aware
+connector discovery 或未来 default real-model re-baseline。不要把下一步扩大为真实多楼层
+自主、自动楼梯检测、traversability 或 `map -> odom` 定位链。
 
 ## Runtime 验证注意
 - Phase 4B 回归曾出现一次非复现的 ROS discovery/lifecycle 等待失败：
@@ -116,18 +123,30 @@ policy、Phase 5 terrain-aware connector discovery 或未来 default real-model 
   `ros2 control list_controllers`，把 `controller_states_ready: PASS` 作为 controller
   激活证据。以后遇到 spawner 重试或 `Configured and activated` 日志缺失，先看控制器
   state，不要直接把 launch 判死。
-- Real-model same-floor route-following verifier 有历史 PASS 证据，但不是稳定
-  control-chain 门禁。对应 Nav2 参数文件是
+- Real-model same-floor route-following verifier 现在有 dedicated hardening 证据，但不是
+  production route tracking。对应 Nav2 参数文件是
   `go2w_navigation/config/phase5_real_model_nav2_same_floor.yaml`，当前关键值是
-  `robot_radius: 0.28`、`footprint_padding: 0.01`、`origin_z: -0.40`、`z_voxels: 16`。
+  `robot_radius: 0.28`、`footprint_padding: 0.01`、`origin_z: -0.40`、`z_voxels: 16`、
+  `xy_goal_tolerance: 0.08`。
   `voxel_grid` 在这个 runtime 里明确提示最多只支持 16 个 z values，所以不要把
-  `z_voxels` 提到 16 以上。后续硬化运行显示 `ComputePathToPose` 可返回非空路径而
-  `NavigateToPose` 仍在 DWB abort；要先用 dedicated Nav2/DWB real-model tuning 任务
-  处理，再考虑把它纳入稳定 regression。
+  `z_voxels` 提到 16 以上。2026-05-02 dedicated hardening 曾复现
+  `ComputePathToPose` 非空但 `NavigateToPose` DWB abort；当前修复是首个可达候选策略、
+  `xy_goal_tolerance: 0.08` 和 stale-process cleanup，随后 3 次 clean-domain PASS。
 - `go2w_control` 的 `stair_executor` 现在会读取 legged motion profile 并钳制 stair 线速度。
   这只是让 skeleton 和 motion baseline 对齐，不是已经调好的真实楼梯步态。
 - `go2w_control` 的 `stair_executor` 现在还会在 stair owner 激活时发布 12 关节 leg hold command。
   这只是把姿态出口显式化，不代表真实楼梯行走调参完成。
+- Mission runtime real-model flat execution gate 的关键 launch 参数是
+  `flat_behavior_tree:=__empty__`；不要再尝试传空的 `flat_behavior_tree:=`，ROS 2 launch
+  会直接拒绝。
+- Mission real-flat verifier 依赖在 mission API ready 后重新生成并 reload route graph；
+  不要删掉这一步，否则 perception odom 漂移后更容易把 stale graph 当成 Nav2 问题。
+- Mission fixture 不要再使用 node id `0`；mission API 会正确拒绝它作为 `invalid_goal`。
+- Mission flat goal 不能只带 x/y；必须从 route graph 读回目标 yaw 并转换成四元数，
+  否则 real-model flat gate 会更容易在 DWB 局部规划阶段 abort。
+- 修改 mission / Nav2 源码后，先确保 install space 已重建或至少不是旧 install；
+  不要用 stale install 复跑，容易把 `behavior_tree=success` 之类的旧参数误投给真实 Nav2。
+- 宽 `pkill -f` 需要格外小心；不要让它匹配当前 shell 或工作区内自己的调试进程。
 - `go2w_stand_initializer` 现在支持 `--motion-mode wheeled|legged`，real-model launch
   显式传入 `--motion-mode legged` 并打印 profile 摘要；这只是启动姿态和诊断基线，
   不是自动切换步态控制器。
@@ -146,6 +165,20 @@ policy、Phase 5 terrain-aware connector discovery 或未来 default real-model 
   先运行 `./tools/prepare_phase2d_fastlio_external.sh`，不要把缺依赖误判成 Nav2 或
   real-model 控制失败。该 wrapper 包含 route-following smoke，因此不应替代稳定的
   `tools/verify_go2w_control_chain_regression.sh`。
+
+## 工具和检索易错点
+- 在 Bash 里用 `rg` 搜索含 Markdown 反引号的字符串时，不要把未转义反引号放进双引号。
+  Bash 会先做命令替换，导致 `unexpected EOF while looking for matching \`\`` 或更隐蔽的
+  搜索结果失真。安全做法是拆分关键词、用单引号包裹 pattern，或逐个转义反引号。
+- `task_plan.md`、`findings.md`、`progress.md` 是本地 agent 工作记忆，已被 `.gitignore`
+  忽略。正式交接事实必须写入 `docs/handoff/*`、`docs/architecture/*` 或 `docs/verification/*`。
+
+## 后续项目改进起步顺序
+1. 先做 production Mission Orchestrator skeleton hardening，把任务队列、长期状态、
+   操作员恢复策略和优先级调度中的一个最小闭环落地。
+2. 再做 dedicated stair trajectory / wheel lock / body-height / gait tuning。
+3. 最后再进入 real-model default baseline 评估、Phase 5 elevation/traversability/
+   automatic connector generation。
 
 ## 上下文变长后的防失真做法
 - 每完成一个阶段或关键任务，更新 `architecture_state.md`。

@@ -23,6 +23,9 @@ from go2w_mission.mission_recovery import (
 )
 
 
+EMPTY_FLAT_BEHAVIOR_TREE_SENTINEL = "__empty__"
+
+
 @dataclass(frozen=True)
 class MissionGoalSpec:
     start_id: int
@@ -70,6 +73,16 @@ def classify_mission_result(result_code: str) -> str:
     return "MISSION_FAILED"
 
 
+def configure_flat_goal_behavior_tree(goal: Any, behavior_tree: str) -> None:
+    goal.behavior_tree = normalize_flat_behavior_tree(behavior_tree)
+
+
+def normalize_flat_behavior_tree(behavior_tree: str) -> str:
+    if str(behavior_tree).strip() == EMPTY_FLAT_BEHAVIOR_TREE_SENTINEL:
+        return ""
+    return str(behavior_tree)
+
+
 def summarize_segments(segments: list[MissionSegment]) -> str:
     formatted: list[str] = []
     for segment in segments:
@@ -95,6 +108,7 @@ class MissionApiRuntime:
         mission_retry_limit: int,
         mission_retry_backoff_sec: float,
         mission_recovery_enabled: bool,
+        flat_behavior_tree: str,
     ) -> None:
         from nav2_msgs.action import ComputeRoute, NavigateToPose
         from rclpy.action import ActionClient
@@ -117,6 +131,7 @@ class MissionApiRuntime:
         self.mission_retry_limit = max(0, int(mission_retry_limit))
         self.mission_retry_backoff_sec = max(0.0, float(mission_retry_backoff_sec))
         self.mission_recovery_enabled = bool(mission_recovery_enabled)
+        self.flat_behavior_tree = str(flat_behavior_tree)
         self._mission_lock = threading.Lock()
         loaded = self.state_store.load()
         if loaded is not None:
@@ -126,6 +141,12 @@ class MissionApiRuntime:
                 f"next_segment_index={loaded.next_segment_index} "
                 f"result_code={loaded.result_code}"
             )
+
+    def _admit_mission_slot(self) -> bool:
+        return self._mission_lock.acquire(blocking=False)
+
+    def _release_mission_slot(self) -> None:
+        self._mission_lock.release()
 
     def execute(self, goal_handle) -> Any:
         request = goal_handle.request
@@ -160,45 +181,10 @@ class MissionApiRuntime:
             route_frame_id=goal_spec.route_frame_id,
         )
 
-        if not Path(goal_spec.graph_file).exists():
-            return self._finish(
-                goal_handle,
-                success=False,
-                result_code="MISSION_INVALID_GOAL",
-                message=f"graph_missing:{goal_spec.graph_file}",
-                segment_count=0,
-                segment_summary="",
+        if not self._admit_mission_slot():
+            self.node.get_logger().info(
+                "mission_busy: another mission already holds the slot"
             )
-
-        try:
-            graph = Phase4ARouteGraph.from_file(goal_spec.graph_file)
-        except (OSError, ValueError, KeyError) as exc:
-            return self._finish(
-                goal_handle,
-                success=False,
-                result_code="MISSION_INVALID_GOAL",
-                message=f"graph_load_failed:{exc}",
-                segment_count=0,
-                segment_summary="",
-            )
-
-        mismatches = graph.geometry_mismatches()
-        if mismatches:
-            return self._finish(
-                goal_handle,
-                success=False,
-                result_code="MISSION_INVALID_GOAL",
-                message="graph_geometry_mismatch",
-                segment_count=0,
-                segment_summary="",
-            )
-
-        existing_checkpoint = self.state_store.load()
-        if (
-            existing_checkpoint is not None
-            and existing_checkpoint.mission_key != mission_key
-            and existing_checkpoint.state not in {"SUCCEEDED", "FAILED", "CANCELED"}
-        ):
             return self._finish(
                 goal_handle,
                 success=False,
@@ -208,201 +194,254 @@ class MissionApiRuntime:
                 segment_summary="",
             )
 
-        goal_handle.publish_feedback(self._feedback("ROUTE_REQUESTED", 0, "", "", 0.0))
-        route_result = self._compute_route_edge_ids(goal_handle, goal_spec)
-        if not route_result["success"]:
-            state = (
-                "RECOVERABLE"
-                if self.mission_recovery_enabled
-                and is_recoverable_result_code(route_result["result_code"])
-                else "FAILED"
-            )
-            self._save_checkpoint(
-                checkpoint_for_goal(
-                    mission_key=mission_key,
-                    state=state,
-                    start_id=goal_spec.start_id,
-                    goal_id=goal_spec.goal_id,
-                    graph_file=goal_spec.graph_file,
-                    route_frame_id=goal_spec.route_frame_id,
-                    segment_summary="",
-                    route_edge_ids=(),
-                    next_segment_index=0,
-                    current_segment_index=0,
-                    current_segment_type="",
-                    active_owner="flat",
-                    result_code=route_result["result_code"],
-                    message=route_result["message"],
-                    retry_count=0,
-                )
-            )
-            return self._finish(
-                goal_handle,
-                success=False,
-                result_code=route_result["result_code"],
-                message=route_result["message"],
-                segment_count=0,
-                segment_summary="",
-            )
-        route_edge_ids = tuple(route_result["edge_ids"])
-
         try:
-            segments = build_mission_segments(graph, route_edge_ids)
-        except ValueError as exc:
-            self._save_checkpoint(
-                checkpoint_for_goal(
-                    mission_key=mission_key,
-                    state="FAILED",
-                    start_id=goal_spec.start_id,
-                    goal_id=goal_spec.goal_id,
-                    graph_file=goal_spec.graph_file,
-                    route_frame_id=goal_spec.route_frame_id,
-                    segment_summary="",
-                    route_edge_ids=route_edge_ids,
-                    next_segment_index=0,
-                    current_segment_index=0,
-                    current_segment_type="",
-                    active_owner="flat",
-                    result_code="MISSION_CONNECTOR_UNAVAILABLE",
-                    message=str(exc),
-                    retry_count=0,
-                )
-            )
-            return self._finish(
-                goal_handle,
-                success=False,
-                result_code="MISSION_CONNECTOR_UNAVAILABLE",
-                message=str(exc),
-                segment_count=0,
-                segment_summary="",
-            )
-        if not segments:
-            self._save_checkpoint(
-                checkpoint_for_goal(
-                    mission_key=mission_key,
-                    state="FAILED",
-                    start_id=goal_spec.start_id,
-                    goal_id=goal_spec.goal_id,
-                    graph_file=goal_spec.graph_file,
-                    route_frame_id=goal_spec.route_frame_id,
-                    segment_summary="",
-                    route_edge_ids=route_edge_ids,
-                    next_segment_index=0,
-                    current_segment_index=0,
-                    current_segment_type="",
-                    active_owner="flat",
-                    result_code="MISSION_CONNECTOR_UNAVAILABLE",
-                    message="no_segments",
-                    retry_count=0,
-                )
-            )
-            return self._finish(
-                goal_handle,
-                success=False,
-                result_code="MISSION_CONNECTOR_UNAVAILABLE",
-                message="no_segments",
-                segment_count=0,
-                segment_summary="",
-            )
-
-        segment_summary = summarize_segments(segments)
-        goal_handle.publish_feedback(
-            self._feedback("SEGMENTS_READY", 0, "", "", 0.0)
-        )
-        checkpoint = existing_checkpoint
-        resume_from = 0
-        if self.mission_recovery_enabled and should_resume_checkpoint(
-            checkpoint,
-            mission_key=mission_key,
-        ):
-            if (
-                checkpoint.segment_summary
-                and checkpoint.segment_summary != segment_summary
-            ) or tuple(checkpoint.route_edge_ids) != route_edge_ids:
+            if not Path(goal_spec.graph_file).exists():
                 return self._finish(
                     goal_handle,
                     success=False,
                     result_code="MISSION_INVALID_GOAL",
-                    message="mission_checkpoint_mismatch",
+                    message=f"graph_missing:{goal_spec.graph_file}",
                     segment_count=0,
                     segment_summary="",
                 )
-            resume_from = min(max(0, checkpoint.next_segment_index), len(segments))
-            self.node.get_logger().info(
-                "mission_recovery_resume: "
-                f"key={mission_key} resume_from={resume_from} "
-                f"state={checkpoint.state} retry_count={checkpoint.retry_count}"
-            )
-            goal_handle.publish_feedback(
-                self._feedback("RECOVERING", resume_from, "", "", 0.0)
-            )
 
-        self._save_checkpoint(
-            checkpoint_for_goal(
+            try:
+                graph = Phase4ARouteGraph.from_file(goal_spec.graph_file)
+            except (OSError, ValueError, KeyError) as exc:
+                return self._finish(
+                    goal_handle,
+                    success=False,
+                    result_code="MISSION_INVALID_GOAL",
+                    message=f"graph_load_failed:{exc}",
+                    segment_count=0,
+                    segment_summary="",
+                )
+
+            mismatches = graph.geometry_mismatches()
+            if mismatches:
+                return self._finish(
+                    goal_handle,
+                    success=False,
+                    result_code="MISSION_INVALID_GOAL",
+                    message="graph_geometry_mismatch",
+                    segment_count=0,
+                    segment_summary="",
+                )
+
+            existing_checkpoint = self.state_store.load()
+            if (
+                existing_checkpoint is not None
+                and existing_checkpoint.mission_key != mission_key
+                and existing_checkpoint.state not in {"SUCCEEDED", "FAILED", "CANCELED"}
+            ):
+                return self._finish(
+                    goal_handle,
+                    success=False,
+                    result_code="MISSION_BUSY",
+                    message="mission_state_in_use",
+                    segment_count=0,
+                    segment_summary="",
+                )
+
+            goal_handle.publish_feedback(
+                self._feedback("ROUTE_REQUESTED", 0, "", "", 0.0)
+            )
+            route_result = self._compute_route_edge_ids(goal_handle, goal_spec)
+            if not route_result["success"]:
+                state = (
+                    "RECOVERABLE"
+                    if self.mission_recovery_enabled
+                    and is_recoverable_result_code(route_result["result_code"])
+                    else "FAILED"
+                )
+                self._save_checkpoint(
+                    checkpoint_for_goal(
+                        mission_key=mission_key,
+                        state=state,
+                        start_id=goal_spec.start_id,
+                        goal_id=goal_spec.goal_id,
+                        graph_file=goal_spec.graph_file,
+                        route_frame_id=goal_spec.route_frame_id,
+                        segment_summary="",
+                        route_edge_ids=(),
+                        next_segment_index=0,
+                        current_segment_index=0,
+                        current_segment_type="",
+                        active_owner="flat",
+                        result_code=route_result["result_code"],
+                        message=route_result["message"],
+                        retry_count=0,
+                    )
+                )
+                return self._finish(
+                    goal_handle,
+                    success=False,
+                    result_code=route_result["result_code"],
+                    message=route_result["message"],
+                    segment_count=0,
+                    segment_summary="",
+                )
+            route_edge_ids = tuple(route_result["edge_ids"])
+
+            try:
+                segments = build_mission_segments(graph, route_edge_ids)
+            except ValueError as exc:
+                self._save_checkpoint(
+                    checkpoint_for_goal(
+                        mission_key=mission_key,
+                        state="FAILED",
+                        start_id=goal_spec.start_id,
+                        goal_id=goal_spec.goal_id,
+                        graph_file=goal_spec.graph_file,
+                        route_frame_id=goal_spec.route_frame_id,
+                        segment_summary="",
+                        route_edge_ids=route_edge_ids,
+                        next_segment_index=0,
+                        current_segment_index=0,
+                        current_segment_type="",
+                        active_owner="flat",
+                        result_code="MISSION_CONNECTOR_UNAVAILABLE",
+                        message=str(exc),
+                        retry_count=0,
+                    )
+                )
+                return self._finish(
+                    goal_handle,
+                    success=False,
+                    result_code="MISSION_CONNECTOR_UNAVAILABLE",
+                    message=str(exc),
+                    segment_count=0,
+                    segment_summary="",
+                )
+            if not segments:
+                self._save_checkpoint(
+                    checkpoint_for_goal(
+                        mission_key=mission_key,
+                        state="FAILED",
+                        start_id=goal_spec.start_id,
+                        goal_id=goal_spec.goal_id,
+                        graph_file=goal_spec.graph_file,
+                        route_frame_id=goal_spec.route_frame_id,
+                        segment_summary="",
+                        route_edge_ids=route_edge_ids,
+                        next_segment_index=0,
+                        current_segment_index=0,
+                        current_segment_type="",
+                        active_owner="flat",
+                        result_code="MISSION_CONNECTOR_UNAVAILABLE",
+                        message="no_segments",
+                        retry_count=0,
+                    )
+                )
+                return self._finish(
+                    goal_handle,
+                    success=False,
+                    result_code="MISSION_CONNECTOR_UNAVAILABLE",
+                    message="no_segments",
+                    segment_count=0,
+                    segment_summary="",
+                )
+
+            segment_summary = summarize_segments(segments)
+            goal_handle.publish_feedback(
+                self._feedback("SEGMENTS_READY", 0, "", "", 0.0)
+            )
+            checkpoint = existing_checkpoint
+            resume_from = 0
+            if self.mission_recovery_enabled and should_resume_checkpoint(
+                checkpoint,
                 mission_key=mission_key,
-                state="RUNNING",
-                start_id=goal_spec.start_id,
-                goal_id=goal_spec.goal_id,
-                graph_file=goal_spec.graph_file,
-                route_frame_id=goal_spec.route_frame_id,
-                segment_summary=segment_summary,
-                route_edge_ids=route_edge_ids,
-                next_segment_index=resume_from,
-                current_segment_index=max(0, resume_from - 1),
-                current_segment_type="",
-                active_owner="flat",
-                result_code="MISSION_SUCCEEDED",
-                message="mission_running",
-                retry_count=0,
-            )
-        )
-        mission_result = self._execute_segments(
-            goal_handle,
-            graph,
-            goal_spec,
-            segments,
-            mission_key=mission_key,
-            segment_summary=segment_summary,
-            start_index=resume_from,
-            route_edge_ids=route_edge_ids,
-        )
-        goal_handle.publish_feedback(
-            self._feedback(
-                "MISSION_COMPLETE",
-                len(segments),
-                "",
-                "",
-                1.0 if mission_result["success"] else 0.0,
-            )
-        )
-        if mission_result["success"]:
+            ):
+                if (
+                    checkpoint.segment_summary
+                    and checkpoint.segment_summary != segment_summary
+                ) or tuple(checkpoint.route_edge_ids) != route_edge_ids:
+                    return self._finish(
+                        goal_handle,
+                        success=False,
+                        result_code="MISSION_INVALID_GOAL",
+                        message="mission_checkpoint_mismatch",
+                        segment_count=0,
+                        segment_summary="",
+                    )
+                resume_from = min(max(0, checkpoint.next_segment_index), len(segments))
+                self.node.get_logger().info(
+                    "mission_recovery_resume: "
+                    f"key={mission_key} resume_from={resume_from} "
+                    f"state={checkpoint.state} retry_count={checkpoint.retry_count}"
+                )
+                goal_handle.publish_feedback(
+                    self._feedback("RECOVERING", resume_from, "", "", 0.0)
+                )
+
             self._save_checkpoint(
                 checkpoint_for_goal(
                     mission_key=mission_key,
-                    state="SUCCEEDED",
+                    state="RUNNING",
                     start_id=goal_spec.start_id,
                     goal_id=goal_spec.goal_id,
                     graph_file=goal_spec.graph_file,
                     route_frame_id=goal_spec.route_frame_id,
                     segment_summary=segment_summary,
                     route_edge_ids=route_edge_ids,
-                    next_segment_index=len(segments),
-                    current_segment_index=mission_result["current_segment_index"],
-                    current_segment_type=mission_result["current_segment_type"],
-                    active_owner=mission_result["active_owner"],
-                    result_code=mission_result["result_code"],
-                    message=mission_result["message"],
-                    retry_count=mission_result["retry_count"],
+                    next_segment_index=resume_from,
+                    current_segment_index=max(0, resume_from - 1),
+                    current_segment_type="",
+                    active_owner="flat",
+                    result_code="MISSION_SUCCEEDED",
+                    message="mission_running",
+                    retry_count=0,
                 )
             )
-        return self._finish(
-            goal_handle,
-            success=mission_result["success"],
-            result_code=mission_result["result_code"],
-            message=mission_result["message"],
-            segment_count=len(segments),
-            segment_summary=segment_summary,
-        )
+            mission_result = self._execute_segments(
+                goal_handle,
+                graph,
+                goal_spec,
+                segments,
+                mission_key=mission_key,
+                segment_summary=segment_summary,
+                start_index=resume_from,
+                route_edge_ids=route_edge_ids,
+            )
+            goal_handle.publish_feedback(
+                self._feedback(
+                    "MISSION_COMPLETE",
+                    len(segments),
+                    "",
+                    "",
+                    1.0 if mission_result["success"] else 0.0,
+                )
+            )
+            if mission_result["success"]:
+                self._save_checkpoint(
+                    checkpoint_for_goal(
+                        mission_key=mission_key,
+                        state="SUCCEEDED",
+                        start_id=goal_spec.start_id,
+                        goal_id=goal_spec.goal_id,
+                        graph_file=goal_spec.graph_file,
+                        route_frame_id=goal_spec.route_frame_id,
+                        segment_summary=segment_summary,
+                        route_edge_ids=route_edge_ids,
+                        next_segment_index=len(segments),
+                        current_segment_index=mission_result["current_segment_index"],
+                        current_segment_type=mission_result["current_segment_type"],
+                        active_owner=mission_result["active_owner"],
+                        result_code=mission_result["result_code"],
+                        message=mission_result["message"],
+                        retry_count=mission_result["retry_count"],
+                    )
+                )
+            return self._finish(
+                goal_handle,
+                success=mission_result["success"],
+                result_code=mission_result["result_code"],
+                message=mission_result["message"],
+                segment_count=len(segments),
+                segment_summary=segment_summary,
+            )
+        finally:
+            self._release_mission_slot()
 
     def _save_checkpoint(self, checkpoint: MissionCheckpoint) -> None:
         self.state_store.save(checkpoint)
@@ -731,7 +770,7 @@ class MissionApiRuntime:
                 frame_id=goal_spec.route_frame_id,
             )
         )
-        goal.behavior_tree = "success"
+        configure_flat_goal_behavior_tree(goal, self.flat_behavior_tree)
 
         send_future = self.navigate_to_pose_client.send_goal_async(goal)
         if not _spin_until(self.node, send_future, 10.0):
@@ -958,6 +997,7 @@ def parse_args(argv: list[str]) -> tuple[argparse.Namespace, list[str]]:
     parser.add_argument("--mission-retry-limit", type=int, default=2)
     parser.add_argument("--mission-retry-backoff-sec", type=float, default=0.5)
     parser.add_argument("--mission-recovery-enabled", type=_parse_bool, default=True)
+    parser.add_argument("--flat-behavior-tree", default="success")
     parser.add_argument("--action-name", default="/go2w/mission/run")
     return parser.parse_known_args(argv)
 
@@ -985,6 +1025,7 @@ def main(argv: list[str] | None = None) -> int:
                 mission_retry_limit=args.mission_retry_limit,
                 mission_retry_backoff_sec=args.mission_retry_backoff_sec,
                 mission_recovery_enabled=args.mission_recovery_enabled,
+                flat_behavior_tree=args.flat_behavior_tree,
             )
             self._callback_group = ReentrantCallbackGroup()
             self._server = ActionServer(

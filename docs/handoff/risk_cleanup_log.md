@@ -31,9 +31,21 @@
 | stair tuning override 的验证路径缺失 | 代码支持覆盖参数后，如果没有独立 smoke test，后续很容易把 tuning 误判成 baseline 漂移 | 新增 `tools/verify_phase4e_stair_tuning_overrides.sh`，使用同一 real-model fixture 复跑并确认默认 baseline 不变时仍能闭环 | 已修复 |
 | leg trajectory / wheel lock / body height transition 没有最小可审计策略骨架 | 真实控制接口尚未引入，若直接宣称控制完成会越界 | 将 `prepare,wheel_lock,body_height_transition_down,execute_stairs,body_height_transition_up,release` 建成可诊断 phase plan；leg trajectory 当前明确为 12-joint conservative hold，不伪造不存在的 body-height 控制通道 | 已部分修复 |
 | Mission API 缺少状态持久化和恢复路径 | 旧 `RunMission` skeleton 是单次 action 调度，失败后没有可恢复 checkpoint | 新增 `mission_recovery.py`、JSON state store、same-goal resume、有限 retry 和 `tools/verify_phase4e_mission_recovery.sh`，验证 stair-unavailable 后从 segment index `1` 恢复到成功 | 已部分修复 |
+| Mission API 并发 goal 会竞争单一状态文件 | `_mission_lock` 曾存在但未接入 admission gate，两个 `RunMission` goal 可能同时进入相同 state file 路径 | 在 `MissionApiRuntime.execute` 入口加入单飞 admission gate，锁占用时直接返回 `MISSION_BUSY` / `mission_state_in_use`，并补 focused unit test | 已修复 |
+| Mission flat execution 仍默认向 real Nav2 传 `behavior_tree=success` | `go2w_mission` 初版把 flat segment 的 `behavior_tree` 写死为 `success`，真实 Nav2 BT Navigator 会把它当成文件名并报错 | 新增 `--flat-behavior-tree` / `__empty__` sentinel，mission API 在 real-model flat gate 里改为空行为树并保留 Phase 4C verifier 兼容路径 | 已修复 |
+| Mission real-flat verifier 的 route graph 容易在 perception settle 前变 stale | 先生成的 flat-only graph 会被后续 perception odom 漂移污染，导致把 route mismatch 误判成 Nav2 本体问题 | verifier 在 mission API ready 后重新生成并 `reload /route_server/set_route_graph`，然后立即发送 `RunMission` goal | 已修复 |
+| Mission flat-only fixture 误用了 node id `0` | mission API 对 node id `0` 的 goal 语义是无效输入，而不是可运行的最小 graph | 统一改用正整数 node id（例如 `100 -> 101`）作为 flat-only verification graph | 已修复 |
+| Mission flat goal 丢失了目标 yaw | `build_flat_goal_from_segment()` 只传 x/y，`_to_pose_stamped()` 又把朝向硬写成单位四元数，DWB 在 real-model flat gate 里更容易 abort | route graph 的 target node 写入 `yaw`，mission flat goal 从 graph 读取 yaw 并转换成四元数 | 已修复 |
+| 修改 mission / Nav2 源码后复跑却仍用旧 install space | `behavior_tree` 等 launch 参数和 Python entrypoint 会继续取旧 install 中的已生成产物 | 明确要求改动后先重建 affected packages 或确认 install space 非旧版本，再跑 real Nav2 / mission 验证 | 已修复 |
+| 宽 `pkill -f` 可能误杀当前 shell 或工作区调试进程 | 误把进程名或脚本名匹配到当前会话，导致验证过程自身被中断 | 收窄清理脚本的匹配范围，避免 broad `pkill -f`，并在注意文档中标注风险 | 已修复 |
 | real-model path 是否扩大为 regression 或默认基线缺少结论 | 真实模型已有 baseline 与短同层 route-following，但不足以安全替换默认 placeholder | 新增 opt-in `tools/verify_go2w_real_model_regression.sh` 串联 baseline、route-following、stair fixture；明确不切默认基线 | 已修复 |
-| 迁移前交接材料容易把 route-following 历史 PASS 误读成稳定门禁 | 后续硬化运行显示 route-following 仍可能在 DWB 局部规划阶段 abort，而部分文档仍突出 real-model regression PASS | 新增并置顶稳定 `tools/verify_go2w_control_chain_regression.sh` 口径，更新 handoff 索引、总报告、当前状态、注意事项和 regression 文档，明确 route-following 只是独立 opt-in smoke | 已修复 |
+| 迁移前交接材料容易把 route-following 历史 PASS 误读成稳定门禁 | 迁移前封板时后续硬化运行显示 route-following 仍可能在 DWB 局部规划阶段 abort，而部分文档仍突出 real-model regression PASS | 先新增并置顶稳定 `tools/verify_go2w_control_chain_regression.sh` 口径；随后 dedicated route-following hardening 复现并修复 DWB abort，更新为 opt-in regression candidate 口径 | 已修复 |
 | `verify_go2w_real_model_regression.sh` 使用未定义 `REPO_ROOT` | 脚本在 cleanup 阶段调用 `${REPO_ROOT}/tools/cleanup_sim_runtime.sh`，但文件顶部只定义了 `SCRIPT_DIR` | 补充 `REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"`，并纳入 bash/shellcheck 验证 | 已修复 |
+| 最终封板入口不够集中 | handoff 包已有多份文档，但缺少一份最后迁移前总自检和后续路线入口 | 新增 `docs/handoff/pre_migration_final_freeze_report.md`，并更新 handoff README、阅读顺序、当前状态和新模型提示词 | 已修复 |
+| 本地 agent 规划文件可能被误提交 | `task_plan.md`、`findings.md`、`progress.md` 是本地会话工作记忆，不属于正式交接事实源 | 将三者加入 `.gitignore`，正式事实继续写入 `docs/handoff/*`、`docs/architecture/*`、`docs/verification/*` | 已修复 |
+| 带 Markdown 反引号的全文检索容易触发 shell 命令替换 | 一次审计检索命令因双引号内含反引号失败 | 使用拆分关键词或单引号搜索，并在 `next_agent_notes.md` 记录工具易错点 | 已修复 |
+| real-model same-floor route-following DWB abort 可复现 | `ComputePathToPose` candidate 全部可返回非空路径，但 `NavigateToPose` 在 DWB 报 `No valid trajectories` / `Controller patience exceeded`；失败证据目录包括 `/tmp/go2w_real_model_route_following_14646`、`15647`、`16582` | 将 verifier 目标候选策略改为 preference order 的首个可达候选，real-model Nav2 `xy_goal_tolerance` 调整为 `0.08`，并修复 verifier stale-process cleanup；随后 3 次 clean-domain route-following 连续 PASS | 已修复 |
+| route-following verifier 失败后可能留下 orphaned sim/perception/FAST-LIO 进程 | 第一次三连第 2 次 lifecycle inactive 后仍可见 `sim_go2w_real.launch.py`、`phase2f_tf_authority.launch.py` 等进程残留 | `tools/verify_go2w_real_model_route_following.sh` 新增默认开启的 stale-process cleanup，按进程组清理 real route goal client、FAST-LIO、perception、real-model sim 与 Ign Gazebo；短超时实测未再留下目标残留 | 已修复 |
 
 ## 保留但已标注的历史内容
 - `docs/superpowers/` 中的早期 Phase 2/3 计划和设计文档保留为历史记录。
@@ -48,7 +60,6 @@
 | Gazebo GPU rendering 仍不纳入默认基线 | WSLg + Gazebo Fortress/Ogre2 `use_gpu:=true` 已验证不稳定 | 保持 Gazebo `use_gpu:=false`，RViz/CUDA 链路单独验证 |
 | 占位 URDF 耦合 geometry/control/sensors | 旧 `sim.launch.py` 默认路径仍保留 placeholder 以保护既有 Phase 1-5 验证链 | 后续独立任务决定是否切默认或拆分模型/仿真传感器职责 |
 | 真实 Go2W 模型尚未成为默认仿真基线 | 当前 real-model 路径是 opt-in，已覆盖 baseline、最小同层 route-following 和 Phase 4E stair fixture regression，但尚未覆盖所有历史验收，也未证明真实楼梯动力学 | 后续 default re-baseline 任务再决定是否替换默认；当前结论是保留 opt-in wrapper |
-| real-model same-floor route-following 仍有 spawn-state 相关 abort | `ComputePathToPose` preflight 可返回非空路径，但 `NavigateToPose` 在部分启动姿态下仍会进入 DWB `No valid trajectories` / `Controller patience exceeded` | 当前将 route-following 保留为独立 opt-in smoke，并从稳定 `verify_go2w_control_chain_regression.sh` 中拆出；后续用 dedicated Nav2 real-model tuning 任务处理 |
 | Phase 3C route graph 是手工 floor atlas | 目的是给 Phase 4 手工连接器提供基线，不是自动建图结果 | Phase 4 先证明控制交接；Phase 5 再自动连接器 |
 | 没有完整 production Mission Orchestrator | 当前已有 `RunMission` skeleton、JSON checkpoint、同一 goal resume 和有限 retry，但仍不是完整长生命周期调度器 | 后续用独立完整任务单推进多任务队列、操作员恢复策略、优先级调度和更持久的状态后端 |
 | Phase 4C-min flat executor 仍是 verifier skeleton | 本阶段只证明 mission 到 navigation-owned `NavigateToPose` gate 的调度；当前 real-model short `NavigateToPose` verifier 尚未替换 mission runtime skeleton | 后续 production mission / real route-tracking integration 任务处理 |

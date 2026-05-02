@@ -89,6 +89,42 @@ def test_build_flat_goal_from_segment_uses_last_edge_target() -> None:
     assert goal.frame_id == "map"
     assert goal.x == 2.0
     assert goal.y == 0.0
+    assert goal.yaw == 0.0
+
+
+def test_build_flat_goal_from_segment_prefers_target_yaw_property() -> None:
+    graph = Phase4ARouteGraph(
+        nodes={
+            1: RouteNode(node_id=1, x=0.0, y=0.0, properties={"id": 1}),
+            2: RouteNode(node_id=2, x=1.0, y=0.0, properties={"id": 2}),
+        },
+        edges={
+            10: RouteEdge(
+                edge_id=10,
+                start_id=1,
+                end_id=2,
+                coordinates=[(0.0, 0.0), (1.0, 0.0)],
+                properties={"id": 10, "startid": 1, "endid": 2},
+            )
+        },
+    )
+    graph.nodes[2] = RouteNode(
+        node_id=2,
+        x=1.0,
+        y=0.0,
+        properties={"id": 2, "yaw": 1.25},
+    )
+
+    goal = build_flat_goal_from_segment(
+        graph,
+        MissionSegment(segment_type="flat", edge_ids=(10,)),
+        frame_id="map",
+    )
+
+    assert goal.frame_id == "map"
+    assert goal.x == 1.0
+    assert goal.y == 0.0
+    assert goal.yaw == 1.25
 
 
 def test_flat_timeout_result_mapping() -> None:

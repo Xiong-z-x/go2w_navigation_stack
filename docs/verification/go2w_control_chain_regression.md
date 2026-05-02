@@ -59,13 +59,14 @@ go2w_control_chain_regression_result: PASS
 - `verify_phase4e_stair_tuning_overrides.sh` passed with explicit body height,
   foot raise, gait, speed, max velocity, and stair velocity overrides.
 - The wrapper intentionally does not call
-  `verify_go2w_real_model_route_following.sh`; that verifier remains a
-  standalone opt-in smoke because DWB can still abort on some real-model spawn
-  states.
+  `verify_go2w_real_model_route_following.sh`; after dedicated hardening that
+  verifier is a repeatable regression candidate, but this wrapper remains the
+  conservative migration control-chain gate.
 
 ## Open Validation Items
-- Same-floor real-model route-following needs a dedicated Nav2 tuning task
-  before it can become a stable regression gate.
+- Same-floor real-model route-following has its own dedicated verifier and
+  three clean-domain PASS evidence, but it remains separate from this stable
+  control-chain wrapper until a future task explicitly expands the gate.
 - This wrapper does not prove production route tracking against robot motion.
 - This wrapper does not prove real staircase dynamics or hardware gait tuning.
 - The real-model path remains opt-in and does not replace the default

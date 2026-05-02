@@ -9,11 +9,11 @@ regression wrapper. The default `go2w_sim sim.launch.py` placeholder path is
 not replaced by the real-model path in this task.
 
 This wrapper is intentionally broader than the stable control-chain gate and
-includes the same-floor route-following smoke. Later hardening runs observed
-that `ComputePathToPose` can return a non-empty path while `NavigateToPose`
-still aborts in DWB on some real-model spawn states. For migration readiness
-or routine control-chain checks, prefer
-`tools/verify_go2w_control_chain_regression.sh`.
+includes the same-floor route-following smoke. Dedicated route-following
+hardening later made that smoke a repeatable regression candidate with three
+clean-domain PASS runs. For conservative migration readiness or routine
+control-chain checks, still prefer `tools/verify_go2w_control_chain_regression.sh`
+until a future task explicitly expands the stable wrapper.
 
 ## Source Basis
 The wrapper composes three replayable gates:

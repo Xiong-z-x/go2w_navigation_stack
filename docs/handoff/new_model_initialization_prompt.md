@@ -22,12 +22,13 @@ nav2_route / Mission / Stair Control 项目的专业执行者、架构一致性�
 3. docs/architecture/system_blueprint.md
 4. docs/architecture/interface_contracts.md
 5. docs/architecture/architecture_state.md
-6. docs/handoff/phase4_migration_handoff_report.md
-7. docs/handoff/current_project_state.md
-8. docs/handoff/risk_cleanup_log.md
-9. docs/handoff/reading_order_and_file_map.md
-10. docs/handoff/next_agent_notes.md
-11. README.md
+6. docs/handoff/pre_migration_final_freeze_report.md
+7. docs/handoff/phase4_migration_handoff_report.md
+8. docs/handoff/current_project_state.md
+9. docs/handoff/risk_cleanup_log.md
+10. docs/handoff/reading_order_and_file_map.md
+11. docs/handoff/next_agent_notes.md
+12. README.md
 
 然后按任务需要继续读取：
 
@@ -37,6 +38,7 @@ nav2_route / Mission / Stair Control 项目的专业执行者、架构一致性�
 - docs/verification/go2w_control_chain_regression.md
 - docs/verification/go2w_real_model_route_following.md
 - docs/verification/go2w_real_model_regression.md
+- docs/verification/go2w_mission_real_flat_execution.md
 - docs/verification/phase4e_stair_fixture.md
 - docs/verification/phase4e_mission_recovery.md
 - docs/verification/phase4e_stair_tuning_overrides.md
@@ -115,13 +117,19 @@ simulation-first 路线构建 Go2W 跨楼层自主导航巡检系统：
 - Phase 4E mission recovery：JSON checkpoint、same-goal resume、有限 retry skeleton。
 - Stable control-chain regression wrapper：`tools/verify_go2w_control_chain_regression.sh`
   串联 real-model baseline、Phase 4E stair fixture、mission recovery 和 stair tuning smoke。
+- Mission-runtime real-model flat execution gate：`RunMission` 的 flat-only segment
+  已可在不启动 `go2w_flat_nav_executor` 的情况下调用真实 Nav2 `/navigate_to_pose`，
+  保留 route graph 目标 yaw，并保持 perception-owned `odom -> base_link`。
 
 未完成或不能误判为完成：
 
 - Production Mission Orchestrator 尚未完成；当前只是 mission API / recovery skeleton。
 - 真实机器人运动上的 `nav2_route` route tracking 尚未稳定完成。
-- Real-model same-floor route-following 有历史 PASS，但最新硬化运行显示仍可能在 DWB
-  局部规划阶段 abort；它是独立 opt-in smoke，不是稳定 control-chain 门禁。
+- Real-model same-floor route-following 已完成 dedicated hardening：DWB abort 复现后通过
+  candidate selection、`xy_goal_tolerance: 0.08` 和 stale-process cleanup 修复，并取得
+  3 次 clean-domain 连续 PASS。它是 opt-in regression 候选，不是 production route tracking。
+- Mission-runtime real-model flat execution gate 已完成；它证明 flat segment 可走真实
+  Nav2 `/navigate_to_pose`，但仍不是完整生产调度器。
 - `tools/verify_go2w_real_model_regression.sh` 包含 route-following smoke，属于更宽但更敏感的
   opt-in wrapper，不是默认封板门禁。
 - 真实楼梯动力学、真实 leg trajectory / gait tuning 尚未完成；当前 stair executor 是
@@ -129,6 +137,10 @@ simulation-first 路线构建 Go2W 跨楼层自主导航巡检系统：
 - 真实跨楼层自主闭环、map_server / AMCL / `map -> odom` 定位链、elevation mapping、
   traversability、automatic stair detection / connector generation 尚未完成。
 - Real Go2W model path 仍是 opt-in，未替换默认 `go2w_sim sim.launch.py` placeholder path。
+- 2026-05-02 最终封板报告已写入 `docs/handoff/pre_migration_final_freeze_report.md`；
+  它给出当前最小后续项目改进路线，但不替代架构事实源。
+  当前下一步应先做 production Mission Orchestrator skeleton hardening，而不是继续把
+  mission flat execution 当成未完成项。
 
 ====================
 五、架构边界
@@ -225,7 +237,8 @@ ros2 launch go2w_sim sim.launch.py use_gpu:=false headless:=true launch_rviz:=fa
 - 不要把 hospital world asset 当成真实楼梯运动学验证。
 - 不要把 Phase 4A/B/C/D verifier skeleton 当成 production mission 或真实机器人运动 route tracking。
 - 不要把 Phase 5A live route tracking observation gate 当成真实机器人运动 route tracking。
-- 不要把 real-model same-floor route-following 历史 PASS 当成稳定回归门禁。
+- 不要把 real-model same-floor route-following regression candidate 当成 production
+  `nav2_route` route tracking 或默认仿真基线。
 - 不要把 stable control-chain wrapper 当成完整机器人自主导航；它只证明控制链可重复门禁。
 - 不要把 stair tuning override 当成真实楼梯步态已调好。
 - 不要把 `gait_type=3` 字段存在误判成硬件楼梯模式可用。
@@ -261,25 +274,30 @@ ros2 launch go2w_sim sim.launch.py use_gpu:=false headless:=true launch_rviz:=fa
 
 当前最合理的直接起点是单主题处理：
 
-Task Goal: 稳定 real-model same-floor Nav2 route-following，使其从独立 smoke 升级为可重复
-regression 候选。
+Task Goal: 将真实机器人运动 flat execution 接入 mission runtime，替换或包裹当前 verifier-only
+flat executor。
 Current Phase: Phase 4 accepted, post-Phase-4 hardening。
-Allowed Files: real-model Nav2 params、route-following verifier、必要的诊断文档和 verification
-记录。
+Allowed Files: mission runtime / mission API 中 flat execution 相关文件、必要的
+navigation flat executor adapter、focused tests、verification 与 handoff 文档。
 Forbidden Files: perception TF authority、default placeholder launch baseline、stair dynamics、
-production Mission Orchestrator、AMCL/map_server、elevation/traversability/automatic connector。
-Required Commands: `bash -n`、shellcheck、route-following verifier、多次 clean-domain rerun、
-stable control-chain regression、相关 docs verification。
-Definition of Done: DWB abort root cause 被定位并修复或明确隔离；route-following 多次可重复
-通过；若仍不可稳定，必须保留独立 smoke 并记录阻塞证据，不得纳入稳定门禁。
+production Mission Orchestrator 队列/长期状态/调度策略、AMCL/map_server、
+elevation/traversability/automatic connector。
+Required Commands: `bash -n`、shellcheck、focused pytest、新增或更新的 mission-runtime
+flat execution verifier、route-following verifier、stable control-chain regression、相关 docs
+verification。
+Definition of Done: mission runtime flat segment 能调用真实机器人运动 flat execution surface，
+并保持 success/failure/cancel/timeout/unavailable 诊断；不得改变 perception TF authority、
+默认 placeholder baseline、stair dynamics 或 production Mission Orchestrator 范围。
 
 该任务完成后，再考虑：
 
-1. 将真实机器人运动 route-following 接入 mission runtime，替换 verifier-only flat executor。
-2. production Mission Orchestrator 的任务队列、恢复策略、长期状态后端和操作员介入策略。
-3. dedicated stair trajectory / wheel lock / body-height / gait tuning 的真实控制器任务。
-4. 判断 real-model path 是否能扩展为更大范围 regression 或默认 baseline。
-5. Phase 5 terrain-aware connector discovery、elevation mapping、traversability。
+1. production Mission Orchestrator 的任务队列、恢复策略、长期状态后端和操作员介入策略。
+2. dedicated stair trajectory / wheel lock / body-height / gait tuning 的真实控制器任务。
+3. 判断 real-model path 是否能扩展为默认 baseline。
+4. Phase 5 terrain-aware connector discovery、elevation mapping、traversability。
+
+不要跳过第一步直接做 production mission、stair tuning 或 Phase 5。mission runtime 仍未接入
+真实机器人运动 flat execution，这会影响后续所有真实机器人任务链路判断。
 
 ====================
 十一、上下文防失真要求
@@ -290,6 +308,7 @@ Definition of Done: DWB abort root cause 被定位并修复或明确隔离；rou
 - docs/architecture/architecture_state.md
 - docs/verification/ 对应验收文件
 - docs/handoff/current_project_state.md
+- docs/handoff/pre_migration_final_freeze_report.md
 - docs/handoff/risk_cleanup_log.md
 - docs/handoff/next_agent_notes.md
 - README.md 的操作摘要

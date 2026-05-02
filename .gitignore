@@ -20,5 +20,10 @@
 # Local agent learning logs
 .learnings/
 
+# Local handoff planning notes for agent sessions
+/task_plan.md
+/findings.md
+/progress.md
+
 # External source/build cache prepared by repository tools
 .go2w_external/

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import argparse
+import math
 from pathlib import Path
 import sys
 import time
@@ -29,6 +30,7 @@ class FlatGoalSpec:
     frame_id: str
     x: float
     y: float
+    yaw: float = 0.0
 
 
 def print_kv(key: str, value: object) -> None:
@@ -59,7 +61,26 @@ def build_flat_goal_from_segment(
 ) -> FlatGoalSpec:
     last_edge = graph.edges[segment.edge_ids[-1]]
     target = graph.nodes[last_edge.end_id]
-    return FlatGoalSpec(frame_id=frame_id, x=target.x, y=target.y)
+    yaw = float(target.properties.get("yaw", _edge_heading_yaw(last_edge)))
+    return FlatGoalSpec(frame_id=frame_id, x=target.x, y=target.y, yaw=yaw)
+
+
+def _edge_heading_yaw(edge) -> float:
+    if len(edge.coordinates) >= 2:
+        start_x, start_y = edge.coordinates[-2]
+        end_x, end_y = edge.coordinates[-1]
+        return math.atan2(end_y - start_y, end_x - start_x)
+    return 0.0
+
+
+def _yaw_to_quat(yaw: float):
+    from geometry_msgs.msg import Quaternion
+
+    half_yaw = float(yaw) * 0.5
+    q = Quaternion()
+    q.z = math.sin(half_yaw)
+    q.w = math.cos(half_yaw)
+    return q
 
 
 def _to_pose_stamped(spec: FlatGoalSpec):
@@ -69,7 +90,7 @@ def _to_pose_stamped(spec: FlatGoalSpec):
     pose.header.frame_id = spec.frame_id
     pose.pose.position.x = spec.x
     pose.pose.position.y = spec.y
-    pose.pose.orientation.w = 1.0
+    pose.pose.orientation = _yaw_to_quat(spec.yaw)
     return pose
 
 

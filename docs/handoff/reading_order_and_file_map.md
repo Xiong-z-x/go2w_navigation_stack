@@ -7,10 +7,11 @@
 4. `docs/architecture/architecture_state.md`：当前阶段、当前真实状态、唯一下一步边界。
 
 ## 第二层：迁移前状态与风险
-1. `docs/handoff/phase4_migration_handoff_report.md`：迁移前总报告。
-2. `docs/handoff/current_project_state.md`：当前状态总览。
-3. `docs/handoff/risk_cleanup_log.md`：已修风险与剩余限制。
-4. `docs/handoff/next_agent_notes.md`：新模型最容易踩的坑。
+1. `docs/handoff/pre_migration_final_freeze_report.md`：最终封板总自检、风险处理、后续路线和下一任务建议。
+2. `docs/handoff/phase4_migration_handoff_report.md`：迁移前总报告。
+3. `docs/handoff/current_project_state.md`：当前状态总览。
+4. `docs/handoff/risk_cleanup_log.md`：已修风险与剩余限制。
+5. `docs/handoff/next_agent_notes.md`：新模型最容易踩的坑。
 
 ## 第三层：运行和验收记录
 - `README.md`：操作入口和当前状态摘要，不是架构事实源。
@@ -25,7 +26,8 @@
 - `docs/verification/phase4e_stair_fixture.md`：Phase 4E real-model `/stair_exec` phase-aware fixture 验收。
 - `docs/verification/phase4e_mission_recovery.md`：Phase 4E mission checkpoint/recovery 验收。
 - `docs/verification/go2w_control_chain_regression.md`：稳定 real-model control-chain regression wrapper 验收。
-- `docs/verification/go2w_real_model_route_following.md`：Go2W real-model same-floor route-following 独立 smoke；不是稳定 control-chain 门禁。
+- `docs/verification/go2w_real_model_route_following.md`：Go2W real-model same-floor route-following dedicated hardening 证据；现在是 opt-in regression 候选，不是 production route tracking。
+- `docs/verification/go2w_mission_real_flat_execution.md`：Mission runtime real-model flat execution gate 证据；证明 `RunMission` flat-only segment 可绕过 verifier-only flat executor 并调用真实 Nav2 `/navigate_to_pose`。
 - `docs/verification/go2w_real_model_regression.md`：Go2W real-model opt-in regression wrapper 验收；包含 route-following smoke，因此比 control-chain wrapper 更 route-state-sensitive。
 - `docs/verification/phase4e_stair_tuning_overrides.md`：Phase 4E stair tuning smoke test 验收。
 - `docs/verification/phase4_runtime_acceptance.md`：Phase 4 总体验收。
@@ -37,6 +39,8 @@
 
 这些文件可用于追溯为什么这么做，但不应覆盖当前 `architecture_state.md`。
 早期文件中的 `/tmp` FAST-LIO 路径可能只是历史证据，不代表当前默认。
+如果历史计划与当前 handoff 或 verification 文档冲突，以当前架构事实源和当前脚本为准；
+不要直接从历史计划复制路径、命令或阶段结论。
 
 ## 核心代码目录
 - `go2w_description/`：URDF、RViz、robot state publisher launch。
@@ -44,7 +48,7 @@
 - `go2w_perception/`：FAST-LIO adapters、TF authority、patch、external lock。
 - `go2w_navigation/`：Nav2 configs、BT、route graph、maps、Phase 4C-min flat navigation executor skeleton、Phase 4D-min route tracking feedback executor skeleton。
 - `go2w_control/`：Phase 4A 起承载 `StairExec` Action、command gate 和最小 stair executor skeleton；Phase 4E 起输出 phase-aware stair execution plan/state。
-- `go2w_mission/`：Phase 4A 起承载 handoff demo；Phase 4B-min 起承载 one-shot mission segment runtime；Phase 4C-min 起通过 `NavigateToPose` gate 调度 flat segments；Phase 4D-min 起承载 route tracking feedback observer；Phase 4E 起提供 mission checkpoint/recovery skeleton；尚不是完整 production Mission Orchestrator。
+- `go2w_mission/`：Phase 4A 起承载 handoff demo；Phase 4B-min 起承载 one-shot mission segment runtime；Phase 4C-min 起通过 `NavigateToPose` gate 调度 flat segments；Phase 4D-min 起承载 route tracking feedback observer；Phase 4E 起提供 mission checkpoint/recovery skeleton；当前已能在 opt-in flat-only gate 中调用真实 Nav2 `/navigate_to_pose`，但尚不是完整 production Mission Orchestrator。
 
 ## 关键工具
 - `tools/prepare_phase2d_fastlio_external.sh`：准备 pinned FAST-LIO external cache。
@@ -65,6 +69,8 @@
 - `tools/verify_phase4e_stair_fixture.sh`：Phase 4E real-model stair fixture gate。
 - `tools/verify_phase4e_mission_recovery.sh`：Phase 4E mission checkpoint/recovery gate。
 - `tools/verify_go2w_control_chain_regression.sh`：稳定 real-model control-chain regression gate。
+- `tools/verify_go2w_real_model_route_following.sh`：Go2W real-model same-floor route-following verifier；验证短 `NavigateToPose` 运动链。
+- `tools/verify_go2w_mission_real_flat_execution.sh`：Mission runtime real-model flat execution gate；验证 `RunMission` flat-only segment 调用真实 Nav2 `/navigate_to_pose`，且不启动 `go2w_flat_nav_executor`。
 - `tools/verify_go2w_real_model_regression.sh`：Go2W real-model opt-in regression gate。
 - `tools/verify_phase4e_stair_tuning_overrides.sh`：Phase 4E stair tuning smoke test gate。
 - `tools/verify_phase4_runtime_acceptance.sh`：Phase 4 总体验收 gate。
@@ -73,3 +79,5 @@
 - `.go2w_external/`：ignored FAST-LIO external source/workspace cache。
 - `build/`、`install/`、`log/`：colcon 生成目录。
 - `.pytest_cache/`、`__pycache__/`：本地缓存，不是项目事实源。
+- `task_plan.md`、`findings.md`、`progress.md`：本地 agent 会话工作记忆，已在 `.gitignore`
+  中忽略，不是正式交接事实源。

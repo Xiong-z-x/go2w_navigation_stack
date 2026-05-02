@@ -12,10 +12,12 @@ simulation-first 路线推进。
 进入新对话或后续 Phase 4 工作前，先读取当前状态和迁移交接包：
 
 - `docs/handoff/README.md`
+- `docs/handoff/pre_migration_final_freeze_report.md`
 - `docs/verification/phase4d_route_tracking_feedback.md`
 - `docs/verification/phase5a_live_route_tracking.md`
 - `docs/verification/go2w_real_model_motion_mode_baseline.md`
 - `docs/verification/go2w_control_chain_regression.md`
+- `docs/verification/go2w_mission_real_flat_execution.md`
 - `docs/verification/go2w_real_model_regression.md`
 - `docs/verification/phase4e_stair_fixture.md`
 - `docs/verification/phase4e_mission_recovery.md`
@@ -32,6 +34,8 @@ simulation-first 路线推进。
 ## 当前状态
 
 - 当前正式阶段：`Phase 4 accepted`
+- 当前迁移前最终封板：`docs/handoff/pre_migration_final_freeze_report.md`
+  已记录 2026-05-02 总自检、风险清理、剩余限制和后续项目改进顺序。
 - `Phase 1` 状态：仿真可控闭环已完成并进入可审计验收状态
 - `Phase 2` 状态：FAST-LIO2 输入/输出、感知侧 `odom -> base_link`
   TF authority、稳定 perception baseline、首个 Nav2 costmap consumer gate
@@ -51,13 +55,16 @@ simulation-first 路线推进。
   wheeled/legged mode state、显式 `legged` startup profile 日志和启动站立初始化已作为 opt-in 路径完成验证；同层
   real-model route-following verifier 也已通过短 `NavigateToPose` 目标验证；Phase 4E
   real-model stair fixture、稳定 control-chain regression wrapper 和 opt-in real-model
-  regression wrapper 也已通过；route-following 仍是独立 smoke，不纳入稳定
-  control-chain wrapper；旧 `sim.launch.py` placeholder 路径仍是默认基线
+  regression wrapper 也已通过；mission-runtime real-model flat execution gate 现在也已
+  验证 `RunMission` flat-only segment 可在不启动 `go2w_flat_nav_executor` 的情况下调用真实
+  Nav2 `/navigate_to_pose`；route-following 仍不纳入稳定 control-chain wrapper；
+  旧 `sim.launch.py` placeholder 路径仍是默认基线
 - `go2w_mission` 还额外提供 opt-in `RunMission` Action skeleton 与 mission API
   verifier，能诊断 route segmentation、flat/stair dispatch、invalid goal、
-  cancel、timeout、route unavailable 与 flat action unavailable；当前已新增 JSON
-  checkpoint、同一 mission goal resume 和有限 retry，但仍不是完整 production
-  Mission Orchestrator。
+  cancel、timeout、route unavailable、flat action unavailable 和单飞 admission gate；
+  当前已新增 JSON checkpoint、同一 mission goal resume 和有限 retry，但仍不是完整
+  production Mission Orchestrator。mission runtime real-model flat execution gate 也已经接通真实
+  Nav2 `/navigate_to_pose`，并保留了目标 yaw；下一步优先 production Mission Orchestrator skeleton hardening。
 
 不要把 Phase 4 accepted 误判成 production mission orchestration、真实 Nav2
 route tracking against robot motion、真实 `nav2_route` operation plugin、真实楼梯
@@ -200,8 +207,23 @@ ros2 launch go2w_sim sim_go2w_real.launch.py use_gpu:=false headless:=true launc
 
 该脚本使用 `go2w_navigation/config/phase5_real_model_nav2_same_floor.yaml`，
 以 real-model 参数文件保留 perception-owned `odom -> base_link`，验证短同层
-目标到达，不是 production route tracking，也不是楼梯动力学。它当前仍是
-单独的 opt-in smoke，不纳入稳定 control-chain 回归门禁。
+目标到达，不是 production route tracking，也不是楼梯动力学。2026-05-02
+dedicated hardening 已修复 DWB abort 路径并取得 3 次 clean-domain 连续 PASS；
+它现在是 opt-in regression 候选，但尚未自动纳入稳定 control-chain wrapper。
+
+Mission runtime real-model flat execution gate 可重复验证 `RunMission` flat-only
+segment 调用真实 Nav2 `/navigate_to_pose`，并且不启动 Phase 4C 的
+`go2w_flat_nav_executor`：
+
+```bash
+./tools/verify_go2w_mission_real_flat_execution.sh
+```
+
+该脚本启动 opt-in real model、perception、FAST-LIO、real-model Nav2 和 mission API，
+动态生成 odom-frame flat-only route graph，reload `/route_server/set_route_graph`，
+再发送 `RunMission` goal。它证明 mission flat segment 可接入真实 robot-motion flat
+execution surface；它仍不是 production Mission Orchestrator、真实 `nav2_route`
+robot-motion route tracking、跨楼层真实闭环或楼梯动力学。
 
 稳定的 real-model control-chain 回归门禁可使用：
 
@@ -621,6 +643,11 @@ docs/verification/phase4c_flat_segment_gate.md
 该阶段只验证 flat/stair/flat 任务顺序和控制权路径；flat executor 仍是
 navigation-owned verifier skeleton，不是真实 Nav2 route tracking，也不是
 production Mission Orchestrator。
+
+后续 mission-runtime real-model flat execution gate 已证明 mission API 可在
+`launch_flat_nav_executor:=false` 时绕过该 verifier skeleton，并把 flat-only mission
+segment 送到真实 Nav2 `/navigate_to_pose`。该新 gate 不删除 Phase 4C skeleton；
+Phase 4C skeleton 仍用于 deterministic flat failure/cancel/timeout/unavailable 诊断。
 
 ## 当前 Phase 4D-min 边界
 

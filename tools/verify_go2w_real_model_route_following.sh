@@ -16,6 +16,7 @@ DOMAIN_ID="${GO2W_VERIFY_DOMAIN_ID:-$(( ($$ % 90) + 130 ))}"
 PARTITION="go2w_real_route_${$}"
 REBUILD_REPO="${GO2W_REAL_ROUTE_REBUILD_REPO:-1}"
 CLEAN_EVIDENCE="${GO2W_REAL_ROUTE_CLEAN_EVIDENCE:-0}"
+CLEAN_STALE_PROCESSES="${GO2W_REAL_ROUTE_CLEAN_STALE_PROCESSES:-1}"
 NAV_TIMEOUT_SECONDS="${GO2W_REAL_ROUTE_NAV_TIMEOUT_SECONDS:-120}"
 NAV_GOAL_OFFSET_X="${GO2W_REAL_ROUTE_GOAL_OFFSET_X:-0.150}"
 NAV_GOAL_OFFSET_Y="${GO2W_REAL_ROUTE_GOAL_OFFSET_Y:-0.000}"
@@ -86,12 +87,73 @@ terminate_pid() {
   wait "${pid}" 2>/dev/null || true
 }
 
+collect_matching_pgids() {
+  local current_pgid
+  current_pgid="$(ps -o pgid= -p "$$" | tr -d '[:space:]')"
+
+  ps -eo pid=,pgid=,args= | while read -r pid pgid args; do
+    if [ -z "${pid}" ] || [ -z "${pgid}" ] || [ "${pgid}" = "${current_pgid}" ]; then
+      continue
+    fi
+
+    local matched=1
+    local needle
+    for needle in "$@"; do
+      if [[ "${args}" != *"${needle}"* ]]; then
+        matched=0
+        break
+      fi
+    done
+    if [ "${matched}" = "1" ]; then
+      printf '%s\n' "${pgid}"
+    fi
+  done | sort -u
+}
+
+terminate_matching_processes() {
+  local label="$1"
+  shift
+  local pgids=()
+  local remaining=()
+
+  mapfile -t pgids < <(collect_matching_pgids "$@" || true)
+  if [ "${#pgids[@]}" -eq 0 ]; then
+    return
+  fi
+
+  print_kv "cleanup_stale_${label}" "${pgids[*]}"
+  local pgid
+  for pgid in "${pgids[@]}"; do
+    signal_process_group "TERM" "${pgid}"
+  done
+  sleep 1
+
+  mapfile -t remaining < <(collect_matching_pgids "$@" || true)
+  for pgid in "${remaining[@]}"; do
+    signal_process_group "KILL" "${pgid}"
+  done
+}
+
+cleanup_stale_route_processes() {
+  if [ "${CLEAN_STALE_PROCESSES}" != "1" ]; then
+    return
+  fi
+
+  terminate_matching_processes "route_goal_client" "/tmp/go2w_real_model_route_following_" "real_route_goal_client.py"
+  terminate_matching_processes "fastlio" "fast_lio" "fastlio_mapping" "go2w_real_model_route_following_"
+  terminate_matching_processes "perception" "ros2 launch go2w_perception phase2f_tf_authority.launch.py"
+  terminate_matching_processes "sim" "ros2 launch go2w_sim sim_go2w_real.launch.py"
+  terminate_matching_processes "ign_gazebo" "ign gazebo" "phase3a_feature_world.sdf"
+  "${REPO_ROOT}/tools/cleanup_sim_runtime.sh" >/dev/null 2>&1 || true
+}
+
 cleanup() {
   terminate_pid "${NAV2_PID}" "nav2"
   terminate_pid "${FASTLIO_PID}" "fastlio"
   pkill -INT -f "${FASTLIO_WS}/install/fast_lio/lib/fast_lio/fastlio_mapping" 2>/dev/null || true
   terminate_pid "${PERCEPTION_PID}" "perception"
   terminate_pid "${SIM_PID}" "sim"
+  cleanup_stale_route_processes
   "${REPO_ROOT}/tools/cleanup_sim_runtime.sh" >/dev/null 2>&1 || true
   if [ "${CLEAN_EVIDENCE}" = "1" ]; then
     rm -rf "${EVIDENCE_DIR}"
@@ -600,7 +662,8 @@ class RealRouteGoalClient(Node):
 
     def select_reachable_goal(self, start_pose, start_yaw: float, offset_x: float, offset_y: float, yaw_offset: float, timeout_sec: float):
         probe_timeout = min(10.0, max(4.0, timeout_sec / 6.0))
-        best_candidate = None
+        print("real_route_goal_selection_policy: first_reachable_in_preference_order")
+        selected_candidate = None
         for index, (candidate_x, candidate_y) in enumerate(self.candidate_offsets(offset_x, offset_y), start=1):
             goal_pose, _ = self.build_goal_pose(start_pose, start_yaw, candidate_x, candidate_y, yaw_offset)
             reachable, path_pose_count, path_length_m, status_name = self.probe_path(goal_pose, probe_timeout)
@@ -611,17 +674,15 @@ class RealRouteGoalClient(Node):
             )
             if not reachable:
                 continue
-            score = (path_length_m, path_pose_count)
-            if best_candidate is None or score > best_candidate["score"]:
-                best_candidate = {
+            if selected_candidate is None:
+                selected_candidate = {
                     "index": index,
                     "offset_x": candidate_x,
                     "offset_y": candidate_y,
-                    "score": score,
                 }
-        if best_candidate is None:
+        if selected_candidate is None:
             return None
-        return best_candidate["index"], best_candidate["offset_x"], best_candidate["offset_y"]
+        return selected_candidate["index"], selected_candidate["offset_x"], selected_candidate["offset_y"]
 
     def send_goal_and_wait(self, offset_x: float, offset_y: float, yaw_offset: float, timeout_sec: float) -> int:
         if not self.wait_for_odom(20.0):
@@ -773,9 +834,10 @@ main() {
   print_kv "nav_goal_offset_x" "${NAV_GOAL_OFFSET_X}"
   print_kv "nav_goal_offset_y" "${NAV_GOAL_OFFSET_Y}"
   print_kv "nav_goal_yaw_offset" "${NAV_GOAL_YAW_OFFSET}"
+  print_kv "clean_stale_processes" "${CLEAN_STALE_PROCESSES}"
 
   source_file_checked "${ROS_SETUP}" "ros_setup"
-  "${REPO_ROOT}/tools/cleanup_sim_runtime.sh" >/dev/null 2>&1 || true
+  cleanup_stale_route_processes
 
   if [ ! -f "${NAV2_PARAMS_FILE}" ]; then
     print_kv "nav2_params_file" "missing:${NAV2_PARAMS_FILE}"

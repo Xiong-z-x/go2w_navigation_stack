@@ -23,6 +23,7 @@ def generate_launch_description():
     mission_retry_limit = LaunchConfiguration("mission_retry_limit")
     mission_retry_backoff_sec = LaunchConfiguration("mission_retry_backoff_sec")
     mission_recovery_enabled = LaunchConfiguration("mission_recovery_enabled")
+    flat_behavior_tree = LaunchConfiguration("flat_behavior_tree")
 
     default_route_params_file = PathJoinSubstitution([
         FindPackageShare("go2w_navigation"),
@@ -101,6 +102,15 @@ def generate_launch_description():
             default_value="true",
             description="Enable checkpoint resume and transient recovery.",
         ),
+        DeclareLaunchArgument(
+            "flat_behavior_tree",
+            default_value="success",
+            description=(
+                "Behavior tree string sent with mission flat NavigateToPose goals. "
+                "Use __empty__ when binding the mission API to a real Nav2 "
+                "BT Navigator instead of the Phase 4C verifier action server."
+            ),
+        ),
         Node(
             package="nav2_route",
             executable="route_server",
@@ -178,6 +188,8 @@ def generate_launch_description():
                 mission_retry_backoff_sec,
                 "--mission-recovery-enabled",
                 mission_recovery_enabled,
+                "--flat-behavior-tree",
+                flat_behavior_tree,
                 "--action-name",
                 mission_action_name,
                 "--ros-args",
