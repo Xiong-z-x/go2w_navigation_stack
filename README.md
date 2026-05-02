@@ -18,6 +18,7 @@ simulation-first 路线推进。
 - `docs/verification/go2w_real_model_regression.md`
 - `docs/verification/phase4e_stair_fixture.md`
 - `docs/verification/phase4e_mission_recovery.md`
+- `docs/verification/phase4e_stair_tuning_overrides.md`
 - `docs/verification/phase4_runtime_acceptance.md`
 - `docs/verification/phase4c_flat_segment_gate.md`
 - `docs/verification/phase4b_mission_segment_runtime.md`
@@ -184,6 +185,10 @@ ros2 launch go2w_sim sim_go2w_real.launch.py use_gpu:=false headless:=true launc
 - `go2w_stair_executor` 复用 legged motion profile 作为保守 stair baseline，
   默认 stair 线速度来自 profile 元数据，并在 stair owner 激活时发布 12 关节
   leg hold command，但仍不是真实楼梯控制器
+- `go2w_stair_executor` 现在也暴露显式 stair tuning 覆盖参数
+  (`--stair-body-height-m`、`--stair-foot-raise-height-m`、
+  `--stair-gait-type`、`--stair-speed-level`、`--stair-max-linear-velocity-mps`)，
+  默认仍保持保守 baseline，不会改变当前 accepted 验证链
 
 同层 real-model route-following verifier 可重复验证短 `NavigateToPose` 目标：
 
@@ -215,6 +220,12 @@ real-model 更大范围回归保持 opt-in，不替换默认 placeholder 基线�
 
 ```bash
 ./tools/verify_go2w_real_model_regression.sh
+```
+
+stair tuning smoke test 可在不改变默认 baseline 的前提下复用同一闭环：
+
+```bash
+./tools/verify_phase4e_stair_tuning_overrides.sh
 ```
 
 如需在已启动仿真后检查 Phase 1 topic / TF 验收项：

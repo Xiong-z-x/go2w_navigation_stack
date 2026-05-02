@@ -12,6 +12,7 @@ PARTITION="go2w_phase4e_stair_${$}"
 LAUNCH_PID=""
 COMMAND_GATE_PID=""
 STAIR_EXEC_PID=""
+STAIR_EXEC_ARGS=()
 
 print_kv() {
   printf '%s: %s\n' "$1" "$2"
@@ -193,6 +194,14 @@ wait_for_action() {
   exit 2
 }
 
+append_override_arg() {
+  local env_value="$1"
+  local flag_name="$2"
+  if [ -n "${env_value}" ]; then
+    STAIR_EXEC_ARGS+=("${flag_name}" "${env_value}")
+  fi
+}
+
 send_stair_goal() {
   local output_file="${EVIDENCE_DIR}/stair_goal.txt"
 
@@ -283,10 +292,26 @@ main() {
   export ROS_DOMAIN_ID="${DOMAIN_ID}"
   export GZ_PARTITION="${PARTITION}"
 
+  append_override_arg "${GO2W_STAIR_BODY_HEIGHT_M:-}" "--stair-body-height-m"
+  append_override_arg "${GO2W_STAIR_FOOT_RAISE_HEIGHT_M:-}" "--stair-foot-raise-height-m"
+  append_override_arg "${GO2W_STAIR_GAIT_TYPE:-}" "--stair-gait-type"
+  append_override_arg "${GO2W_STAIR_SPEED_LEVEL:-}" "--stair-speed-level"
+  append_override_arg "${GO2W_STAIR_MAX_LINEAR_VELOCITY_MPS:-}" "--stair-max-linear-velocity-mps"
+  append_override_arg "${GO2W_STAIR_LINEAR_VELOCITY_MPS:-}" "--stair-linear-velocity-mps"
+
+  EXPECTED_STAIR_BODY_HEIGHT_M="$(printf '%.2f' "${GO2W_STAIR_BODY_HEIGHT_M:-0.32}")"
+  EXPECTED_STAIR_FOOT_RAISE_HEIGHT_M="$(printf '%.2f' "${GO2W_STAIR_FOOT_RAISE_HEIGHT_M:-0.09}")"
+  EXPECTED_STAIR_GAIT_TYPE="${GO2W_STAIR_GAIT_TYPE:-3}"
+  EXPECTED_STAIR_SPEED_LEVEL="${GO2W_STAIR_SPEED_LEVEL:-0}"
+  EXPECTED_STAIR_LINEAR_VELOCITY_MPS="$(printf '%.3f' "${GO2W_STAIR_LINEAR_VELOCITY_MPS:-0.025}")"
+
   print_kv "phase4e_stair_fixture_result" "RUNNING"
   print_kv "evidence_dir" "${EVIDENCE_DIR}"
   print_kv "ros_domain_id" "${ROS_DOMAIN_ID}"
   print_kv "gz_partition" "${GZ_PARTITION}"
+  if [ "${#STAIR_EXEC_ARGS[@]}" -gt 0 ]; then
+    print_kv "stair_exec_override_args" "${STAIR_EXEC_ARGS[*]}"
+  fi
 
   source_file_checked "${ROS_SETUP}" "ros_setup"
   "${REPO_ROOT}/tools/cleanup_sim_runtime.sh" >/dev/null
@@ -311,7 +336,7 @@ main() {
   setsid ros2 run go2w_control go2w_command_gate \
     >"${EVIDENCE_DIR}/command_gate.log" 2>&1 &
   COMMAND_GATE_PID="$!"
-  setsid ros2 run go2w_control go2w_stair_executor \
+  setsid ros2 run go2w_control go2w_stair_executor "${STAIR_EXEC_ARGS[@]}" \
     >"${EVIDENCE_DIR}/stair_executor.log" 2>&1 &
   STAIR_EXEC_PID="$!"
 
@@ -324,7 +349,7 @@ main() {
   wait_for_text_count "go2w_command_gate_state: owner=flat mode=wheeled" "${EVIDENCE_DIR}/command_gate.log" 2 30
   wait_for_text "go2w_command_gate_state: owner=stair mode=legged" "${EVIDENCE_DIR}/command_gate.log" 30
 
-  wait_for_text "go2w_stair_executor_profile: .*mode=legged .*body_height_m=0.32 .*foot_raise_height_m=0.09 .*gait_type=3 .*speed_level=0" "${EVIDENCE_DIR}/stair_executor.log" 30
+  wait_for_text "go2w_stair_executor_profile: .*mode=legged .*body_height_m=${EXPECTED_STAIR_BODY_HEIGHT_M} .*foot_raise_height_m=${EXPECTED_STAIR_FOOT_RAISE_HEIGHT_M} .*gait_type=${EXPECTED_STAIR_GAIT_TYPE} .*speed_level=${EXPECTED_STAIR_SPEED_LEVEL} .*stair_linear_velocity_mps=${EXPECTED_STAIR_LINEAR_VELOCITY_MPS}" "${EVIDENCE_DIR}/stair_executor.log" 30
   wait_for_text "go2w_stair_executor_plan: phases=prepare,wheel_lock,body_height_transition_down,execute_stairs,body_height_transition_up,release" "${EVIDENCE_DIR}/stair_executor.log" 30
   wait_for_text "go2w_stair_executor_state: phase=prepare" "${EVIDENCE_DIR}/stair_executor.log" 30
   wait_for_text "go2w_stair_executor_state: phase=wheel_lock" "${EVIDENCE_DIR}/stair_executor.log" 30

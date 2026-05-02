@@ -25,6 +25,7 @@
 - `docs/verification/phase4e_stair_fixture.md`：Phase 4E real-model `/stair_exec` phase-aware fixture 验收。
 - `docs/verification/phase4e_mission_recovery.md`：Phase 4E mission checkpoint/recovery 验收。
 - `docs/verification/go2w_real_model_regression.md`：Go2W real-model opt-in regression wrapper 验收。
+- `docs/verification/phase4e_stair_tuning_overrides.md`：Phase 4E stair tuning smoke test 验收。
 - `docs/verification/phase4_runtime_acceptance.md`：Phase 4 总体验收。
 - `docs/verification/gazebo_gpu_rebaseline.md`：Gazebo GPU 降级原因。
 
@@ -62,6 +63,7 @@
 - `tools/verify_phase4e_stair_fixture.sh`：Phase 4E real-model stair fixture gate。
 - `tools/verify_phase4e_mission_recovery.sh`：Phase 4E mission checkpoint/recovery gate。
 - `tools/verify_go2w_real_model_regression.sh`：Go2W real-model opt-in regression gate。
+- `tools/verify_phase4e_stair_tuning_overrides.sh`：Phase 4E stair tuning smoke test gate。
 - `tools/verify_phase4_runtime_acceptance.sh`：Phase 4 总体验收 gate。
 
 ## 生成/缓存目录

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from dataclasses import replace
 
 
 LEG_JOINTS = (
@@ -102,6 +103,37 @@ def describe_motion_profile(profile: MotionModeProfile) -> str:
     )
 
 
+def derive_motion_profile(
+    profile: MotionModeProfile,
+    *,
+    body_height_m: float | None = None,
+    foot_raise_height_m: float | None = None,
+    gait_type: int | None = None,
+    speed_level: int | None = None,
+    max_linear_velocity_mps: float | None = None,
+    default_stair_linear_velocity_mps: float | None = None,
+    stand_transition_sec: float | None = None,
+) -> MotionModeProfile:
+    changes = {}
+    if body_height_m is not None:
+        changes["body_height_m"] = body_height_m
+    if foot_raise_height_m is not None:
+        changes["foot_raise_height_m"] = foot_raise_height_m
+    if gait_type is not None:
+        changes["gait_type"] = gait_type
+    if speed_level is not None:
+        changes["speed_level"] = speed_level
+    if max_linear_velocity_mps is not None:
+        changes["max_linear_velocity_mps"] = max_linear_velocity_mps
+    if default_stair_linear_velocity_mps is not None:
+        changes["default_stair_linear_velocity_mps"] = default_stair_linear_velocity_mps
+    if stand_transition_sec is not None:
+        changes["stand_transition_sec"] = stand_transition_sec
+    if not changes:
+        return profile
+    return replace(profile, **changes)
+
+
 def get_go2w_motion_profiles() -> Go2WMotionProfiles:
     common = {
         "leg_joints": LEG_JOINTS,
@@ -115,6 +147,11 @@ def get_go2w_motion_profiles() -> Go2WMotionProfiles:
         "body_height_m": 0.32,
         "speed_level": 0,
     }
+    # Unitree ROS2 documentation exposes the sport-mode gait enum, including
+    # `3.climb stair`, and the public `read_motion_state` example shows the
+    # same conservative body height / foot raise height values we use here.
+    # Treat these fields as a conservative metadata baseline, not as proof of
+    # tuned stair locomotion.
     return Go2WMotionProfiles(
         wheeled=MotionModeProfile(
             owner="flat",

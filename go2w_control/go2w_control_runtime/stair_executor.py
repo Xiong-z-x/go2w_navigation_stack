@@ -7,6 +7,7 @@ import time
 from go2w_control_runtime.motion_profiles import (
     MotionModeProfile,
     describe_motion_profile,
+    derive_motion_profile,
     get_go2w_motion_profiles,
 )
 
@@ -70,11 +71,24 @@ class StairExecutionPolicy:
         min_duration_sec: float = 0.05,
         timeout_duration_sec: float = 5.0,
         profile: MotionModeProfile | None = None,
+        body_height_m: float | None = None,
+        foot_raise_height_m: float | None = None,
+        gait_type: int | None = None,
+        speed_level: int | None = None,
+        max_linear_velocity_mps: float | None = None,
         stair_linear_velocity_mps: float | None = None,
     ) -> None:
         self.min_duration_sec = min_duration_sec
         self.timeout_duration_sec = timeout_duration_sec
-        self.profile = profile or get_go2w_motion_profiles().legged
+        base_profile = profile or get_go2w_motion_profiles().legged
+        self.profile = derive_motion_profile(
+            base_profile,
+            body_height_m=body_height_m,
+            foot_raise_height_m=foot_raise_height_m,
+            gait_type=gait_type,
+            speed_level=speed_level,
+            max_linear_velocity_mps=max_linear_velocity_mps,
+        )
         self.motion_mode = self.profile.mode
         self.stand_pose_joint_count = len(self.profile.stand_pose)
         requested_velocity = (
@@ -181,6 +195,11 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--min-duration-sec", type=float, default=0.05)
     parser.add_argument("--timeout-duration-sec", type=float, default=5.0)
+    parser.add_argument("--stair-body-height-m", type=float, default=None)
+    parser.add_argument("--stair-foot-raise-height-m", type=float, default=None)
+    parser.add_argument("--stair-gait-type", type=int, default=None)
+    parser.add_argument("--stair-speed-level", type=int, default=None)
+    parser.add_argument("--stair-max-linear-velocity-mps", type=float, default=None)
     parser.add_argument("--stair-linear-velocity-mps", type=float, default=None)
     args, ros_args = parser.parse_known_args()
 
@@ -193,6 +212,11 @@ def main() -> None:
             self._policy = StairExecutionPolicy(
                 min_duration_sec=float(args.min_duration_sec),
                 timeout_duration_sec=float(args.timeout_duration_sec),
+                body_height_m=args.stair_body_height_m,
+                foot_raise_height_m=args.stair_foot_raise_height_m,
+                gait_type=args.stair_gait_type,
+                speed_level=args.stair_speed_level,
+                max_linear_velocity_mps=args.stair_max_linear_velocity_mps,
                 stair_linear_velocity_mps=args.stair_linear_velocity_mps,
             )
             self._callback_group = ReentrantCallbackGroup()

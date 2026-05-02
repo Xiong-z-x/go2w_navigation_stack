@@ -129,6 +129,9 @@ policy、Phase 5 terrain-aware connector discovery 或未来 default real-model 
   opt-in real-model launch，拉起 `go2w_command_gate` 和 `go2w_stair_executor`，
   发送 `/stair_exec` goal，并检查 owner/mode 日志、phase plan、每个 phase 状态和
   action success。
+- Phase 4E stair tuning smoke test 是 `tools/verify_phase4e_stair_tuning_overrides.sh`。
+  它复用同一 real-model fixture，但用环境变量覆盖 stair body height、foot raise、
+  gait、speed 和 velocity 上限，确认默认 baseline 不变时仍能成功闭环。
 - Phase 4E mission recovery verifier 是 `tools/verify_phase4e_mission_recovery.sh`。
   它先故意不启动 stair executor，使 mission 写入 `RECOVERABLE` checkpoint，再用同一
   state file 重启并从 stair segment 恢复到 `MISSION_SUCCEEDED`。

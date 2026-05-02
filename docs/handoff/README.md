@@ -45,8 +45,9 @@
 18. `docs/verification/phase4e_stair_fixture.md`
 19. `docs/verification/phase4e_mission_recovery.md`
 20. `docs/verification/go2w_real_model_regression.md`
-21. `docs/verification/phase4_runtime_acceptance.md`
-22. `docs/handoff/new_model_initialization_prompt.md`
+21. `docs/verification/phase4e_stair_tuning_overrides.md`
+22. `docs/verification/phase4_runtime_acceptance.md`
+23. `docs/handoff/new_model_initialization_prompt.md`
 
 ## 本目录文件职责
 - `current_project_state.md`：当前真实状态总览。
@@ -121,6 +122,12 @@ Go2W real-model opt-in regression 验收可用以下命令复现：
 
 ```bash
 ./tools/verify_go2w_real_model_regression.sh
+```
+
+Phase 4E stair tuning smoke test 可用以下命令复现：
+
+```bash
+./tools/verify_phase4e_stair_tuning_overrides.sh
 ```
 
 Phase 4 总体验收可用以下命令复现：

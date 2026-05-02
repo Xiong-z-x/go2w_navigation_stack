@@ -18,3 +18,21 @@ def test_phase_plan_uses_legged_profile_metadata() -> None:
     for phase in plan.phases:
         assert phase.body_height_m == policy.profile.body_height_m
         assert phase.foot_raise_height_m == policy.profile.foot_raise_height_m
+
+
+def test_policy_accepts_explicit_stair_tuning_overrides() -> None:
+    policy = StairExecutionPolicy(
+        body_height_m=0.31,
+        foot_raise_height_m=0.08,
+        gait_type=3,
+        speed_level=1,
+        max_linear_velocity_mps=0.12,
+        stair_linear_velocity_mps=0.03,
+    )
+
+    assert policy.profile.body_height_m == 0.31
+    assert policy.profile.foot_raise_height_m == 0.08
+    assert policy.profile.gait_type == 3
+    assert policy.profile.speed_level == 1
+    assert policy.profile.max_linear_velocity_mps == 0.12
+    assert policy.stair_linear_velocity_mps == 0.03

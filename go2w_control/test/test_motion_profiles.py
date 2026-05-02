@@ -2,6 +2,7 @@ import pytest
 
 from go2w_control_runtime.motion_profiles import (
     describe_motion_profile,
+    derive_motion_profile,
     get_go2w_motion_profiles,
     profile_for_motion_mode,
 )
@@ -80,6 +81,33 @@ def test_motion_profiles_include_explicit_mode_metadata() -> None:
     assert profiles.legged.speed_level == 0
     assert profiles.legged.max_linear_velocity_mps == 0.15
     assert profiles.legged.default_stair_linear_velocity_mps == 0.025
+
+
+def test_motion_profile_derivation_supports_safe_tuning_overrides() -> None:
+    profiles = get_go2w_motion_profiles()
+
+    tuned = derive_motion_profile(
+        profiles.legged,
+        body_height_m=0.31,
+        foot_raise_height_m=0.08,
+        gait_type=3,
+        speed_level=1,
+        max_linear_velocity_mps=0.12,
+        default_stair_linear_velocity_mps=0.02,
+        stand_transition_sec=1.8,
+    )
+
+    assert tuned.owner == "stair"
+    assert tuned.mode == "legged"
+    assert tuned.body_height_m == 0.31
+    assert tuned.foot_raise_height_m == 0.08
+    assert tuned.gait_type == 3
+    assert tuned.speed_level == 1
+    assert tuned.max_linear_velocity_mps == 0.12
+    assert tuned.default_stair_linear_velocity_mps == 0.02
+    assert tuned.stand_transition_sec == 1.8
+    assert profiles.legged.body_height_m == 0.32
+    assert profiles.legged.foot_raise_height_m == 0.09
 
 
 def test_profile_lookup_and_summary_are_stable() -> None:
