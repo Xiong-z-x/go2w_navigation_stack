@@ -22,6 +22,9 @@
 - `docs/verification/phase4b_mission_segment_runtime.md`：Phase 4B-min 最小 mission segment runtime 验收。
 - `docs/verification/phase4c_flat_segment_gate.md`：Phase 4C-min 最小 flat/stair/flat execution gate 验收。
 - `docs/verification/phase4d_route_tracking_feedback.md`：Phase 4D-min 最小 route tracking feedback observation gate 验收。
+- `docs/verification/phase4e_stair_fixture.md`：Phase 4E real-model `/stair_exec` phase-aware fixture 验收。
+- `docs/verification/phase4e_mission_recovery.md`：Phase 4E mission checkpoint/recovery 验收。
+- `docs/verification/go2w_real_model_regression.md`：Go2W real-model opt-in regression wrapper 验收。
 - `docs/verification/phase4_runtime_acceptance.md`：Phase 4 总体验收。
 - `docs/verification/gazebo_gpu_rebaseline.md`：Gazebo GPU 降级原因。
 
@@ -37,8 +40,8 @@
 - `go2w_sim/`：Gazebo worlds、simulation launch、controller config。
 - `go2w_perception/`：FAST-LIO adapters、TF authority、patch、external lock。
 - `go2w_navigation/`：Nav2 configs、BT、route graph、maps、Phase 4C-min flat navigation executor skeleton、Phase 4D-min route tracking feedback executor skeleton。
-- `go2w_control/`：Phase 4A 起承载 `StairExec` Action、command gate 和最小 stair executor skeleton。
-- `go2w_mission/`：Phase 4A 起承载 handoff demo；Phase 4B-min 起承载 one-shot mission segment runtime；Phase 4C-min 起通过 `NavigateToPose` gate 调度 flat segments；Phase 4D-min 起承载 route tracking feedback observer；尚不是 production Mission Orchestrator。
+- `go2w_control/`：Phase 4A 起承载 `StairExec` Action、command gate 和最小 stair executor skeleton；Phase 4E 起输出 phase-aware stair execution plan/state。
+- `go2w_mission/`：Phase 4A 起承载 handoff demo；Phase 4B-min 起承载 one-shot mission segment runtime；Phase 4C-min 起通过 `NavigateToPose` gate 调度 flat segments；Phase 4D-min 起承载 route tracking feedback observer；Phase 4E 起提供 mission checkpoint/recovery skeleton；尚不是完整 production Mission Orchestrator。
 
 ## 关键工具
 - `tools/prepare_phase2d_fastlio_external.sh`：准备 pinned FAST-LIO external cache。
@@ -56,6 +59,9 @@
 - `tools/verify_phase4b_mission_segments.sh`：Phase 4B-min mission segment runtime gate。
 - `tools/verify_phase4c_flat_segment_gate.sh`：Phase 4C-min flat/stair/flat execution gate。
 - `tools/verify_phase4d_route_tracking_feedback.sh`：Phase 4D-min route tracking feedback observation gate。
+- `tools/verify_phase4e_stair_fixture.sh`：Phase 4E real-model stair fixture gate。
+- `tools/verify_phase4e_mission_recovery.sh`：Phase 4E mission checkpoint/recovery gate。
+- `tools/verify_go2w_real_model_regression.sh`：Go2W real-model opt-in regression gate。
 - `tools/verify_phase4_runtime_acceptance.sh`：Phase 4 总体验收 gate。
 
 ## 生成/缓存目录

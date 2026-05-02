@@ -2,6 +2,7 @@ from dataclasses import replace
 
 from go2w_control_runtime.stair_executor import (
     StairExecutionPolicy,
+    build_stair_execution_state_text,
     build_leg_hold_command_data,
 )
 from go2w_control_runtime.motion_profiles import get_go2w_motion_profiles
@@ -67,3 +68,45 @@ def test_leg_hold_command_uses_profile_stand_pose() -> None:
 
     assert command_data == legged.stand_pose
     assert len(command_data) == 12
+
+
+def test_state_text_includes_phase_and_profile_metadata() -> None:
+    legged = get_go2w_motion_profiles().legged
+    plan = StairExecutionPolicy(profile=legged).build_phase_plan(
+        0.5,
+        force_timeout=False,
+    )
+    phase = plan.phases[3]
+
+    state_text = build_stair_execution_state_text(
+        phase=phase,
+        profile=legged,
+        owner="stair",
+        progress=0.625,
+    )
+
+    assert "phase=execute_stairs" in state_text
+    assert "owner=stair" in state_text
+    assert "mode=legged" in state_text
+    assert "body_height_m=0.32" in state_text
+    assert "foot_raise_height_m=0.09" in state_text
+    assert "publish_leg_hold=true" in state_text
+    assert "progress=0.625" in state_text
+
+
+def test_phase_plan_keeps_expected_order_and_velocity_profile() -> None:
+    policy = StairExecutionPolicy()
+    plan = policy.build_phase_plan(0.5, force_timeout=False)
+
+    assert plan.phase_names() == (
+        "prepare",
+        "wheel_lock",
+        "body_height_transition_down",
+        "execute_stairs",
+        "body_height_transition_up",
+        "release",
+    )
+    assert plan.total_duration_sec >= 0.5
+    assert plan.phases[3].command_velocity_mps == policy.stair_linear_velocity_mps
+    assert plan.phases[0].publish_leg_hold is True
+    assert plan.phases[-1].publish_leg_hold is False

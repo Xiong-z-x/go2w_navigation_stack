@@ -19,6 +19,10 @@ def generate_launch_description():
     launch_stair_executor = LaunchConfiguration("launch_stair_executor")
     flat_nav_mode = LaunchConfiguration("flat_nav_mode")
     mission_action_name = LaunchConfiguration("mission_action_name")
+    mission_state_file = LaunchConfiguration("mission_state_file")
+    mission_retry_limit = LaunchConfiguration("mission_retry_limit")
+    mission_retry_backoff_sec = LaunchConfiguration("mission_retry_backoff_sec")
+    mission_recovery_enabled = LaunchConfiguration("mission_recovery_enabled")
 
     default_route_params_file = PathJoinSubstitution([
         FindPackageShare("go2w_navigation"),
@@ -76,6 +80,26 @@ def generate_launch_description():
             "mission_action_name",
             default_value="/go2w/mission/run",
             description="Mission API Action name.",
+        ),
+        DeclareLaunchArgument(
+            "mission_state_file",
+            default_value="",
+            description="Optional persistent mission state file path.",
+        ),
+        DeclareLaunchArgument(
+            "mission_retry_limit",
+            default_value="2",
+            description="Retry budget for transient mission execution failures.",
+        ),
+        DeclareLaunchArgument(
+            "mission_retry_backoff_sec",
+            default_value="0.5",
+            description="Backoff between transient mission retries.",
+        ),
+        DeclareLaunchArgument(
+            "mission_recovery_enabled",
+            default_value="true",
+            description="Enable checkpoint resume and transient recovery.",
         ),
         Node(
             package="nav2_route",
@@ -146,6 +170,14 @@ def generate_launch_description():
                 "/navigate_to_pose",
                 "--stair-exec-action",
                 "/stair_exec",
+                "--mission-state-file",
+                mission_state_file,
+                "--mission-retry-limit",
+                mission_retry_limit,
+                "--mission-retry-backoff-sec",
+                mission_retry_backoff_sec,
+                "--mission-recovery-enabled",
+                mission_recovery_enabled,
                 "--action-name",
                 mission_action_name,
                 "--ros-args",

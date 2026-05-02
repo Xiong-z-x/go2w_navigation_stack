@@ -15,9 +15,9 @@ simulation-first 的自主导航栈，最终实现：
 
 ## 当前阶段
 - 当前正式阶段：`Phase 4 accepted`
-- 当前状态：Phase 3A、Phase 3B、Phase 3C、Phase 4 迁移前封板、Phase 4A、Phase 4B-min、Phase 4C-min、Phase 4D-min、Phase 4 总体验收、Phase 5A live route tracking observation gate、opt-in Go2W real model / motion-mode baseline 和 opt-in real-model same-floor route-following verifier 均已有仓库内验收证据。
+- 当前状态：Phase 3A、Phase 3B、Phase 3C、Phase 4 迁移前封板、Phase 4A、Phase 4B-min、Phase 4C-min、Phase 4D-min、Phase 4 总体验收、Phase 5A live route tracking observation gate、opt-in Go2W real model / motion-mode baseline、opt-in real-model same-floor route-following verifier、Phase 4E real-model stair fixture、Phase 4E mission recovery 和 opt-in real-model regression wrapper 均已有仓库内验收证据。
 - 当前 Phase 4 accepted 范围：manual-connector runtime chain，覆盖楼梯 handoff、mission route segmentation、flat/stair/flat Action 调度、`ComputeAndTrackRoute` feedback observation，以及 pre-handoff、Phase 4A/4B/4C/4D runtime verifiers、构建和测试的聚合验收。
-- 下一步：只能在新的完整任务单或当前自主审批模式下的自批准任务单中推进 post-Phase-4 的最小单主题任务。
+- 下一步：只能在新的完整任务单或当前自主审批模式下的自批准任务单中推进 post-Phase-4 的最小单主题任务。当前已完成的 Phase 4E 硬化仍不等于真实楼梯动力学、完整 production Mission Orchestrator 或默认 real-model re-baseline。
 
 ## 当前环境基线
 - Ubuntu 22.04 / WSL2
@@ -38,7 +38,9 @@ Gazebo GPU rendering 不是当前验收合同。RViz 可单独使用 WSLg/NVIDIA
   `sim_go2w_real.launch.py`。
 - `go2w_control`：Phase 4A 已新增 `StairExec` Action、command gate、
   owner->motion-mode state、Go2W motion profiles、stand initializer、minimal
-  stair executor skeleton；当前 stair executor policy 复用了 legged motion profile、钳制 stair 线速度，并在 stair owner 激活时发布 12 关节 leg hold command，但尚未实现真实楼梯运动控制器。
+  stair executor skeleton；当前 stair executor policy 复用了 legged motion profile、钳制 stair 线速度，在 stair owner 激活时发布 12 关节 leg hold command，并输出
+  `prepare -> wheel_lock -> body_height_transition_down -> execute_stairs ->
+  body_height_transition_up -> release` 的可诊断阶段状态，但尚未实现真实楼梯运动控制器。
   当前 real-model baseline 还把 `go2w_stand_initializer` 显式切到 `--motion-mode legged`，
   并把 profile 摘要和 controller-state 轮询写进验收证据，避免再依赖单条 spawner 日志。
 - `go2w_perception`：FAST-LIO 输入/输出 adapter、perception TF authority、
@@ -52,8 +54,9 @@ Gazebo GPU rendering 不是当前验收合同。RViz 可单独使用 WSLg/NVIDIA
   segment 接入 navigation-owned `NavigateToPose` gate；Phase 4D-min 已新增
   route tracking feedback observer；Phase 5A 已新增 live route tracking probe；
   现已额外提供 opt-in `RunMission` Action skeleton / mission API verifier，用于
-  route segmentation、flat/stair dispatch 和诊断结果码，但尚未实现 production
-  Mission Orchestrator。
+  route segmentation、flat/stair dispatch 和诊断结果码；当前 mission API 又新增
+  JSON checkpoint 持久化、同一 mission goal resume 和有限 retry，但尚未实现完整
+  production Mission Orchestrator。
 
 ## 已完成闭环
 - Phase 1：Gazebo + `gz_ros2_control` + `/cmd_vel` 底盘可控闭环。
@@ -89,15 +92,27 @@ Gazebo GPU rendering 不是当前验收合同。RViz 可单独使用 WSLg/NVIDIA
   `tools/verify_go2w_real_model_route_following.sh` 验证 opt-in 真实模型上的短
   `NavigateToPose` 同层目标、`phase5_real_model_nav2_same_floor.yaml` 参数文件、
   perception-owned `odom -> base_link`、`/cmd_vel` 运动和 Nav2 生命周期。
+- Phase 4E real-model stair fixture：通过 `tools/verify_phase4e_stair_fixture.sh`
+  验证 opt-in real-model fixture 中 `/stair_exec` Action 成功、command gate
+  `flat/wheeled -> stair/legged -> flat/wheeled`、阶段化 stair executor 状态、
+  profile-limited stair velocity 和 leg hold release。
+- Phase 4E mission recovery：通过 `tools/verify_phase4e_mission_recovery.sh`
+  验证 mission API 在 stair executor 不可用时写入 `RECOVERABLE` checkpoint，
+  重启后从 segment index `1` 恢复，并在 stair executor 可用时完成到
+  `MISSION_SUCCEEDED`。
+- Go2W real-model regression wrapper：通过
+  `tools/verify_go2w_real_model_regression.sh` 串联 real-model baseline、
+  real-model same-floor route-following 和 Phase 4E stair fixture。该 wrapper 是
+  opt-in regression，不改变默认 placeholder 仿真基线。
 
 ## 当前未完成内容
-- 真实 Go2W 模型仍是 opt-in 路径，尚未替换默认 placeholder 仿真基线。
-- `go2w_mission` 的 `RunMission` 仍是 skeleton，不是 production Mission Orchestrator。
-- 未实现 production Mission Orchestrator。
+- 真实 Go2W 模型仍是 opt-in 路径，虽已有 broader regression wrapper，但尚未替换默认 placeholder 仿真基线。
+- `go2w_mission` 的 `RunMission` 已有 checkpoint/retry/resume skeleton，但不是完整 production Mission Orchestrator。
+- 未实现完整 production Mission Orchestrator 的多任务队列、操作员恢复策略、优先级调度和长期任务管理。
 - Phase 4C-min 的 flat executor 仍是 verifier skeleton，尚未被 production Nav2/nav2_route route tracking 实现替换；但 opt-in real-model same-floor route-following verifier 已通过短目标验证。
 - Phase 5A 已接入真实 `nav2_route` route_server feedback，但仍未验证真实机器人运动上的
   route tracking。
-- 未实现真实楼梯运动控制器和控制参数调优。
+- 未实现真实楼梯运动控制器和控制参数调优；当前 Phase 4E 只把 wheel lock、body height transition、leg hold 和 release 做成可观察阶段骨架。
 - 未实现真实跨楼层自主行为。
 - 未实现 `map_server` / AMCL / `map -> odom` 定位链。
 - 未实现 elevation mapping / traversability / automatic stair detection。

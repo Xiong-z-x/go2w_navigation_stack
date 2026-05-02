@@ -32,6 +32,9 @@ if(BUILD_TESTING)
   ament_add_pytest_test(test_stair_executor_policy test/test_stair_executor_policy.py
     APPEND_ENV PYTHONPATH=${CMAKE_CURRENT_SOURCE_DIR}
   )
+  ament_add_pytest_test(test_stair_executor_phases test/test_stair_executor_phases.py
+    APPEND_ENV PYTHONPATH=${CMAKE_CURRENT_SOURCE_DIR}
+  )
 endif()
 
 ament_export_dependencies(rosidl_default_runtime)

@@ -4,6 +4,7 @@ import argparse
 from dataclasses import dataclass
 from pathlib import Path
 import sys
+import threading
 import time
 from typing import Any
 
@@ -11,6 +12,14 @@ from go2w_mission.phase4a_route_graph import Phase4ARouteGraph
 from go2w_mission.phase4b_mission_segments import (
     MissionSegment,
     build_mission_segments,
+)
+from go2w_mission.mission_recovery import (
+    MissionCheckpoint,
+    MissionStateStore,
+    build_mission_key,
+    checkpoint_for_goal,
+    is_recoverable_result_code,
+    should_resume_checkpoint,
 )
 
 
@@ -82,6 +91,10 @@ class MissionApiRuntime:
         compute_route_action: str,
         flat_nav_action: str,
         stair_exec_action: str,
+        mission_state_file: str,
+        mission_retry_limit: int,
+        mission_retry_backoff_sec: float,
+        mission_recovery_enabled: bool,
     ) -> None:
         from nav2_msgs.action import ComputeRoute, NavigateToPose
         from rclpy.action import ActionClient
@@ -95,6 +108,24 @@ class MissionApiRuntime:
         self.compute_route_client = ActionClient(node, ComputeRoute, compute_route_action)
         self.navigate_to_pose_client = ActionClient(node, NavigateToPose, flat_nav_action)
         self.stair_exec_client = ActionClient(node, StairExec, stair_exec_action)
+        state_path = (
+            Path(mission_state_file).expanduser()
+            if mission_state_file.strip()
+            else MissionStateStore.default_path()
+        )
+        self.state_store = MissionStateStore(state_path)
+        self.mission_retry_limit = max(0, int(mission_retry_limit))
+        self.mission_retry_backoff_sec = max(0.0, float(mission_retry_backoff_sec))
+        self.mission_recovery_enabled = bool(mission_recovery_enabled)
+        self._mission_lock = threading.Lock()
+        loaded = self.state_store.load()
+        if loaded is not None:
+            self.node.get_logger().info(
+                "mission_state_loaded: "
+                f"key={loaded.mission_key} state={loaded.state} "
+                f"next_segment_index={loaded.next_segment_index} "
+                f"result_code={loaded.result_code}"
+            )
 
     def execute(self, goal_handle) -> Any:
         request = goal_handle.request
@@ -121,6 +152,13 @@ class MissionApiRuntime:
                 segment_count=0,
                 segment_summary="",
             )
+
+        mission_key = build_mission_key(
+            start_id=goal_spec.start_id,
+            goal_id=goal_spec.goal_id,
+            graph_file=goal_spec.graph_file,
+            route_frame_id=goal_spec.route_frame_id,
+        )
 
         if not Path(goal_spec.graph_file).exists():
             return self._finish(
@@ -153,11 +191,51 @@ class MissionApiRuntime:
                 message="graph_geometry_mismatch",
                 segment_count=0,
                 segment_summary="",
-        )
+            )
+
+        existing_checkpoint = self.state_store.load()
+        if (
+            existing_checkpoint is not None
+            and existing_checkpoint.mission_key != mission_key
+            and existing_checkpoint.state not in {"SUCCEEDED", "FAILED", "CANCELED"}
+        ):
+            return self._finish(
+                goal_handle,
+                success=False,
+                result_code="MISSION_BUSY",
+                message="mission_state_in_use",
+                segment_count=0,
+                segment_summary="",
+            )
 
         goal_handle.publish_feedback(self._feedback("ROUTE_REQUESTED", 0, "", "", 0.0))
         route_result = self._compute_route_edge_ids(goal_handle, goal_spec)
         if not route_result["success"]:
+            state = (
+                "RECOVERABLE"
+                if self.mission_recovery_enabled
+                and is_recoverable_result_code(route_result["result_code"])
+                else "FAILED"
+            )
+            self._save_checkpoint(
+                checkpoint_for_goal(
+                    mission_key=mission_key,
+                    state=state,
+                    start_id=goal_spec.start_id,
+                    goal_id=goal_spec.goal_id,
+                    graph_file=goal_spec.graph_file,
+                    route_frame_id=goal_spec.route_frame_id,
+                    segment_summary="",
+                    route_edge_ids=(),
+                    next_segment_index=0,
+                    current_segment_index=0,
+                    current_segment_type="",
+                    active_owner="flat",
+                    result_code=route_result["result_code"],
+                    message=route_result["message"],
+                    retry_count=0,
+                )
+            )
             return self._finish(
                 goal_handle,
                 success=False,
@@ -166,11 +244,30 @@ class MissionApiRuntime:
                 segment_count=0,
                 segment_summary="",
             )
-        route_edge_ids = route_result["edge_ids"]
+        route_edge_ids = tuple(route_result["edge_ids"])
 
         try:
             segments = build_mission_segments(graph, route_edge_ids)
         except ValueError as exc:
+            self._save_checkpoint(
+                checkpoint_for_goal(
+                    mission_key=mission_key,
+                    state="FAILED",
+                    start_id=goal_spec.start_id,
+                    goal_id=goal_spec.goal_id,
+                    graph_file=goal_spec.graph_file,
+                    route_frame_id=goal_spec.route_frame_id,
+                    segment_summary="",
+                    route_edge_ids=route_edge_ids,
+                    next_segment_index=0,
+                    current_segment_index=0,
+                    current_segment_type="",
+                    active_owner="flat",
+                    result_code="MISSION_CONNECTOR_UNAVAILABLE",
+                    message=str(exc),
+                    retry_count=0,
+                )
+            )
             return self._finish(
                 goal_handle,
                 success=False,
@@ -180,6 +277,25 @@ class MissionApiRuntime:
                 segment_summary="",
             )
         if not segments:
+            self._save_checkpoint(
+                checkpoint_for_goal(
+                    mission_key=mission_key,
+                    state="FAILED",
+                    start_id=goal_spec.start_id,
+                    goal_id=goal_spec.goal_id,
+                    graph_file=goal_spec.graph_file,
+                    route_frame_id=goal_spec.route_frame_id,
+                    segment_summary="",
+                    route_edge_ids=route_edge_ids,
+                    next_segment_index=0,
+                    current_segment_index=0,
+                    current_segment_type="",
+                    active_owner="flat",
+                    result_code="MISSION_CONNECTOR_UNAVAILABLE",
+                    message="no_segments",
+                    retry_count=0,
+                )
+            )
             return self._finish(
                 goal_handle,
                 success=False,
@@ -193,7 +309,63 @@ class MissionApiRuntime:
         goal_handle.publish_feedback(
             self._feedback("SEGMENTS_READY", 0, "", "", 0.0)
         )
-        mission_result = self._execute_segments(goal_handle, graph, goal_spec, segments)
+        checkpoint = existing_checkpoint
+        resume_from = 0
+        if self.mission_recovery_enabled and should_resume_checkpoint(
+            checkpoint,
+            mission_key=mission_key,
+        ):
+            if (
+                checkpoint.segment_summary
+                and checkpoint.segment_summary != segment_summary
+            ) or tuple(checkpoint.route_edge_ids) != route_edge_ids:
+                return self._finish(
+                    goal_handle,
+                    success=False,
+                    result_code="MISSION_INVALID_GOAL",
+                    message="mission_checkpoint_mismatch",
+                    segment_count=0,
+                    segment_summary="",
+                )
+            resume_from = min(max(0, checkpoint.next_segment_index), len(segments))
+            self.node.get_logger().info(
+                "mission_recovery_resume: "
+                f"key={mission_key} resume_from={resume_from} "
+                f"state={checkpoint.state} retry_count={checkpoint.retry_count}"
+            )
+            goal_handle.publish_feedback(
+                self._feedback("RECOVERING", resume_from, "", "", 0.0)
+            )
+
+        self._save_checkpoint(
+            checkpoint_for_goal(
+                mission_key=mission_key,
+                state="RUNNING",
+                start_id=goal_spec.start_id,
+                goal_id=goal_spec.goal_id,
+                graph_file=goal_spec.graph_file,
+                route_frame_id=goal_spec.route_frame_id,
+                segment_summary=segment_summary,
+                route_edge_ids=route_edge_ids,
+                next_segment_index=resume_from,
+                current_segment_index=max(0, resume_from - 1),
+                current_segment_type="",
+                active_owner="flat",
+                result_code="MISSION_SUCCEEDED",
+                message="mission_running",
+                retry_count=0,
+            )
+        )
+        mission_result = self._execute_segments(
+            goal_handle,
+            graph,
+            goal_spec,
+            segments,
+            mission_key=mission_key,
+            segment_summary=segment_summary,
+            start_index=resume_from,
+            route_edge_ids=route_edge_ids,
+        )
         goal_handle.publish_feedback(
             self._feedback(
                 "MISSION_COMPLETE",
@@ -203,6 +375,26 @@ class MissionApiRuntime:
                 1.0 if mission_result["success"] else 0.0,
             )
         )
+        if mission_result["success"]:
+            self._save_checkpoint(
+                checkpoint_for_goal(
+                    mission_key=mission_key,
+                    state="SUCCEEDED",
+                    start_id=goal_spec.start_id,
+                    goal_id=goal_spec.goal_id,
+                    graph_file=goal_spec.graph_file,
+                    route_frame_id=goal_spec.route_frame_id,
+                    segment_summary=segment_summary,
+                    route_edge_ids=route_edge_ids,
+                    next_segment_index=len(segments),
+                    current_segment_index=mission_result["current_segment_index"],
+                    current_segment_type=mission_result["current_segment_type"],
+                    active_owner=mission_result["active_owner"],
+                    result_code=mission_result["result_code"],
+                    message=mission_result["message"],
+                    retry_count=mission_result["retry_count"],
+                )
+            )
         return self._finish(
             goal_handle,
             success=mission_result["success"],
@@ -210,6 +402,19 @@ class MissionApiRuntime:
             message=mission_result["message"],
             segment_count=len(segments),
             segment_summary=segment_summary,
+        )
+
+    def _save_checkpoint(self, checkpoint: MissionCheckpoint) -> None:
+        self.state_store.save(checkpoint)
+        self.node.get_logger().info(
+            "mission_checkpoint: "
+            f"key={checkpoint.mission_key} state={checkpoint.state} "
+            f"next_segment_index={checkpoint.next_segment_index} "
+            f"current_segment_index={checkpoint.current_segment_index} "
+            f"current_segment_type={checkpoint.current_segment_type} "
+            f"active_owner={checkpoint.active_owner} "
+            f"result_code={checkpoint.result_code} "
+            f"retry_count={checkpoint.retry_count}"
         )
 
     def _compute_route_edge_ids(
@@ -305,38 +510,200 @@ class MissionApiRuntime:
         graph: Phase4ARouteGraph,
         goal_spec: MissionGoalSpec,
         segments: list[MissionSegment],
+        *,
+        mission_key: str,
+        segment_summary: str,
+        start_index: int,
+        route_edge_ids: tuple[int, ...],
     ) -> dict[str, Any]:
-        for index, segment in enumerate(segments):
-            if goal_handle.is_cancel_requested:
-                return {
-                    "success": False,
-                    "result_code": "MISSION_CANCELED",
-                    "message": "mission_canceled",
-                }
+        retry_count = 0
+        total_segments = len(segments)
+        for index in range(start_index, total_segments):
+            segment = segments[index]
             owner = "stair" if segment.segment_type == "stair" else "flat"
-            state = "STAIR_SEGMENT_ACTIVE" if owner == "stair" else "FLAT_SEGMENT_ACTIVE"
-            goal_handle.publish_feedback(
-                self._feedback(state, index, segment.segment_type, owner, 0.0)
+            active_state = (
+                "STAIR_SEGMENT_ACTIVE" if owner == "stair" else "FLAT_SEGMENT_ACTIVE"
             )
-            if segment.segment_type == "flat":
-                result = self._execute_flat_segment(goal_handle, graph, segment, goal_spec)
-            else:
-                result = self._execute_stair_segment(goal_handle, segment, goal_spec)
-            if result["result_code"] != "MISSION_SUCCEEDED":
-                return result
+            self._save_checkpoint(
+                checkpoint_for_goal(
+                    mission_key=mission_key,
+                    state="SEGMENT_ACTIVE",
+                    start_id=goal_spec.start_id,
+                    goal_id=goal_spec.goal_id,
+                    graph_file=goal_spec.graph_file,
+                    route_frame_id=goal_spec.route_frame_id,
+                    segment_summary=segment_summary,
+                    route_edge_ids=route_edge_ids,
+                    next_segment_index=index,
+                    current_segment_index=index,
+                    current_segment_type=segment.segment_type,
+                    active_owner=owner,
+                    result_code="MISSION_SUCCEEDED",
+                    message="segment_active",
+                    retry_count=retry_count,
+                )
+            )
             goal_handle.publish_feedback(
                 self._feedback(
-                    "SEGMENT_COMPLETE",
+                    active_state,
                     index,
                     segment.segment_type,
                     owner,
-                    1.0,
+                    float(index) / max(1.0, float(total_segments)),
                 )
             )
+
+            attempt = 0
+            while True:
+                if goal_handle.is_cancel_requested:
+                    self._save_checkpoint(
+                        checkpoint_for_goal(
+                            mission_key=mission_key,
+                            state="CANCELED",
+                            start_id=goal_spec.start_id,
+                            goal_id=goal_spec.goal_id,
+                            graph_file=goal_spec.graph_file,
+                            route_frame_id=goal_spec.route_frame_id,
+                            segment_summary=segment_summary,
+                            route_edge_ids=route_edge_ids,
+                            next_segment_index=index,
+                            current_segment_index=index,
+                            current_segment_type=segment.segment_type,
+                            active_owner=owner,
+                            result_code="MISSION_CANCELED",
+                            message="mission_canceled",
+                            retry_count=retry_count,
+                        )
+                    )
+                    return {
+                        "success": False,
+                        "result_code": "MISSION_CANCELED",
+                        "message": "mission_canceled",
+                        "current_segment_index": index,
+                        "current_segment_type": segment.segment_type,
+                        "active_owner": owner,
+                        "next_segment_index": index,
+                        "retry_count": retry_count,
+                    }
+
+                if segment.segment_type == "flat":
+                    result = self._execute_flat_segment(
+                        goal_handle,
+                        graph,
+                        segment,
+                        goal_spec,
+                    )
+                else:
+                    result = self._execute_stair_segment(
+                        goal_handle,
+                        segment,
+                        goal_spec,
+                    )
+
+                if result["success"]:
+                    self._save_checkpoint(
+                        checkpoint_for_goal(
+                            mission_key=mission_key,
+                            state="SEGMENT_COMPLETE",
+                            start_id=goal_spec.start_id,
+                            goal_id=goal_spec.goal_id,
+                            graph_file=goal_spec.graph_file,
+                            route_frame_id=goal_spec.route_frame_id,
+                            segment_summary=segment_summary,
+                            route_edge_ids=route_edge_ids,
+                            next_segment_index=index + 1,
+                            current_segment_index=index,
+                            current_segment_type=segment.segment_type,
+                            active_owner="flat",
+                            result_code="MISSION_SUCCEEDED",
+                            message=result["message"],
+                            retry_count=retry_count,
+                        )
+                    )
+                    goal_handle.publish_feedback(
+                        self._feedback(
+                            "SEGMENT_COMPLETE",
+                            index,
+                            segment.segment_type,
+                            owner,
+                            1.0,
+                        )
+                    )
+                    break
+
+                if (
+                    result.get("recoverable", False)
+                    and self.mission_recovery_enabled
+                    and attempt < self.mission_retry_limit
+                ):
+                    attempt += 1
+                    retry_count += 1
+                    self._save_checkpoint(
+                        checkpoint_for_goal(
+                            mission_key=mission_key,
+                            state="RECOVERING",
+                            start_id=goal_spec.start_id,
+                            goal_id=goal_spec.goal_id,
+                            graph_file=goal_spec.graph_file,
+                            route_frame_id=goal_spec.route_frame_id,
+                            segment_summary=segment_summary,
+                            route_edge_ids=route_edge_ids,
+                            next_segment_index=index,
+                            current_segment_index=index,
+                            current_segment_type=segment.segment_type,
+                            active_owner=owner,
+                            result_code=result["result_code"],
+                            message=result["message"],
+                            retry_count=retry_count,
+                        )
+                    )
+                    self.node.get_logger().info(
+                        "mission_recovering: "
+                        f"key={mission_key} segment_index={index} "
+                        f"attempt={attempt} result_code={result['result_code']}"
+                    )
+                    time.sleep(self.mission_retry_backoff_sec)
+                    continue
+
+                state = "RECOVERABLE" if result.get("recoverable", False) else "FAILED"
+                self._save_checkpoint(
+                    checkpoint_for_goal(
+                        mission_key=mission_key,
+                        state=state,
+                        start_id=goal_spec.start_id,
+                        goal_id=goal_spec.goal_id,
+                        graph_file=goal_spec.graph_file,
+                        route_frame_id=goal_spec.route_frame_id,
+                        segment_summary=segment_summary,
+                        route_edge_ids=route_edge_ids,
+                        next_segment_index=index,
+                        current_segment_index=index,
+                        current_segment_type=segment.segment_type,
+                        active_owner=owner,
+                        result_code=result["result_code"],
+                        message=result["message"],
+                        retry_count=retry_count,
+                    )
+                )
+                return {
+                    "success": False,
+                    "result_code": result["result_code"],
+                    "message": result["message"],
+                    "current_segment_index": index,
+                    "current_segment_type": segment.segment_type,
+                    "active_owner": owner,
+                    "next_segment_index": index,
+                    "retry_count": retry_count,
+                }
         return {
             "success": True,
             "result_code": "MISSION_SUCCEEDED",
             "message": "mission_succeeded",
+            "current_segment_index": max(0, total_segments - 1),
+            "current_segment_type": segments[-1].segment_type if segments else "",
+            "active_owner": "flat",
+            "next_segment_index": total_segments,
+            "retry_count": retry_count,
         }
 
     def _execute_flat_segment(
@@ -353,6 +720,7 @@ class MissionApiRuntime:
                 "success": False,
                 "result_code": "MISSION_FLAT_NAV_UNAVAILABLE",
                 "message": "flat_nav_unavailable",
+                "recoverable": True,
             }
 
         goal = self.navigate_to_pose_type.Goal()
@@ -371,6 +739,7 @@ class MissionApiRuntime:
                 "success": False,
                 "result_code": "MISSION_FLAT_FAILED",
                 "message": "flat_goal_response_timeout",
+                "recoverable": True,
             }
         child_goal_handle = send_future.result()
         if child_goal_handle is None or not child_goal_handle.accepted:
@@ -378,6 +747,7 @@ class MissionApiRuntime:
                 "success": False,
                 "result_code": "MISSION_FLAT_FAILED",
                 "message": "flat_goal_rejected",
+                "recoverable": True,
             }
         result_future = child_goal_handle.get_result_async()
         wait_status = _spin_until_or_cancel(
@@ -392,6 +762,7 @@ class MissionApiRuntime:
                 "success": False,
                 "result_code": "MISSION_CANCELED",
                 "message": "flat_canceled",
+                "recoverable": False,
             }
         if wait_status == "TIMEOUT":
             child_goal_handle.cancel_goal_async()
@@ -399,6 +770,7 @@ class MissionApiRuntime:
                 "success": False,
                 "result_code": "MISSION_TIMEOUT",
                 "message": "flat_timeout",
+                "recoverable": True,
             }
         wrapped = result_future.result()
         from action_msgs.msg import GoalStatus
@@ -408,17 +780,20 @@ class MissionApiRuntime:
                 "success": False,
                 "result_code": "MISSION_CANCELED",
                 "message": "flat_canceled",
+                "recoverable": False,
             }
         if wrapped.status != GoalStatus.STATUS_SUCCEEDED:
             return {
                 "success": False,
                 "result_code": "MISSION_FLAT_FAILED",
                 "message": "flat_failed",
+                "recoverable": True,
             }
         return {
             "success": True,
             "result_code": "MISSION_SUCCEEDED",
             "message": "flat_succeeded",
+            "recoverable": False,
         }
 
     def _execute_stair_segment(
@@ -434,6 +809,7 @@ class MissionApiRuntime:
                 "success": False,
                 "result_code": "MISSION_STAIR_UNAVAILABLE",
                 "message": "stair_exec_unavailable",
+                "recoverable": True,
             }
         goal = self.stair_exec_type.Goal()
         spec = build_stair_goal_from_segment(
@@ -454,6 +830,7 @@ class MissionApiRuntime:
                 "success": False,
                 "result_code": "MISSION_STAIR_FAILED",
                 "message": "stair_goal_response_timeout",
+                "recoverable": True,
             }
         child_goal_handle = send_future.result()
         if child_goal_handle is None or not child_goal_handle.accepted:
@@ -461,6 +838,7 @@ class MissionApiRuntime:
                 "success": False,
                 "result_code": "MISSION_STAIR_FAILED",
                 "message": "stair_goal_rejected",
+                "recoverable": True,
             }
         result_future = child_goal_handle.get_result_async()
         wait_status = _spin_until_or_cancel(
@@ -475,6 +853,7 @@ class MissionApiRuntime:
                 "success": False,
                 "result_code": "MISSION_CANCELED",
                 "message": "stair_canceled",
+                "recoverable": False,
             }
         if wait_status == "TIMEOUT":
             child_goal_handle.cancel_goal_async()
@@ -482,6 +861,7 @@ class MissionApiRuntime:
                 "success": False,
                 "result_code": "MISSION_TIMEOUT",
                 "message": "stair_timeout",
+                "recoverable": True,
             }
         wrapped = result_future.result()
         result = wrapped.result
@@ -492,17 +872,20 @@ class MissionApiRuntime:
                 "success": False,
                 "result_code": "MISSION_CANCELED",
                 "message": "stair_canceled",
+                "recoverable": False,
             }
         if result.result_code != "SUCCEEDED":
             return {
                 "success": False,
                 "result_code": "MISSION_STAIR_FAILED",
                 "message": result.message,
+                "recoverable": True,
             }
         return {
             "success": True,
             "result_code": "MISSION_SUCCEEDED",
             "message": "stair_succeeded",
+            "recoverable": False,
         }
 
     def _feedback(
@@ -552,6 +935,14 @@ class MissionApiRuntime:
 
 
 def parse_args(argv: list[str]) -> tuple[argparse.Namespace, list[str]]:
+    def _parse_bool(value: str) -> bool:
+        normalized = value.strip().lower()
+        if normalized in {"1", "true", "yes", "on"}:
+            return True
+        if normalized in {"0", "false", "no", "off"}:
+            return False
+        raise argparse.ArgumentTypeError(f"invalid boolean value: {value}")
+
     parser = argparse.ArgumentParser()
     parser.add_argument("--graph-file", required=True)
     parser.add_argument("--start-id", type=int, default=100)
@@ -563,6 +954,10 @@ def parse_args(argv: list[str]) -> tuple[argparse.Namespace, list[str]]:
     parser.add_argument("--compute-route-action", default="/compute_route")
     parser.add_argument("--flat-nav-action", default="/navigate_to_pose")
     parser.add_argument("--stair-exec-action", default="/stair_exec")
+    parser.add_argument("--mission-state-file", default="")
+    parser.add_argument("--mission-retry-limit", type=int, default=2)
+    parser.add_argument("--mission-retry-backoff-sec", type=float, default=0.5)
+    parser.add_argument("--mission-recovery-enabled", type=_parse_bool, default=True)
     parser.add_argument("--action-name", default="/go2w/mission/run")
     return parser.parse_known_args(argv)
 
@@ -586,6 +981,10 @@ def main(argv: list[str] | None = None) -> int:
                 compute_route_action=args.compute_route_action,
                 flat_nav_action=args.flat_nav_action,
                 stair_exec_action=args.stair_exec_action,
+                mission_state_file=args.mission_state_file,
+                mission_retry_limit=args.mission_retry_limit,
+                mission_retry_backoff_sec=args.mission_retry_backoff_sec,
+                mission_recovery_enabled=args.mission_recovery_enabled,
             )
             self._callback_group = ReentrantCallbackGroup()
             self._server = ActionServer(

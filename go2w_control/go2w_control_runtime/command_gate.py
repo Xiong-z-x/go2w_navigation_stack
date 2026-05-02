@@ -101,6 +101,10 @@ def main() -> None:
             )
             self._publish_owner()
             self._publish_mode()
+            self.get_logger().info(
+                "go2w_command_gate_state: "
+                f"owner={self._core.active_owner} mode={self._core.active_mode}"
+            )
 
         def _on_owner(self, msg: String) -> None:
             if not self._core.set_owner(msg.data):
@@ -109,6 +113,10 @@ def main() -> None:
             self._publish_owner()
             self._publish_mode()
             self._publish_event(f"owner_active:{self._core.active_owner}")
+            self.get_logger().info(
+                "go2w_command_gate_state: "
+                f"owner={self._core.active_owner} mode={self._core.active_mode}"
+            )
 
         def _on_cmd(self, source: str, msg: Twist) -> None:
             decision = self._core.evaluate(source)

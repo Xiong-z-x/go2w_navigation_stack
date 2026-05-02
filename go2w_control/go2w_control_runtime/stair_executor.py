@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+from dataclasses import dataclass
 import time
 
 from go2w_control_runtime.motion_profiles import (
@@ -25,6 +26,44 @@ def build_leg_hold_command(profile: MotionModeProfile | None = None):
     return command
 
 
+@dataclass(frozen=True)
+class StairExecutionPhase:
+    name: str
+    duration_sec: float
+    command_velocity_mps: float
+    body_height_m: float
+    foot_raise_height_m: float
+    publish_leg_hold: bool
+
+
+@dataclass(frozen=True)
+class StairExecutionPlan:
+    phases: tuple[StairExecutionPhase, ...]
+    total_duration_sec: float
+
+    def phase_names(self) -> tuple[str, ...]:
+        return tuple(phase.name for phase in self.phases)
+
+
+def build_stair_execution_state_text(
+    *,
+    phase: StairExecutionPhase,
+    profile: MotionModeProfile,
+    owner: str,
+    progress: float,
+) -> str:
+    return (
+        f"phase={phase.name} "
+        f"owner={owner} "
+        f"mode={profile.mode} "
+        f"body_height_m={phase.body_height_m:.2f} "
+        f"foot_raise_height_m={phase.foot_raise_height_m:.2f} "
+        f"cmd_vel_mps={phase.command_velocity_mps:.3f} "
+        f"publish_leg_hold={str(phase.publish_leg_hold).lower()} "
+        f"progress={progress:.3f}"
+    )
+
+
 class StairExecutionPolicy:
     def __init__(
         self,
@@ -47,6 +86,44 @@ class StairExecutionPolicy:
             max(0.0, requested_velocity),
             self.profile.max_linear_velocity_mps,
         )
+
+    def build_phase_plan(
+        self,
+        requested_sec: float,
+        *,
+        force_timeout: bool,
+    ) -> StairExecutionPlan:
+        total_duration_sec = self.execution_duration(
+            requested_sec,
+            force_timeout=force_timeout,
+        )
+        phase_specs = (
+            ("prepare", 0.12, 0.0, True),
+            ("wheel_lock", 0.10, 0.0, True),
+            ("body_height_transition_down", 0.18, 0.0, True),
+            ("execute_stairs", 0.32, self.stair_linear_velocity_mps, True),
+            ("body_height_transition_up", 0.18, 0.0, True),
+            ("release", 0.10, 0.0, False),
+        )
+        phases = []
+        for name, weight, velocity_mps, publish_leg_hold in phase_specs:
+            duration_sec = max(self.min_duration_sec, total_duration_sec * weight)
+            phases.append(
+                StairExecutionPhase(
+                    name=name,
+                    duration_sec=duration_sec,
+                    command_velocity_mps=velocity_mps,
+                    body_height_m=self.profile.body_height_m,
+                    foot_raise_height_m=self.profile.foot_raise_height_m,
+                    publish_leg_hold=publish_leg_hold,
+                )
+            )
+        summed_duration_sec = sum(phase.duration_sec for phase in phases)
+        plan = StairExecutionPlan(
+            phases=tuple(phases),
+            total_duration_sec=max(total_duration_sec, summed_duration_sec),
+        )
+        return plan
 
     def result_code(self, *, force_fail: bool, canceled: bool) -> str:
         if canceled:
@@ -110,6 +187,7 @@ def main() -> None:
     class StairExecutorNode(Node):
         def __init__(self) -> None:
             from std_msgs.msg import Float64MultiArray
+            from std_msgs.msg import String
 
             super().__init__("go2w_stair_executor")
             self._policy = StairExecutionPolicy(
@@ -133,6 +211,11 @@ def main() -> None:
                 "/leg_position_controller/commands",
                 10,
             )
+            self._state_pub = self.create_publisher(
+                String,
+                "/go2w/control/stair_execution_state",
+                10,
+            )
             self._server = ActionServer(
                 self,
                 StairExec,
@@ -153,45 +236,78 @@ def main() -> None:
         def _execute_callback(self, goal_handle):
             goal = goal_handle.request
             started = time.monotonic()
-            duration = self._policy.execution_duration(
+            plan = self._policy.build_phase_plan(
                 float(goal.expected_duration_sec),
                 force_timeout=bool(goal.force_timeout),
             )
+            self.get_logger().info(
+                "go2w_stair_executor_plan: "
+                f"phases={','.join(plan.phase_names())} "
+                f"total_duration_sec={plan.total_duration_sec:.2f}"
+            )
             self._owner_pub.publish(_string_msg("stair"))
+            self._publish_state(plan.phases[0], progress=0.0)
             self._leg_hold_pub.publish(build_leg_hold_command(self._policy.profile))
 
-            while rclpy.ok():
-                elapsed = time.monotonic() - started
-                progress = min(1.0, elapsed / duration)
-                feedback = StairExec.Feedback()
-                feedback.phase = "executing_stair"
-                feedback.progress = float(progress)
-                feedback.owner = "stair"
-                goal_handle.publish_feedback(feedback)
-                self._leg_hold_pub.publish(build_leg_hold_command(self._policy.profile))
-                self._stair_cmd_pub.publish(
-                    _stair_twist(self._policy.stair_linear_velocity_mps)
-                )
+            elapsed = 0.0
+            for phase in plan.phases:
+                phase_started = time.monotonic()
+                self._publish_state(phase, progress=min(1.0, elapsed / plan.total_duration_sec))
+                self._publish_phase_feedback(goal_handle, phase, elapsed, plan.total_duration_sec)
+                while rclpy.ok():
+                    elapsed = time.monotonic() - started
+                    phase_elapsed = time.monotonic() - phase_started
+                    progress = min(1.0, elapsed / plan.total_duration_sec)
+                    if goal_handle.is_cancel_requested:
+                        self._stair_cmd_pub.publish(_zero_twist())
+                        self._owner_pub.publish(_string_msg("flat"))
+                        self._publish_state(
+                            phase,
+                            progress=progress,
+                            suffix="canceled",
+                        )
+                        goal_handle.canceled()
+                        return self._result(
+                            StairExec,
+                            success=False,
+                            result_code="CANCELED",
+                            message="stair execution canceled",
+                            elapsed=time.monotonic() - started,
+                        )
 
-                if goal_handle.is_cancel_requested:
-                    self._stair_cmd_pub.publish(_zero_twist())
-                    self._owner_pub.publish(_string_msg("flat"))
-                    goal_handle.canceled()
-                    return self._result(
-                        StairExec,
-                        success=False,
-                        result_code="CANCELED",
-                        message="stair execution canceled",
-                        elapsed=time.monotonic() - started,
+                    if phase_elapsed >= phase.duration_sec:
+                        break
+
+                    if phase.command_velocity_mps > 0.0:
+                        self._stair_cmd_pub.publish(
+                            _stair_twist(phase.command_velocity_mps)
+                        )
+                    else:
+                        self._stair_cmd_pub.publish(_zero_twist())
+                    if phase.publish_leg_hold:
+                        self._leg_hold_pub.publish(
+                            build_leg_hold_command(self._policy.profile)
+                        )
+                    self._publish_state(phase, progress=progress)
+                    self._publish_phase_feedback(
+                        goal_handle,
+                        phase,
+                        elapsed,
+                        plan.total_duration_sec,
                     )
+                    time.sleep(0.1)
 
-                if elapsed >= duration:
-                    break
-                time.sleep(0.1)
+                elapsed = time.monotonic() - started
+                self._publish_state(phase, progress=min(1.0, elapsed / plan.total_duration_sec))
 
             self._stair_cmd_pub.publish(_zero_twist())
             self._leg_hold_pub.publish(build_leg_hold_command(self._policy.profile))
             self._owner_pub.publish(_string_msg("flat"))
+            self._publish_state(
+                plan.phases[-1],
+                progress=1.0,
+                suffix="complete",
+            )
 
             if goal.force_fail:
                 goal_handle.abort()
@@ -211,6 +327,41 @@ def main() -> None:
                 message="stair execution skeleton completed",
                 elapsed=time.monotonic() - started,
             )
+
+        def _publish_state(
+            self,
+            phase: StairExecutionPhase,
+            *,
+            progress: float,
+            suffix: str = "",
+        ) -> None:
+            from std_msgs.msg import String
+
+            state_text = build_stair_execution_state_text(
+                phase=phase,
+                profile=self._policy.profile,
+                owner="stair",
+                progress=progress,
+            )
+            if suffix:
+                state_text = f"{state_text} {suffix}"
+            state_msg = String()
+            state_msg.data = state_text
+            self._state_pub.publish(state_msg)
+            self.get_logger().info(f"go2w_stair_executor_state: {state_text}")
+
+        def _publish_phase_feedback(
+            self,
+            goal_handle,
+            phase: StairExecutionPhase,
+            elapsed: float,
+            total_duration_sec: float,
+        ) -> None:
+            feedback = StairExec.Feedback()
+            feedback.phase = phase.name
+            feedback.progress = float(min(1.0, elapsed / total_duration_sec))
+            feedback.owner = "stair"
+            goal_handle.publish_feedback(feedback)
 
         def _result(
             self,

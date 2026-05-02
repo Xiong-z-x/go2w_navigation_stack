@@ -7,7 +7,7 @@
 
 ## 有效范围
 - 初始迁移快照日期：2026-04-30
-- 当前补充状态日期：2026-05-01
+- 当前补充状态日期：2026-05-02
 - 当前阶段：已验收 `Phase 4 accepted`
 - 当前主线：ROS 2 Humble + Gazebo Fortress-only + FAST-LIO external cache
 - 下一任务边界：post-Phase-4 的最小单主题任务，必须另有完整任务单或当前自主审批模式下的自批准任务单
@@ -42,8 +42,11 @@
 15. `docs/verification/phase5a_live_route_tracking.md`
 16. `docs/verification/go2w_real_model_motion_mode_baseline.md`
 17. `docs/verification/go2w_real_model_route_following.md`
-18. `docs/verification/phase4_runtime_acceptance.md`
-19. `docs/handoff/new_model_initialization_prompt.md`
+18. `docs/verification/phase4e_stair_fixture.md`
+19. `docs/verification/phase4e_mission_recovery.md`
+20. `docs/verification/go2w_real_model_regression.md`
+21. `docs/verification/phase4_runtime_acceptance.md`
+22. `docs/handoff/new_model_initialization_prompt.md`
 
 ## 本目录文件职责
 - `current_project_state.md`：当前真实状态总览。
@@ -100,6 +103,24 @@ Go2W real model same-floor route-following 验收可用以下命令复现：
 
 ```bash
 ./tools/verify_go2w_real_model_route_following.sh
+```
+
+Phase 4E real-model stair fixture 验收可用以下命令复现：
+
+```bash
+./tools/verify_phase4e_stair_fixture.sh
+```
+
+Phase 4E mission recovery 验收可用以下命令复现：
+
+```bash
+./tools/verify_phase4e_mission_recovery.sh
+```
+
+Go2W real-model opt-in regression 验收可用以下命令复现：
+
+```bash
+./tools/verify_go2w_real_model_regression.sh
 ```
 
 Phase 4 总体验收可用以下命令复现：

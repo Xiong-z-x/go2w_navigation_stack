@@ -25,7 +25,10 @@
 15. docs/verification/phase4_runtime_acceptance.md
 16. docs/verification/go2w_real_model_motion_mode_baseline.md
 17. docs/verification/go2w_real_model_route_following.md
-18. README.md
+18. docs/verification/phase4e_stair_fixture.md
+19. docs/verification/phase4e_mission_recovery.md
+20. docs/verification/go2w_real_model_regression.md
+21. README.md
 
 不要跳过这些上下文。读完后先核对 git 状态、当前 Active Phase、唯一允许下一步
 边界和本地工作树是否有未提交改动。若文档与代码或脚本冲突，先报告冲突并验证，
@@ -46,10 +49,12 @@ Phase 3C、Phase 4 迁移前封板、Phase 4A、Phase 4B-min、Phase 4C-min、Ph
 runtime chain 的总验收，不代表 production Mission Orchestrator、真实 Nav2 route
 tracking against robot motion 或真实跨楼层自主导航。
 
-Phase 4 accepted 之后，仓库还新增了三项 opt-in 证据门：Phase 5A live route tracking
-observation gate、Go2W real model / motion-mode baseline，以及 real-model same-floor
-route-following verifier。它们不改变正式 active phase 标签，也不代表真实楼梯动力学
-或 production gait controller 已完成。
+Phase 4 accepted 之后，仓库还新增了多项 opt-in / follow-up 证据门：Phase 5A live
+route tracking observation gate、Go2W real model / motion-mode baseline、real-model
+same-floor route-following verifier、Phase 4E real-model stair fixture、Phase 4E
+mission recovery，以及 real-model regression wrapper。它们不改变正式 active phase
+标签，也不代表真实楼梯动力学、完整 production Mission Orchestrator 或 production
+gait controller 已完成。
 
 四、Phase 4A 已验收边界：
 - 使用 Phase 3C 手工 route graph 中的 staircase connector metadata。
@@ -107,8 +112,8 @@ Phase 4 accepted 总验收：
 - go2w_sim 只管仿真和桥接。
 - go2w_perception 只管 FAST-LIO、odom、点云、TF authority。
 - go2w_navigation 只管 Nav2、costmap、planner/controller、route server；当前还有 Phase 4C-min flat navigation executor skeleton 和 Phase 4D-min route tracking feedback executor skeleton。
-- go2w_mission 只管目标语义、楼层语义和任务分段；当前有 Phase 4A handoff demo、Phase 4B-min one-shot mission segment runtime、Phase 4C-min flat/stair/flat gate 和 Phase 4D-min feedback observer。
-- go2w_control 只管 locomotion mode 与 stair execution；当前只有 Phase 4A command gate 和 stair executor skeleton。
+- go2w_mission 只管目标语义、楼层语义、任务分段和 mission recovery；当前有 Phase 4A handoff demo、Phase 4B-min one-shot mission segment runtime、Phase 4C-min flat/stair/flat gate、Phase 4D-min feedback observer、RunMission skeleton 和 Phase 4E checkpoint/resume/retry skeleton。
+- go2w_control 只管 locomotion mode 与 stair execution；当前有 Phase 4A command gate、stair executor skeleton、motion profile、leg hold outlet 和 Phase 4E phase-aware stair execution diagnostics。
 - nav2_route 不是 3D 地形规划器。
 - stair_exec 是 dedicated Action。
 - odom -> base_link 当前由 perception path 拥有。
@@ -138,10 +143,13 @@ Phase 4 accepted 总验收：
 4. 运行 ./tools/verify_phase4b_mission_segments.sh。
 5. 运行 ./tools/verify_phase4c_flat_segment_gate.sh。
 6. 运行 ./tools/verify_phase4d_route_tracking_feedback.sh。
-7. 运行 ./tools/verify_phase4_runtime_acceptance.sh。
-8. 读取 architecture_state.md 的 Accepted Work and Only Allowed Next Task。
-9. 如果要继续 Phase 4 accepted 之后的任务，先生成完整 6 项任务单或自批准任务单。
-10. 只做一个最小任务，不混入真实楼梯控制、自动连接器、AMCL 或模型导入。
+7. 需要验证 post-Phase-4 follow-up 时运行 ./tools/verify_phase4e_stair_fixture.sh。
+8. 需要验证 mission recovery 时运行 ./tools/verify_phase4e_mission_recovery.sh。
+9. 需要验证 broader real-model opt-in regression 时运行 ./tools/verify_go2w_real_model_regression.sh。
+10. 运行 ./tools/verify_phase4_runtime_acceptance.sh。
+11. 读取 architecture_state.md 的 Accepted Work and Only Allowed Next Task。
+12. 如果要继续 Phase 4 accepted 之后的任务，先生成完整 6 项任务单或自批准任务单。
+13. 只做一个最小任务，不混入真实楼梯控制、自动连接器、AMCL 或默认 real-model re-baseline。
 
 十二、持续维护要求：
 每次阶段推进后，必须更新 architecture_state.md、必要的 docs/verification/*
