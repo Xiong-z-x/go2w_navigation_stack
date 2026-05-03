@@ -89,6 +89,7 @@
 | 旧日志或历史计划冒充当前事实 | 新对话接手 | `docs/superpowers/*`、`task_plan.md`、`findings.md`、`progress.md` 都会混入过时上下文 | 已控制 | 明确历史记录只作背景，不作完成证据。 |
 | opt-in real-model gate 被误当默认基线 | 真实模型、Nav2、mission 路径 | `go2w_real_model_regression.sh` 和 `go2w_mission_real_flat_execution.sh` 都不是默认 placeholder 路径 | 已在文档中明确 | 不要把 opt-in 证据误写成默认验收合同。 |
 | verifier skeleton 被误当 production | mission / navigation / control | 4C / 4D / 4E 都有明确 skeleton 或 observation 语义 | 持续存在 | 继续保留 deterministic verifier 路径，不要直接删骨架。 |
+| workspace 外层 git 状态被误当项目状态 | 新对话接手、提交判断 | 项目仓库根是 `/home/xiongzx/go2w_ws/src/go2w_navigation_stack`；外层 `/home/xiongzx/go2w_ws` 可显示无提交历史 | 已修复一部分：handoff 和初始化提示词已标注实际 repo root | 新模型运行 git / colcon / verifier 前必须先 `cd` 到实际仓库根。 |
 
 ## 距离最终目标差距分析
 当前最终目标仍清晰：Go2W 跨楼层自主导航巡检系统，simulation-first，先闭环再升维。

@@ -71,6 +71,8 @@
 - Hospital world 资产可启动，不代表真实楼梯运动学已验证。
 
 ## 接手后最应该先确认
+- 先进入实际项目仓库根：`/home/xiongzx/go2w_ws/src/go2w_navigation_stack`。外层
+  `/home/xiongzx/go2w_ws` 是 workspace，不能用它的 git 状态判断项目历史或同步状态。
 - `git status --short --branch` 是否干净并与远端 main 对齐。
 - `docs/architecture/architecture_state.md` 当前 Active Phase。
 - `docs/handoff/project_state_audit.md` 是否与当前代码、脚本和 verification 文档同一口径。

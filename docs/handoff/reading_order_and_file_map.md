@@ -1,5 +1,8 @@
 # 关键文件/目录阅读顺序与说明
 
+实际项目仓库根是 `/home/xiongzx/go2w_ws/src/go2w_navigation_stack`。外层
+`/home/xiongzx/go2w_ws` 是 ROS workspace；运行 git、colcon 或 verifier 前应先进入实际仓库根。
+
 ## 第一层：必须先读的事实源
 1. `AGENTS.md`：项目身份、阶段纪律、协作规则、任务单格式。
 2. `docs/architecture/system_blueprint.md`：全生命周期路线和阶段验收目标。

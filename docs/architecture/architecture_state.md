@@ -86,6 +86,9 @@ It records the active phase, the frozen contracts, the open decisions, and the o
 
 ## Current Repository State
 - The repository is treated as a standalone colcon monorepo root inside an outer workspace `src/`.
+- The actual project Git root is `/home/xiongzx/go2w_ws/src/go2w_navigation_stack`.
+  The outer `/home/xiongzx/go2w_ws` workspace must not be used as the source of truth
+  for project git history, commit status, or handoff synchronization.
 - ROS 2 packages are placed directly under the repository root.
 - Environment Constraint: The repository runtime baseline is now frozen as **Fortress-only** on ROS 2 Humble. The accepted simulator path is `ros_gz_sim` with `gz_version=6`, which launches `ign gazebo-6`, together with `gz_ros2_control`.
 - Environment Constraint: Gazebo Harmonic mixed runtime packages (`gz-sim8`, `libgz-*`, `python3-gz-*`) and the `packages.osrfoundation.org` Gazebo runtime path are not part of the accepted project environment and must remain removed unless the human operator explicitly re-baselines the project.

@@ -3,6 +3,9 @@
 本仓库是 Go2W 跨楼层自主导航巡检系统的 ROS 2 Humble 主仓库，采用
 simulation-first 路线推进。
 
+实际项目仓库根是 `/home/xiongzx/go2w_ws/src/go2w_navigation_stack`。外层
+`/home/xiongzx/go2w_ws` 是 ROS workspace，不应用其 git 状态判断项目历史。
+
 当前架构事实源不是本 README，而是：
 
 - `docs/architecture/system_blueprint.md`
@@ -40,7 +43,8 @@ simulation-first 路线推进。
 
 - 当前正式阶段：`Phase 4 accepted`
 - 当前迁移前最终封板：`docs/handoff/pre_migration_final_freeze_report.md`
-  已记录 2026-05-02 总自检、风险清理、剩余限制和后续项目改进顺序。
+  已记录 2026-05-02 总自检、风险清理、剩余限制和后续项目改进顺序，并在
+  2026-05-04 刷新了 mission hardening 与实际 repo root 接手风险。
 - `Phase 1` 状态：仿真可控闭环已完成并进入可审计验收状态
 - `Phase 2` 状态：FAST-LIO2 输入/输出、感知侧 `odom -> base_link`
   TF authority、稳定 perception baseline、首个 Nav2 costmap consumer gate

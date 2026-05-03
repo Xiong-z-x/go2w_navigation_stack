@@ -61,11 +61,14 @@ nav2_route / Mission / Stair Control 项目的专业执行者、架构一致性�
 进入任何实现前，先运行或核对：
 
 ```bash
+cd /home/xiongzx/go2w_ws/src/go2w_navigation_stack
 pwd
 git status --short --branch
 git log --oneline -5
 ./tools/verify_phase4_pre_handoff.sh
 ```
+
+不要在外层 `/home/xiongzx/go2w_ws` 判断 git 状态；那是 workspace，不是本项目仓库根。
 
 如果 `verify_phase4_pre_handoff.sh` 失败，先定位失败原因。不要在交接状态不可信时继续做
 新阶段实现。

@@ -1,7 +1,8 @@
 # 迁移前最终封板与后续路线交接报告
 
 ## 用途
-本文记录 2026-05-02 的迁移前最终封板审计结果。它面向下一个新对话模型，
+本文记录 2026-05-02 的迁移前最终封板审计结果，并在 2026-05-04 做了迁移前二次
+封板刷新。它面向下一个新对话模型，
 用于快速判断当前项目真实状态、剩余风险、后续项目改进顺序和不可误判边界。
 
 本文不替代架构事实源。实现决策仍按以下顺序判断：
@@ -20,6 +21,12 @@
   flat pose conversion、bounded FIFO queueing、queue-full / queued-cancel diagnostics、
   operator-state snapshot、queue replay ledger、task-history ledger 以及 mission real-model
   flat execution fresh runtime 复验。
+- 2026-05-04：迁移前二次封板审计确认实际项目 Git 仓库根是
+  `/home/xiongzx/go2w_ws/src/go2w_navigation_stack`。外层
+  `/home/xiongzx/go2w_ws` 是工作区，不应用其 `git status` / `git log` 判断项目状态。
+  本轮审计起点为 `main...origin/main` 干净、最近提交
+  `d2e55a3 feat: add mission task history ledger`，并且
+  `./tools/verify_phase4_pre_handoff.sh` 通过。
 - 本文下方的“下一任务建议自批准任务单”保留为历史执行入口。后续新的最小任务应转向
   production Mission Orchestrator remaining slice，当前最小候选是 priority scheduling
   单主题闭环。
@@ -52,6 +59,7 @@
 | 本地规划文件可能误入提交 | `.gitignore` 已忽略 `/task_plan.md`、`/findings.md`、`/progress.md` | 本地会话可继续用，不作为仓库正式交接工件 |
 | 源码缓存和构建日志混淆事实源 | `build/`、`install/`、`log/`、`.go2w_external/`、`.learnings/` 均保持 ignored | 后续验证证据写入 `docs/verification/*`，不要引用临时日志作唯一事实源 |
 | 搜索命令中 Markdown 反引号触发 shell 命令替换 | 已在 `.learnings` 记录，正式注意事项补充防复发 | 后续含反引号检索用单引号或拆词 |
+| 外层 workspace 被误当项目仓库 | 外层 `/home/xiongzx/go2w_ws` 的 git 状态可显示 `No commits yet on main`，与项目仓库事实不符 | 新模型必须先进入 `/home/xiongzx/go2w_ws/src/go2w_navigation_stack` 后再核对 git 状态 |
 
 ## 已清理或已固化的内容
 - 补充本最终封板报告，集中说明项目状态、风险和后续路线。
@@ -68,6 +76,10 @@
   history ledger，但这仍不是 priority scheduling。
 - 将本地规划文件加入 `.gitignore`，避免把会话工作记忆误提交为正式项目事实源。
 - 扩展 `tools/verify_phase4_pre_handoff.sh`，把最终封板报告纳入交接一致性 gate。
+- 二次封板刷新 `phase4_migration_handoff_report.md`，补齐 mission real-flat gate、
+  operator control、queue replay 和 task history 证据，避免历史报告中段弱化当前
+  mission 层能力。
+- 更新本地 ignored 规划与 `.learnings`，把过时 pending 记录对齐到正式 handoff 事实。
 
 ## 当前已完成能力
 - Phase 1：Gazebo + `gz_ros2_control` + `/cmd_vel` 底盘可控闭环。
@@ -169,6 +181,7 @@ Definition of Done:
 | `PYTHONPATH="$PWD/go2w_navigation:$PWD/go2w_mission:$PWD/go2w_control" python3 -m pytest ...` | PASS | focused pytest 8 项通过 |
 | `./tools/verify_go2w_control_chain_regression.sh` | PASS | real-model baseline、stair fixture、mission recovery、stair tuning smoke 全通过 |
 | `./tools/verify_phase4_runtime_acceptance.sh` | PASS | pre-handoff、Phase 4A/B/C/D、build/test/test-result 全通过 |
+| `./tools/verify_phase4_pre_handoff.sh` | PASS | 2026-05-04 二次封板起点复验，交接包最低一致性通过 |
 
 验证期间直接运行一次未设置 `PYTHONPATH` 的 focused pytest 曾失败，根因是命令环境缺少包源码路径；
 使用显式 `PYTHONPATH` 后同一 focused pytest 通过。该工具层问题已记录到 `.learnings/ERRORS.md`，

@@ -49,6 +49,8 @@
 | 带 Markdown 反引号的全文检索容易触发 shell 命令替换 | 一次审计检索命令因双引号内含反引号失败 | 使用拆分关键词或单引号搜索，并在 `next_agent_notes.md` 记录工具易错点 | 已修复 |
 | real-model same-floor route-following DWB abort 可复现 | `ComputePathToPose` candidate 全部可返回非空路径，但 `NavigateToPose` 在 DWB 报 `No valid trajectories` / `Controller patience exceeded`；失败证据目录包括 `/tmp/go2w_real_model_route_following_14646`、`15647`、`16582` | 将 verifier 目标候选策略改为 preference order 的首个可达候选，real-model Nav2 `xy_goal_tolerance` 调整为 `0.08`，并修复 verifier stale-process cleanup；随后 3 次 clean-domain route-following 连续 PASS | 已修复 |
 | route-following verifier 失败后可能留下 orphaned sim/perception/FAST-LIO 进程 | 第一次三连第 2 次 lifecycle inactive 后仍可见 `sim_go2w_real.launch.py`、`phase2f_tf_authority.launch.py` 等进程残留 | `tools/verify_go2w_real_model_route_following.sh` 新增默认开启的 stale-process cleanup，按进程组清理 real route goal client、FAST-LIO、perception、real-model sim 与 Ign Gazebo；短超时实测未再留下目标残留 | 已修复 |
+| 外层 workspace git 状态容易误导提交判断 | 在 `/home/xiongzx/go2w_ws` 运行 `git log` 可得到 `No commits yet on main`，但实际项目仓库在 `/home/xiongzx/go2w_ws/src/go2w_navigation_stack` 且已有完整提交历史 | 在最终封板报告、审计文档、注意事项和新模型提示词中标注实际 repo root；后续所有 git / verifier 命令必须在实际仓库根运行 | 已修复 |
+| 本地 `.learnings` 旧 pending 记录与正式 handoff 状态不一致 | `ERR-20260502-004` 仍将 real-model route-following DWB abort 标为 pending，而正式验证文档已记录 dedicated hardening 后 3 次 clean-domain PASS | 将本地 ignored learning 记录补充 resolution；正式事实仍以 `docs/verification/go2w_real_model_route_following.md` 和 handoff 文档为准 | 已修复 |
 
 ## 保留但已标注的历史内容
 - `docs/superpowers/` 中的早期 Phase 2/3 计划和设计文档保留为历史记录。
