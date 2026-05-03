@@ -7,6 +7,11 @@ import time
 
 from go2w_mission import mission_api as mission_api_module
 from go2w_mission.mission_api import MissionApiRuntime
+from go2w_mission.mission_orchestrator import (
+    MissionOrchestratorState,
+    MissionOrchestratorStateStore,
+    build_initial_orchestrator_state,
+)
 from go2w_mission.mission_scheduler import MissionScheduleGate
 from go2w_mission.phase4b_mission_segments import MissionSegment
 
@@ -80,6 +85,12 @@ def _build_runtime(monkeypatch, tmp_path: Path):
     runtime.mission_recovery_enabled = False
     runtime.flat_behavior_tree = "success"
     runtime.mission_scheduler = MissionScheduleGate(capacity=2)
+    runtime.orchestrator_state_store = SimpleNamespace(
+        save=lambda state: None,
+    )
+    runtime.orchestrator_state = build_initial_orchestrator_state(2)
+    runtime._orchestrator_state_lock = threading.Lock()
+    runtime._operator_cancel_active = threading.Event()
     runtime._mission_lock = threading.Lock()
 
     monkeypatch.setattr(
@@ -353,3 +364,178 @@ def test_mission_api_cancels_a_queued_goal_before_activation(
     assert second_result["value"]["result_code"] == "MISSION_CANCELED"
     assert second_result["value"]["message"] == "mission_queue_canceled"
     assert execution_calls["count"] == 1
+
+
+def test_mission_orchestrator_state_store_round_trips_snapshot(
+    tmp_path: Path,
+) -> None:
+    state_file = tmp_path / "mission_orchestrator.json"
+    store = MissionOrchestratorStateStore(state_file)
+    state = MissionOrchestratorState(
+        mode="PAUSED",
+        pause_reason="operator_hold",
+        active_mission_key="100->202:map:graph:deadbeef",
+        active_ticket=7,
+        queue_capacity=2,
+        queued_tickets=(8,),
+        last_command="pause",
+        last_message="operator_hold",
+        updated_at=1234.5,
+    )
+
+    store.save(state)
+    loaded = store.load()
+
+    assert loaded == state
+    assert loaded is not None
+    assert loaded.paused is True
+    assert "mode=PAUSED" in loaded.summary()
+
+
+def test_mission_api_pause_blocks_new_admissions_until_resume(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    runtime, graph_file = _build_runtime(monkeypatch, tmp_path)
+    first_release = threading.Event()
+    first_started = threading.Event()
+    execution_calls = {"count": 0}
+    execution_lock = threading.Lock()
+
+    def fake_execute_segments(
+        goal_handle,
+        graph,
+        goal_spec,
+        segments,
+        *,
+        mission_key: str,
+        segment_summary: str,
+        start_index: int,
+        route_edge_ids: tuple[int, ...],
+    ):
+        with execution_lock:
+            call_index = execution_calls["count"]
+            execution_calls["count"] += 1
+        if call_index == 0:
+            first_started.set()
+            assert first_release.wait(timeout=5.0)
+        return {
+            "success": True,
+            "result_code": "MISSION_SUCCEEDED",
+            "message": "mission_succeeded",
+            "current_segment_index": len(segments) - 1 if segments else 0,
+            "current_segment_type": segments[-1].segment_type if segments else "",
+            "active_owner": "flat",
+            "next_segment_index": len(segments),
+            "retry_count": 0,
+        }
+
+    monkeypatch.setattr(runtime, "_execute_segments", fake_execute_segments)
+
+    first_goal = _make_goal_handle(graph_file, start_id=100, goal_id=202)
+    second_goal = _make_goal_handle(graph_file, start_id=101, goal_id=203)
+    third_goal = _make_goal_handle(graph_file, start_id=102, goal_id=204)
+
+    first_result: dict[str, object] = {}
+    second_result: dict[str, object] = {}
+
+    def run_first() -> None:
+        first_result["value"] = runtime.execute(first_goal)
+
+    def run_second() -> None:
+        second_result["value"] = runtime.execute(second_goal)
+
+    first_thread = threading.Thread(target=run_first, daemon=True)
+    first_thread.start()
+    assert first_started.wait(timeout=2.0)
+
+    second_thread = threading.Thread(target=run_second, daemon=True)
+    second_thread.start()
+    assert _wait_until(lambda: "QUEUED" in second_goal.feedback_states)
+
+    pause_result = runtime.handle_orchestrator_command("pause", "operator_hold")
+    assert pause_result["accepted"] is True
+    assert pause_result["mode"] == "PAUSED"
+    assert pause_result["message"] == "mission_paused"
+
+    third_result = runtime.execute(third_goal)
+    assert third_result["result_code"] == "MISSION_BUSY"
+    assert third_result["message"] == "mission_paused"
+
+    first_release.set()
+    first_thread.join(timeout=5.0)
+
+    time.sleep(0.2)
+    assert "SCHEDULED" not in second_goal.feedback_states
+
+    resume_result = runtime.handle_orchestrator_command("resume", "operator_resume")
+    assert resume_result["accepted"] is True
+    assert resume_result["mode"] == "OPEN"
+    assert resume_result["message"] == "mission_resumed"
+
+    assert _wait_until(lambda: "SCHEDULED" in second_goal.feedback_states)
+    second_thread.join(timeout=5.0)
+
+    assert "value" in first_result
+    assert "value" in second_result
+    assert first_result["value"]["result_code"] == "MISSION_SUCCEEDED"
+    assert second_result["value"]["result_code"] == "MISSION_SUCCEEDED"
+    assert execution_calls["count"] == 2
+
+
+def test_mission_api_operator_cancel_active_goal(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    runtime, graph_file = _build_runtime(monkeypatch, tmp_path)
+    active_started = threading.Event()
+
+    def fake_execute_segments(
+        goal_handle,
+        graph,
+        goal_spec,
+        segments,
+        *,
+        mission_key: str,
+        segment_summary: str,
+        start_index: int,
+        route_edge_ids: tuple[int, ...],
+    ):
+        active_started.set()
+        assert _wait_until(lambda: runtime._operator_cancel_active.is_set())
+        return {
+            "success": False,
+            "result_code": "MISSION_CANCELED",
+            "message": "mission_operator_canceled",
+            "current_segment_index": 0,
+            "current_segment_type": "flat",
+            "active_owner": "flat",
+            "next_segment_index": 0,
+            "retry_count": 0,
+        }
+
+    monkeypatch.setattr(runtime, "_execute_segments", fake_execute_segments)
+
+    goal = _make_goal_handle(graph_file, start_id=100, goal_id=202)
+    result_box: dict[str, object] = {}
+
+    def run_goal() -> None:
+        result_box["value"] = runtime.execute(goal)
+
+    thread = threading.Thread(target=run_goal, daemon=True)
+    thread.start()
+
+    assert active_started.wait(timeout=2.0)
+
+    cancel_result = runtime.handle_orchestrator_command(
+        "cancel_active",
+        "operator_stop",
+    )
+    assert cancel_result["accepted"] is True
+    assert cancel_result["message"] == "operator_cancel_active_requested"
+    assert "mode=OPEN" in cancel_result["state_summary"]
+
+    thread.join(timeout=5.0)
+    assert "value" in result_box
+    assert result_box["value"]["result_code"] == "MISSION_CANCELED"
+    assert result_box["value"]["message"] == "mission_operator_canceled"

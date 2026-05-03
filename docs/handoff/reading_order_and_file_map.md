@@ -30,6 +30,7 @@
 - `docs/verification/go2w_real_model_route_following.md`：Go2W real-model same-floor route-following dedicated hardening 证据；现在是 opt-in regression 候选，不是 production route tracking。
 - `docs/verification/go2w_mission_real_flat_execution.md`：Mission runtime real-model flat execution gate 证据；证明 `RunMission` flat-only segment 可绕过 verifier-only flat executor 并调用真实 Nav2 `/navigate_to_pose`。
 - `docs/verification/mission_api_scheduling_policy.md`：Mission API bounded FIFO scheduling policy 证据；证明 `RunMission` 可重复验证 queue-full reject 与 queued cancel。
+- `docs/verification/mission_api_orchestrator_control.md`：Mission API operator control 证据；证明 pause/resume/status/cancel_active 与 operator-state snapshot backend。
 - `docs/verification/go2w_real_model_regression.md`：Go2W real-model opt-in regression wrapper 验收；包含 route-following smoke，因此比 control-chain wrapper 更 route-state-sensitive。
 - `docs/verification/phase4e_stair_tuning_overrides.md`：Phase 4E stair tuning smoke test 验收。
 - `docs/verification/phase4_runtime_acceptance.md`：Phase 4 总体验收。
@@ -74,6 +75,7 @@
 - `tools/verify_go2w_real_model_route_following.sh`：Go2W real-model same-floor route-following verifier；验证短 `NavigateToPose` 运动链。
 - `tools/verify_go2w_mission_real_flat_execution.sh`：Mission runtime real-model flat execution gate；验证 `RunMission` flat-only segment 调用真实 Nav2 `/navigate_to_pose`，且不启动 `go2w_flat_nav_executor`。
 - `tools/verify_mission_api_scheduling_policy.sh`：Mission API bounded FIFO scheduling policy gate；验证 `RunMission` queue-full reject 与 queued cancel。
+- `tools/verify_mission_api_orchestrator_control.sh`：Mission API operator control gate；验证 operator-state snapshot、pause/resume/status/cancel_active。
 - `tools/verify_go2w_real_model_regression.sh`：Go2W real-model opt-in regression gate。
 - `tools/verify_phase4e_stair_tuning_overrides.sh`：Phase 4E stair tuning smoke test gate。
 - `tools/verify_phase4_runtime_acceptance.sh`：Phase 4 总体验收 gate。

@@ -67,8 +67,11 @@ class MissionScheduleGate:
         ticket: int,
         cancel_requested,
         *,
+        can_activate=None,
         poll_timeout_sec: float = 0.1,
     ) -> bool:
+        if can_activate is None:
+            can_activate = lambda: True
         with self._condition:
             while True:
                 if self._active_ticket == ticket:
@@ -81,6 +84,9 @@ class MissionScheduleGate:
                     return False
 
                 if self._active_ticket is None and self._queue and self._queue[0] == ticket:
+                    if not can_activate():
+                        self._condition.wait(timeout=poll_timeout_sec)
+                        continue
                     self._queue.popleft()
                     self._active_ticket = ticket
                     self._condition.notify_all()

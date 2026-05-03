@@ -14,13 +14,13 @@
 6. `README.md` 与历史验证记录
 
 ## 后续状态更新
-- 2026-05-04：production Mission Orchestrator scheduling policy 的当前窄范围已完成。
-  已固化共享 `go2w_mission.mission_pose` flat pose conversion、bounded FIFO queueing、
-  queue-full / queued-cancel diagnostics，以及 mission real-model flat execution
-  fresh runtime 复验。
+- 2026-05-04：production Mission Orchestrator 的当前窄范围已推进到 bounded FIFO
+  queueing 与 operator control service。已固化共享 `go2w_mission.mission_pose`
+  flat pose conversion、bounded FIFO queueing、queue-full / queued-cancel diagnostics、
+  operator-state snapshot 以及 mission real-model flat execution fresh runtime 复验。
 - 本文下方的“下一任务建议自批准任务单”保留为历史执行入口。后续新的最小任务应转向
-  production Mission Orchestrator remaining slice，例如 persistent state backend、
-  operator intervention 或 priority scheduling 中的一个单主题闭环。
+  production Mission Orchestrator remaining slice，例如 durable queue replay 或
+  priority scheduling 中的一个单主题闭环。
 
 ## 总自检结论
 - 项目总目标未漂移：仍是 simulation-first 的 Go2W 跨楼层自主导航巡检系统。
@@ -59,9 +59,9 @@
 - 将 mission runtime real-model flat execution gate 作为已完成能力固化；当时把下一步起点改为 production Mission Orchestrator scheduling policy，而该项现在也已完成。
 - mission runtime real-model flat execution gate 现在会从 route graph 保留目标 yaw 并写回
   `NavigateToPose`，避免 flat goal 退化成单位四元数后再被 DWB 误判失败。
-- 继续硬化 mission API bounded FIFO scheduling policy，避免并发 `RunMission` goal 竞争单一 JSON
-  状态文件；当前已经有 one-active-plus-one-queued，但这仍不是 persistent backend 或
-  priority scheduling。
+- 继续硬化 mission API bounded FIFO scheduling policy 和 operator control service，避免并发
+  `RunMission` goal 竞争单一 JSON 状态文件；当前已经有 one-active-plus-one-queued，但这仍
+  不是 durable queue replay backend 或 priority scheduling。
 - 将本地规划文件加入 `.gitignore`，避免把会话工作记忆误提交为正式项目事实源。
 - 扩展 `tools/verify_phase4_pre_handoff.sh`，把最终封板报告纳入交接一致性 gate。
 
@@ -84,7 +84,9 @@
 - Real-model same-floor route-following dedicated hardening：candidate selection、goal tolerance 和 stale-process cleanup 已修复，3 次 clean-domain PASS。
 
 ## 当前未完成能力
-- Production Mission Orchestrator：当前只是 mission API / checkpoint / retry / resume skeleton。
+- Production Mission Orchestrator：当前只是 mission API / checkpoint / retry / resume
+  skeleton 加上 bounded FIFO queueing 与 operator control service，仍不是完整长生命周期
+  调度器。
 - 真实机器人运动上的稳定 `nav2_route` route tracking：尚未完成。
 - Mission runtime real robot-motion flat execution gate 已完成；当前 flat executor 仍保留 verifier skeleton 作为 deterministic 诊断路径。
 - 真实楼梯动力学、leg trajectory、wheel lock、body-height 控制和 gait tuning：尚未完成。
@@ -93,7 +95,7 @@
 - Elevation mapping、traversability、automatic stair detection / connector generation：尚未实现。
 
 ## 后续项目改进推荐顺序
-1. 扩展 production Mission Orchestrator remaining slice：先补 persistent state backend、操作员恢复策略、优先级调度中的一个最小闭环。
+1. 扩展 production Mission Orchestrator remaining slice：先补 durable queue replay、优先级调度中的一个最小闭环。
 2. 做 dedicated stair trajectory / wheel lock / body-height / gait tuning；不得把当前 phase-aware skeleton 当成真实控制器。
 3. 再评估 real-model path 是否可以扩大为默认 baseline。
 4. 最后进入 Phase 5 terrain-aware connector discovery、elevation mapping、traversability 和 automatic connector generation。
@@ -133,7 +135,7 @@ Definition of Done:
 - 不改变 perception TF authority、默认 placeholder launch baseline、stair dynamics 或 map / localization 范围。
 
 执行状态：当前窄范围已完成。后续如要继续进入 persistent state backend、
-operator intervention 或 priority scheduling，必须另开新的完整任务单。
+durable queue replay 或 priority scheduling，必须另开新的完整任务单。
 
 ## 最终封板验证入口
 迁移前新模型接手前至少运行：

@@ -64,11 +64,12 @@ simulation-first 路线推进。
 - `go2w_mission` 还额外提供 opt-in `RunMission` Action skeleton 与 mission API
   verifier，能诊断 route segmentation、flat/stair dispatch、invalid goal、
   cancel、timeout、route unavailable、flat action unavailable、bounded FIFO queueing 和
-  相关诊断；当前已新增 JSON checkpoint、同一 mission goal resume 和有限 retry，但仍不是完整
+  相关诊断；当前已新增 JSON checkpoint、同一 mission goal resume、有限 retry、operator-state
+  snapshot backend 和 `MissionControl` pause/resume/status/cancel_active 控制面，但仍不是完整
   production Mission Orchestrator。mission runtime real-model flat execution gate 也已经接通真实
   Nav2 `/navigate_to_pose`，并通过共享 `mission_pose` helper 保留了目标 yaw；
-  production Mission Orchestrator 的 scheduling policy 窄范围已经完成，后续应转向
-  persistent state backend、operator-intervention policy 或 priority scheduling 中的单主题任务。
+  production Mission Orchestrator 的 scheduling policy 和控制面窄范围已经完成，后续应转向
+  durable queue replay 或 priority scheduling 中的单主题任务。
 
 不要把 Phase 4 accepted 误判成 production mission orchestration、真实 Nav2
 route tracking against robot motion、真实 `nav2_route` operation plugin、真实楼梯

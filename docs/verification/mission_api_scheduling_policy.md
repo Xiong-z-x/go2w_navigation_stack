@@ -11,8 +11,8 @@ The current policy is intentionally small:
 - a queued goal may still be canceled before activation;
 - the existing mission recovery, route segmentation, and real-model flat execution behavior remain unchanged.
 
-This is still not a complete production Mission Orchestrator, not a persistent task backend,
-not priority scheduling, and not long-lived operator intervention.
+This is still not a complete production Mission Orchestrator and not priority scheduling.
+Operator pause/resume/status/cancel_active control is covered by a separate control gate.
 
 ## Implemented Runtime Surface
 - `go2w_mission.mission_scheduler.MissionScheduleGate` provides bounded FIFO admission.
@@ -70,6 +70,6 @@ Summary: 104 tests, 0 errors, 0 failures, 0 skipped
 
 ## Open Validation Items
 - This verifies bounded queueing, not a complete production Mission Orchestrator.
-- This does not add persistent task state, operator intervention, or priority scheduling.
+- This does not add durable queue replay or priority scheduling.
 - The bounded queue remains an in-memory scheduling policy layered on top of the existing
   mission execution path.

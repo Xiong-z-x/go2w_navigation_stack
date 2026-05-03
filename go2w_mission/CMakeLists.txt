@@ -16,6 +16,7 @@ install(DIRECTORY go2w_mission
 
 rosidl_generate_interfaces(${PROJECT_NAME}
   "action/RunMission.action"
+  "srv/MissionControl.srv"
 )
 
 install(DIRECTORY launch

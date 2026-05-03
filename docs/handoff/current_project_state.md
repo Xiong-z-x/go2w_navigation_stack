@@ -138,8 +138,8 @@ Gazebo GPU rendering 不是当前验收合同。RViz 可单独使用 WSLg/NVIDIA
   复现后通过候选选择、goal tolerance 和 stale-process cleanup 收口，并取得 3 次
   clean-domain 连续 PASS。它是 opt-in regression 候选，但还不是 production
   `nav2_route` route tracking，也未自动纳入 stable control-chain wrapper。
-- `go2w_mission` 的 `RunMission` 已有 checkpoint/retry/resume skeleton 和 bounded FIFO queueing，且 mission flat goal 的姿态转换已统一到共享 `mission_pose` helper，但仍不是完整 production Mission Orchestrator。
-- 未实现完整 production Mission Orchestrator 的 persistent state backend、操作员恢复策略、优先级调度和长期任务管理。
+- `go2w_mission` 的 `RunMission` 已有 checkpoint/retry/resume skeleton、bounded FIFO queueing、持久化 operator-state snapshot backend，以及 `MissionControl` pause/resume/status/cancel_active 控制面；mission flat goal 的姿态转换已统一到共享 `mission_pose` helper，但仍不是完整 production Mission Orchestrator。
+- 未实现完整 production Mission Orchestrator 的 durable queue replay、优先级调度和长期任务管理。
 - Phase 4C-min 的 flat executor 仍作为 deterministic verifier skeleton 保留；mission API
   现在已有 opt-in real-model flat-only gate 可绕过该 skeleton 并调用真实 Nav2
   `/navigate_to_pose`。
@@ -156,15 +156,16 @@ Gazebo GPU rendering 不是当前验收合同。RViz 可单独使用 WSLg/NVIDIA
 本轮 production Mission Orchestrator scheduling policy 的窄范围已完成：mission flat
 pose conversion 已集中到共享 `mission_pose` helper，`RunMission` 现在采用 bounded FIFO
 queueing，queue-full 与 queued-cancel 诊断可重复验证，mission real-model flat gate
-已完成 fresh runtime 复验。
+已完成 fresh runtime 复验，且 mission control service / operator-state snapshot 也已接入并验证。
 
 下一轮项目改进建议改为单主题 production Mission Orchestrator 的剩余子项：
 
-- 在现有 `RunMission` checkpoint/retry/resume skeleton 基础上，补 persistent state
-  backend、操作员恢复介入策略或 priority scheduling 中的一个最小闭环，不要一次做全量
-  production 调度系统。
-- Mission API 现在已有 bounded FIFO queueing；后续如果要真正 persistence 或
-  priority scheduling，必须另开完整任务单，不要沿着当前 skeleton 直接扩展成隐式后端。
+- 在现有 `RunMission` checkpoint/retry/resume skeleton、bounded FIFO queueing 和
+  operator control service 基础上，优先补 durable queue replay 或 priority scheduling 中的
+  一个最小闭环，不要一次做全量 production 调度系统。
+- Mission API 现在已有 bounded FIFO queueing 和 operator control service；后续如果要真正
+  durable replay 或 priority scheduling，必须另开完整任务单，不要沿着当前 skeleton
+  直接扩展成隐式后端。
 - 保持 mission flat execution 的双路径：Phase 4C verifier skeleton 用于 deterministic
   诊断，opt-in real-model flat gate 用于真实 Nav2 flat motion 证据。
 - 不允许顺带切换默认仿真基线、重构 perception TF、做 stair dynamics、引入

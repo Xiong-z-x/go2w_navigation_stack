@@ -214,5 +214,5 @@ go2w_mission_real_flat_execution_result: PASS
 - The real Go2W path remains opt-in and does not replace the default
   `sim.launch.py` placeholder baseline.
 - Stair traversal and real stair dynamics remain open.
-- Production Mission Orchestrator scheduling, operator intervention policy, and
-  long-term task state remain open.
+- Production Mission Orchestrator durable queue replay, priority scheduling,
+  and long-term task state remain open.

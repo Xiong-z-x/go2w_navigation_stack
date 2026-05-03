@@ -76,17 +76,19 @@ mission_state_next_segment_index: 3
 - The mission API now also supports bounded FIFO queueing, so concurrent
   `RunMission` requests can either queue, return `MISSION_BUSY` /
   `mission_queue_full`, or be canceled while queued before activation. The
-  recovery verifier itself still does not exercise a persistent backend.
+  mission API additionally exposes operator pause/resume/status/cancel_active
+  control, but the recovery verifier itself still does not exercise a durable
+  queue replay backend.
 - Retry is finite; the accepted verifier used the default retry limit and
   observed two retry attempts before the first run became recoverable.
 
 ## Open Validation Items
 - This is a production-style recovery skeleton, not a complete production
   Mission Orchestrator.
-- It does not yet provide a persistent backend, operator pause/resume policy,
-  mission priority management, or fleet-level scheduling. Concurrent admission
-  is now bounded by an in-memory FIFO queue, but that is still not a durable
-  backend.
+- It does not yet provide a durable queue replay backend, mission priority
+  management, or fleet-level scheduling. Concurrent admission is now bounded
+  by an in-memory FIFO queue plus separate operator control, but that is still
+  not a durable backend.
 - It still depends on current route, flat navigation, and stair executor
   skeletons.
 - It does not replace real robot-motion route tracking or stair dynamics.

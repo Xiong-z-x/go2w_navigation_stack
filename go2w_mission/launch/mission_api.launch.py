@@ -20,11 +20,15 @@ def generate_launch_description():
     flat_nav_mode = LaunchConfiguration("flat_nav_mode")
     mission_action_name = LaunchConfiguration("mission_action_name")
     mission_state_file = LaunchConfiguration("mission_state_file")
+    mission_orchestrator_state_file = LaunchConfiguration(
+        "mission_orchestrator_state_file"
+    )
     mission_retry_limit = LaunchConfiguration("mission_retry_limit")
     mission_retry_backoff_sec = LaunchConfiguration("mission_retry_backoff_sec")
     mission_recovery_enabled = LaunchConfiguration("mission_recovery_enabled")
     flat_behavior_tree = LaunchConfiguration("flat_behavior_tree")
     mission_queue_capacity = LaunchConfiguration("mission_queue_capacity")
+    mission_control_service_name = LaunchConfiguration("mission_control_service_name")
 
     default_route_params_file = PathJoinSubstitution([
         FindPackageShare("go2w_navigation"),
@@ -89,6 +93,11 @@ def generate_launch_description():
             description="Optional persistent mission state file path.",
         ),
         DeclareLaunchArgument(
+            "mission_orchestrator_state_file",
+            default_value="",
+            description="Optional persistent mission orchestrator state file path.",
+        ),
+        DeclareLaunchArgument(
             "mission_retry_limit",
             default_value="2",
             description="Retry budget for transient mission execution failures.",
@@ -116,6 +125,11 @@ def generate_launch_description():
             "mission_queue_capacity",
             default_value="2",
             description="Bounded outstanding mission capacity for RunMission.",
+        ),
+        DeclareLaunchArgument(
+            "mission_control_service_name",
+            default_value="/go2w/mission/control",
+            description="Mission control service name for pause/resume/status.",
         ),
         Node(
             package="nav2_route",
@@ -188,6 +202,8 @@ def generate_launch_description():
                 "/stair_exec",
                 "--mission-state-file",
                 mission_state_file,
+                "--mission-orchestrator-state-file",
+                mission_orchestrator_state_file,
                 "--mission-retry-limit",
                 mission_retry_limit,
                 "--mission-retry-backoff-sec",
@@ -198,6 +214,8 @@ def generate_launch_description():
                 flat_behavior_tree,
                 "--mission-queue-capacity",
                 mission_queue_capacity,
+                "--mission-control-service-name",
+                mission_control_service_name,
                 "--action-name",
                 mission_action_name,
                 "--ros-args",

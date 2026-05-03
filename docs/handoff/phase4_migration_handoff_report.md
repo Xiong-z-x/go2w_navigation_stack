@@ -163,8 +163,8 @@ motion、真实楼梯控制、自动连接器均未实现。
 - Unitree Go2W 真实模型已作为 opt-in 路径导入并验证，但尚未替换默认 placeholder launch。
 - Phase 3C route graph 是手工 floor atlas，不是自动地图生成。
 - 没有完整 production Mission Orchestrator；当前已有 RunMission skeleton、JSON checkpoint、
-  同一 goal resume、bounded FIFO queueing 和有限 retry，但还没有 persistent backend、
-  操作员恢复策略或优先级调度。
+  同一 goal resume、bounded FIFO queueing、operator control service 和有限 retry，但还
+  没有 durable queue replay backend 或优先级调度。
 - Phase 4C-min flat executor 是 verifier skeleton，不执行真实 Nav2 route tracking against robot motion。
 - Phase 4D-min feedback executor 是 verifier skeleton，不执行真实 `nav2_route`
   tracking against robot motion，也不执行真实 route operation plugin。

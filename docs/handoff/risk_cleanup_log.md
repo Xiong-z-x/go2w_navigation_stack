@@ -63,7 +63,7 @@
 | 占位 URDF 耦合 geometry/control/sensors | 旧 `sim.launch.py` 默认路径仍保留 placeholder 以保护既有 Phase 1-5 验证链 | 后续独立任务决定是否切默认或拆分模型/仿真传感器职责 |
 | 真实 Go2W 模型尚未成为默认仿真基线 | 当前 real-model 路径是 opt-in，已覆盖 baseline、最小同层 route-following 和 Phase 4E stair fixture regression，但尚未覆盖所有历史验收，也未证明真实楼梯动力学 | 后续 default re-baseline 任务再决定是否替换默认；当前结论是保留 opt-in wrapper |
 | Phase 3C route graph 是手工 floor atlas | 目的是给 Phase 4 手工连接器提供基线，不是自动建图结果 | Phase 4 先证明控制交接；Phase 5 再自动连接器 |
-| 没有完整 production Mission Orchestrator | 当前已有 `RunMission` skeleton、JSON checkpoint、同一 goal resume、bounded FIFO queueing 和有限 retry，但仍不是完整长生命周期调度器 | 后续用独立完整任务单推进 persistent state backend、操作员恢复策略、优先级调度和更持久的状态后端 |
+| 没有完整 production Mission Orchestrator | 当前已有 `RunMission` skeleton、JSON checkpoint、同一 goal resume、bounded FIFO queueing、operator control service 和有限 retry，但仍不是完整长生命周期调度器 | 后续用独立完整任务单推进 durable queue replay 或优先级调度 |
 | Phase 4C-min flat executor 仍是 verifier skeleton | 本阶段只证明 mission 到 navigation-owned `NavigateToPose` gate 的调度；当前 real-model short `NavigateToPose` verifier 尚未替换 mission runtime skeleton | 后续 production mission / real route-tracking integration 任务处理 |
 | 真实楼梯执行控制器调参仍未覆盖 | Phase 4E 已补 phase-aware `/stair_exec` fixture、wheel lock/body-height/release 诊断和 leg hold outlet，但仍不覆盖物理楼梯运动学 | 后续 dedicated stair trajectory / gait tuning 任务处理 |
 | ROS discovery/lifecycle 偶发等待 | 曾有一次 Phase 4B 回归中 `route_server` 进程已启动但 lifecycle service 未被发现；换新 domain 复跑通过 | 先清理残留并换新 `ROS_DOMAIN_ID` 复跑；若复现，再单独加 discovery 诊断 |

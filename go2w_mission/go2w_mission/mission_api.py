@@ -14,6 +14,14 @@ from go2w_mission.phase4b_mission_segments import (
     build_mission_segments,
 )
 from go2w_mission.mission_pose import pose_stamped_from_xy_yaw
+from go2w_mission.mission_orchestrator import (
+    MissionOrchestratorState,
+    MissionOrchestratorStateStore,
+    OPEN_MODE,
+    PAUSED_MODE,
+    build_initial_orchestrator_state,
+    sanitize_orchestrator_state_for_runtime,
+)
 from go2w_mission.mission_recovery import (
     MissionCheckpoint,
     MissionStateStore,
@@ -107,6 +115,7 @@ class MissionApiRuntime:
         flat_nav_action: str,
         stair_exec_action: str,
         mission_state_file: str,
+        mission_orchestrator_state_file: str,
         mission_retry_limit: int,
         mission_retry_backoff_sec: float,
         mission_recovery_enabled: bool,
@@ -138,6 +147,33 @@ class MissionApiRuntime:
         self.mission_scheduler = MissionScheduleGate(
             capacity=mission_queue_capacity,
         )
+        orchestrator_state_path = (
+            Path(mission_orchestrator_state_file).expanduser()
+            if mission_orchestrator_state_file.strip()
+            else MissionOrchestratorStateStore.default_path()
+        )
+        self.orchestrator_state_store = MissionOrchestratorStateStore(
+            orchestrator_state_path
+        )
+        loaded_orchestrator_state = self.orchestrator_state_store.load()
+        if loaded_orchestrator_state is None:
+            self.orchestrator_state = build_initial_orchestrator_state(
+                mission_queue_capacity
+            )
+        else:
+            self.orchestrator_state = sanitize_orchestrator_state_for_runtime(
+                loaded_orchestrator_state,
+                queue_capacity=mission_queue_capacity,
+            )
+        self._orchestrator_state_lock = threading.Lock()
+        self._operator_cancel_active = threading.Event()
+        self._save_orchestrator_state(
+            self.orchestrator_state.with_updates(
+                last_command="BOOT",
+                last_message="orchestrator_ready",
+                updated_at=time.time(),
+            )
+        )
         self._mission_lock = threading.Lock()
         loaded = self.state_store.load()
         if loaded is not None:
@@ -147,6 +183,10 @@ class MissionApiRuntime:
                 f"next_segment_index={loaded.next_segment_index} "
                 f"result_code={loaded.result_code}"
             )
+        self.node.get_logger().info(
+            "mission_orchestrator_loaded: "
+            f"{self.orchestrator_state.summary()}"
+        )
 
     def _admit_mission_slot(self) -> bool:
         return self._mission_lock.acquire(blocking=False)
@@ -187,6 +227,20 @@ class MissionApiRuntime:
             route_frame_id=goal_spec.route_frame_id,
         )
 
+        if self._orchestrator_is_paused():
+            self.node.get_logger().info(
+                "mission_paused: "
+                f"key={mission_key} state={self.orchestrator_state.summary()}"
+            )
+            return self._finish(
+                goal_handle,
+                success=False,
+                result_code="MISSION_BUSY",
+                message="mission_paused",
+                segment_count=0,
+                segment_summary="",
+            )
+
         admission = self.mission_scheduler.reserve()
         if not admission.accepted:
             self.node.get_logger().info(
@@ -202,7 +256,18 @@ class MissionApiRuntime:
             )
 
         mission_lock_acquired = False
+        active_mission_registered = False
         try:
+            self._save_orchestrator_state(
+                self.orchestrator_state.with_updates(
+                    last_command="ADMIT",
+                    last_message=(
+                        f"ticket={admission.ticket} queued={admission.queued}"
+                    ),
+                    updated_at=time.time(),
+                ),
+                queue_snapshot=self.mission_scheduler.snapshot(),
+            )
             if admission.queued:
                 self.node.get_logger().info(
                     "mission_queued: "
@@ -216,6 +281,7 @@ class MissionApiRuntime:
             if not self.mission_scheduler.wait_for_turn(
                 admission.ticket,
                 lambda: goal_handle.is_cancel_requested,
+                can_activate=lambda: not self._orchestrator_is_paused(),
                 poll_timeout_sec=0.1,
             ):
                 self.node.get_logger().info(
@@ -245,6 +311,23 @@ class MissionApiRuntime:
                     segment_summary="",
                 )
             mission_lock_acquired = True
+            self._register_active_mission(
+                mission_key=mission_key,
+                ticket=admission.ticket,
+                last_command="ACTIVE",
+                last_message="mission_active",
+            )
+            active_mission_registered = True
+
+            if self._mission_cancel_requested(goal_handle):
+                return self._finish(
+                    goal_handle,
+                    success=False,
+                    result_code="MISSION_CANCELED",
+                    message="mission_operator_canceled",
+                    segment_count=0,
+                    segment_summary="",
+                )
 
             goal_handle.publish_feedback(
                 self._feedback("SCHEDULED", 0, "", "", 0.0)
@@ -499,7 +582,20 @@ class MissionApiRuntime:
             if mission_lock_acquired:
                 self._mission_lock.release()
             self.mission_scheduler.release(admission.ticket)
-            self.mission_scheduler.release(admission.ticket)
+            if active_mission_registered:
+                self._clear_active_mission(
+                    last_command="COMPLETE",
+                    last_message="mission_finished",
+                )
+            else:
+                self._save_orchestrator_state(
+                    self.orchestrator_state.with_updates(
+                        last_command="COMPLETE",
+                        last_message="mission_finished",
+                        updated_at=time.time(),
+                    ),
+                    queue_snapshot=self.mission_scheduler.snapshot(),
+                )
 
     def _save_checkpoint(self, checkpoint: MissionCheckpoint) -> None:
         self.state_store.save(checkpoint)
@@ -513,6 +609,149 @@ class MissionApiRuntime:
             f"result_code={checkpoint.result_code} "
             f"retry_count={checkpoint.retry_count}"
         )
+
+    def _orchestrator_state_snapshot(self) -> MissionOrchestratorState:
+        with self._orchestrator_state_lock:
+            return self.orchestrator_state
+
+    def _orchestrator_is_paused(self) -> bool:
+        return self._orchestrator_state_snapshot().paused
+
+    def _save_orchestrator_state(
+        self,
+        state: MissionOrchestratorState,
+        *,
+        queue_snapshot=None,
+    ) -> MissionOrchestratorState:
+        with self._orchestrator_state_lock:
+            if queue_snapshot is not None:
+                state = state.with_updates(
+                    queue_capacity=queue_snapshot.capacity,
+                    queued_tickets=tuple(queue_snapshot.queued_tickets),
+                )
+            self.orchestrator_state = state
+            self.orchestrator_state_store.save(state)
+            return state
+
+    def _register_active_mission(
+        self,
+        *,
+        mission_key: str,
+        ticket: int,
+        last_command: str,
+        last_message: str,
+    ) -> MissionOrchestratorState:
+        return self._save_orchestrator_state(
+            self.orchestrator_state.with_updates(
+                active_mission_key=mission_key,
+                active_ticket=ticket,
+                last_command=last_command,
+                last_message=last_message,
+                updated_at=time.time(),
+            ),
+            queue_snapshot=self.mission_scheduler.snapshot(),
+        )
+
+    def _clear_active_mission(
+        self,
+        *,
+        last_command: str,
+        last_message: str,
+    ) -> MissionOrchestratorState:
+        self._operator_cancel_active.clear()
+        return self._save_orchestrator_state(
+            self.orchestrator_state.with_updates(
+                active_mission_key="",
+                active_ticket=-1,
+                last_command=last_command,
+                last_message=last_message,
+                updated_at=time.time(),
+            ),
+            queue_snapshot=self.mission_scheduler.snapshot(),
+        )
+
+    def _mission_cancel_requested(self, goal_handle) -> bool:
+        return goal_handle.is_cancel_requested or self._operator_cancel_active.is_set()
+
+    def handle_orchestrator_command(self, command: str, reason: str = "") -> dict[str, Any]:
+        normalized_command = str(command).strip().lower()
+        normalized_reason = str(reason).strip()
+        current_state = self._orchestrator_state_snapshot()
+
+        if normalized_command == "status":
+            return {
+                "accepted": True,
+                "mode": current_state.mode,
+                "message": "snapshot",
+                "state_summary": current_state.summary(),
+            }
+
+        if normalized_command == "pause":
+            updated_state = self._save_orchestrator_state(
+                current_state.with_updates(
+                    mode=PAUSED_MODE,
+                    pause_reason=normalized_reason or "operator_pause",
+                    last_command="pause",
+                    last_message=normalized_reason or "operator_pause",
+                    updated_at=time.time(),
+                ),
+                queue_snapshot=self.mission_scheduler.snapshot(),
+            )
+            return {
+                "accepted": True,
+                "mode": updated_state.mode,
+                "message": "mission_paused",
+                "state_summary": updated_state.summary(),
+            }
+
+        if normalized_command == "resume":
+            updated_state = self._save_orchestrator_state(
+                current_state.with_updates(
+                    mode=OPEN_MODE,
+                    pause_reason="",
+                    last_command="resume",
+                    last_message=normalized_reason or "operator_resume",
+                    updated_at=time.time(),
+                ),
+                queue_snapshot=self.mission_scheduler.snapshot(),
+            )
+            return {
+                "accepted": True,
+                "mode": updated_state.mode,
+                "message": "mission_resumed",
+                "state_summary": updated_state.summary(),
+            }
+
+        if normalized_command == "cancel_active":
+            if not current_state.active_mission_key:
+                return {
+                    "accepted": False,
+                    "mode": current_state.mode,
+                    "message": "no_active_mission",
+                    "state_summary": current_state.summary(),
+                }
+            self._operator_cancel_active.set()
+            updated_state = self._save_orchestrator_state(
+                current_state.with_updates(
+                    last_command="cancel_active",
+                    last_message=normalized_reason or "operator_cancel_active",
+                    updated_at=time.time(),
+                ),
+                queue_snapshot=self.mission_scheduler.snapshot(),
+            )
+            return {
+                "accepted": True,
+                "mode": updated_state.mode,
+                "message": "operator_cancel_active_requested",
+                "state_summary": updated_state.summary(),
+            }
+
+        return {
+            "accepted": False,
+            "mode": current_state.mode,
+            "message": "unsupported_command",
+            "state_summary": current_state.summary(),
+        }
 
     def _compute_route_edge_ids(
         self,
@@ -553,12 +792,14 @@ class MissionApiRuntime:
         result_future = child_goal_handle.get_result_async()
         if not _spin_until_or_cancel(
             self.node,
-            mission_goal_handle,
             result_future,
             10.0,
+            cancel_requested=lambda: self._mission_cancel_requested(
+                mission_goal_handle
+            ),
         ) == "DONE":
             child_goal_handle.cancel_goal_async()
-            if mission_goal_handle.is_cancel_requested:
+            if self._mission_cancel_requested(mission_goal_handle):
                 return {
                     "success": False,
                     "result_code": "MISSION_CANCELED",
@@ -652,7 +893,7 @@ class MissionApiRuntime:
 
             attempt = 0
             while True:
-                if goal_handle.is_cancel_requested:
+                if self._mission_cancel_requested(goal_handle):
                     self._save_checkpoint(
                         checkpoint_for_goal(
                             mission_key=mission_key,
@@ -849,9 +1090,11 @@ class MissionApiRuntime:
         result_future = child_goal_handle.get_result_async()
         wait_status = _spin_until_or_cancel(
             self.node,
-            mission_goal_handle,
             result_future,
             goal_spec.flat_result_timeout_sec,
+            cancel_requested=lambda: self._mission_cancel_requested(
+                mission_goal_handle
+            ),
         )
         if wait_status == "CANCELED":
             child_goal_handle.cancel_goal_async()
@@ -940,9 +1183,11 @@ class MissionApiRuntime:
         result_future = child_goal_handle.get_result_async()
         wait_status = _spin_until_or_cancel(
             self.node,
-            mission_goal_handle,
             result_future,
             goal_spec.result_timeout_sec,
+            cancel_requested=lambda: self._mission_cancel_requested(
+                mission_goal_handle
+            ),
         )
         if wait_status == "CANCELED":
             child_goal_handle.cancel_goal_async()
@@ -1052,12 +1297,17 @@ def parse_args(argv: list[str]) -> tuple[argparse.Namespace, list[str]]:
     parser.add_argument("--flat-nav-action", default="/navigate_to_pose")
     parser.add_argument("--stair-exec-action", default="/stair_exec")
     parser.add_argument("--mission-state-file", default="")
+    parser.add_argument("--mission-orchestrator-state-file", default="")
     parser.add_argument("--mission-retry-limit", type=int, default=2)
     parser.add_argument("--mission-retry-backoff-sec", type=float, default=0.5)
     parser.add_argument("--mission-recovery-enabled", type=_parse_bool, default=True)
     parser.add_argument("--flat-behavior-tree", default="success")
     parser.add_argument("--mission-queue-capacity", type=int, default=2)
     parser.add_argument("--action-name", default="/go2w/mission/run")
+    parser.add_argument(
+        "--mission-control-service-name",
+        default="/go2w/mission/control",
+    )
     return parser.parse_known_args(argv)
 
 
@@ -1069,6 +1319,7 @@ def main(argv: list[str] | None = None) -> int:
     from rclpy.node import Node
 
     from go2w_mission.action import RunMission
+    from go2w_mission.srv import MissionControl
 
     args, ros_args = parse_args(sys.argv[1:] if argv is None else argv)
 
@@ -1081,6 +1332,7 @@ def main(argv: list[str] | None = None) -> int:
                 flat_nav_action=args.flat_nav_action,
                 stair_exec_action=args.stair_exec_action,
                 mission_state_file=args.mission_state_file,
+                mission_orchestrator_state_file=args.mission_orchestrator_state_file,
                 mission_retry_limit=args.mission_retry_limit,
                 mission_retry_backoff_sec=args.mission_retry_backoff_sec,
                 mission_recovery_enabled=args.mission_recovery_enabled,
@@ -1096,12 +1348,29 @@ def main(argv: list[str] | None = None) -> int:
                 callback_group=self._callback_group,
                 cancel_callback=self._cancel_callback,
             )
+            self._control_service = self.create_service(
+                MissionControl,
+                args.mission_control_service_name,
+                self._control_callback,
+                callback_group=self._callback_group,
+            )
 
         def _cancel_callback(self, _cancel_request):
             return CancelResponse.ACCEPT
 
         def _execute_callback(self, goal_handle):
             return self._runtime.execute(goal_handle)
+
+        def _control_callback(self, request, response):
+            result = self._runtime.handle_orchestrator_command(
+                request.command,
+                request.reason,
+            )
+            response.accepted = bool(result["accepted"])
+            response.mode = str(result["mode"])
+            response.message = str(result["message"])
+            response.state_summary = str(result["state_summary"])
+            return response
 
     rclpy.init(args=[sys.argv[0], *ros_args])
     node = MissionApiNode()
@@ -1128,15 +1397,21 @@ def _spin_until(node, future, timeout_sec: float) -> bool:
     return future.done()
 
 
-def _spin_until_or_cancel(node, goal_handle, future, timeout_sec: float) -> str:
+def _spin_until_or_cancel(
+    node,
+    future,
+    timeout_sec: float,
+    *,
+    cancel_requested=None,
+) -> str:
     import time
 
     deadline = time.monotonic() + timeout_sec
     while future is not None and not future.done() and time.monotonic() < deadline:
-        if goal_handle.is_cancel_requested:
+        if cancel_requested is not None and cancel_requested():
             return "CANCELED"
         time.sleep(0.05)
-    if goal_handle.is_cancel_requested:
+    if cancel_requested is not None and cancel_requested():
         return "CANCELED"
     if future.done():
         return "DONE"

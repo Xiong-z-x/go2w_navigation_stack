@@ -150,8 +150,8 @@ Mission API bounded FIFO scheduling policy 可用以下命令复现：
 ```
 
 该 verifier 证明 `RunMission` 在 one-active-plus-one-queued 模式下可重复验证
-queue-full reject 与 queued cancel；它仍不是 persistent backend 或 production
-Mission Orchestrator。
+queue-full reject 与 queued cancel；它仍不是 durable queue replay backend 或
+production Mission Orchestrator。
 
 Phase 4E real-model stair fixture 验收可用以下命令复现：
 
