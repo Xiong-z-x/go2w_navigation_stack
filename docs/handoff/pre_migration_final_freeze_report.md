@@ -27,6 +27,11 @@
   本轮审计起点为 `main...origin/main` 干净、最近提交
   `d2e55a3 feat: add mission task history ledger`，并且
   `./tools/verify_phase4_pre_handoff.sh` 通过。
+- 2026-05-04：迁移前二次封板完成后又串行复验了
+  `./tools/verify_phase4_runtime_acceptance.sh` 与
+  `./tools/verify_go2w_control_chain_regression.sh`，两者均 PASS。
+  其中 `phase4_runtime_acceptance` 记录了 `112 tests, 0 errors, 0 failures, 0 skipped`
+  的最新总测试摘要；`go2w_control_chain_regression` 也在 fresh evidence 下再次 PASS。
 - 本文下方的“下一任务建议自批准任务单”保留为历史执行入口。后续新的最小任务应转向
   production Mission Orchestrator remaining slice，当前最小候选是 priority scheduling
   单主题闭环。
@@ -182,6 +187,8 @@ Definition of Done:
 | `./tools/verify_go2w_control_chain_regression.sh` | PASS | real-model baseline、stair fixture、mission recovery、stair tuning smoke 全通过 |
 | `./tools/verify_phase4_runtime_acceptance.sh` | PASS | pre-handoff、Phase 4A/B/C/D、build/test/test-result 全通过 |
 | `./tools/verify_phase4_pre_handoff.sh` | PASS | 2026-05-04 二次封板起点复验，交接包最低一致性通过 |
+| `./tools/verify_phase4_runtime_acceptance.sh` | PASS | 2026-05-04 串行复验，Phase 4A/B/C/D、build/test/test-result 再次通过 |
+| `./tools/verify_go2w_control_chain_regression.sh` | PASS | 2026-05-04 串行复验，real-model baseline、stair fixture、mission recovery、stair tuning 再次通过 |
 
 验证期间直接运行一次未设置 `PYTHONPATH` 的 focused pytest 曾失败，根因是命令环境缺少包源码路径；
 使用显式 `PYTHONPATH` 后同一 focused pytest 通过。该工具层问题已记录到 `.learnings/ERRORS.md`，

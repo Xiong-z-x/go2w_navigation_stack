@@ -27,12 +27,16 @@ This is not production Mission Orchestrator, real Nav2 route tracking against ro
 - Phase 4D-min route tracking feedback gate passes.
 - Phase 4 phase-related package build passes.
 - Phase 4 phase-related package tests pass.
-- `colcon test-result --verbose` reports `57 tests, 0 errors, 0 failures, 0 skipped`.
+- `colcon test-result --verbose` reported `57 tests, 0 errors, 0 failures, 0 skipped`
+  in the original acceptance run and `112 tests, 0 errors, 0 failures, 0 skipped`
+  in the 2026-05-04 migration-seal refresh run.
 
 ## Verification Evidence
 Timestamp: `2026-05-01T12:49+08:00`
 
 Migration-freeze refresh timestamp: `2026-05-02T13:36+08:00`
+
+Migration-seal refresh timestamp: `2026-05-04`
 
 Top-level acceptance gate:
 
@@ -60,6 +64,7 @@ The runtime evidence directory for this run was:
 ```text
 /tmp/go2w_phase4_runtime_acceptance_16465
 /tmp/go2w_phase4_runtime_acceptance_4740
+/tmp/go2w_phase4_runtime_acceptance_43727
 ```
 
 Package test summary:
@@ -67,6 +72,8 @@ Package test summary:
 ```text
 Summary: 3 packages finished [2.04s]
 Summary: 57 tests, 0 errors, 0 failures, 0 skipped
+Summary: 3 packages finished [4.01s]
+Summary: 112 tests, 0 errors, 0 failures, 0 skipped
 ```
 
 ## Reproduction Command

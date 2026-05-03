@@ -5,6 +5,9 @@
 - 当前最可信的事实源仍是 `docs/architecture/system_blueprint.md`、`docs/architecture/interface_contracts.md` 和 `docs/architecture/architecture_state.md`。
 - 当前没有证据表明完整 production Mission Orchestrator、真实机器人运动上的稳定 `nav2_route` route tracking、真实楼梯动力学、`map_server` / AMCL / `map -> odom`、elevation mapping、traversability 或 automatic connector generation 已完成。
 - production Mission Orchestrator 的当前窄范围已完成到 bounded FIFO queueing、operator control service、operator-triggered durable queue replay 与 bounded terminal task history；共享 flat pose helper、bounded FIFO queueing、mission real-flat runtime gate、operator-state snapshot、queue replay ledger 和 task-history ledger 均有 fresh evidence。它仍不等于完整 production Mission Orchestrator。
+- 2026-05-04 迁移前二次封板期间，`tools/verify_phase4_runtime_acceptance.sh` 与
+  `tools/verify_go2w_control_chain_regression.sh` 又各自串行复验 PASS，说明交接封板时
+  的 runtime / control-chain 门禁仍然可重复。
 - 阶段结论必须由代码、配置、脚本、测试和 runtime evidence 交叉验证，不允许只看计划、注释或旧日志。
 
 ## 状态判定规则

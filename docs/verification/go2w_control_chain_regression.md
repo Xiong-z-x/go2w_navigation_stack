@@ -22,6 +22,9 @@ traversability, or automatic connector generation.
 - Date: `2026-05-04T03:00+08:00`, serial rerun after a concurrent heavy-verifier flake
 - Command: `./tools/verify_go2w_control_chain_regression.sh`
 - Result: `go2w_control_chain_regression_result: PASS`
+- Date: `2026-05-04` migration-seal refresh rerun
+- Command: `./tools/verify_go2w_control_chain_regression.sh`
+- Result: `go2w_control_chain_regression_result: PASS`
 
 ## Evidence Directories
 ```text
@@ -37,6 +40,10 @@ serial_refresh_real_model_baseline: /tmp/go2w_real_model_baseline_30765
 serial_refresh_stair_fixture: /tmp/go2w_phase4e_stair_fixture_31452
 serial_refresh_mission_recovery: /tmp/go2w_phase4e_mission_recovery_32094
 serial_refresh_stair_tuning_overrides: /tmp/go2w_phase4e_stair_fixture_32816
+seal_refresh_real_model_baseline: /tmp/go2w_real_model_baseline_46054
+seal_refresh_stair_fixture: /tmp/go2w_phase4e_stair_fixture_46665
+seal_refresh_mission_recovery: /tmp/go2w_phase4e_mission_recovery_47257
+seal_refresh_stair_tuning_overrides: /tmp/go2w_phase4e_stair_fixture_47865
 ```
 
 ## Result Keys
@@ -50,6 +57,7 @@ phase4e_mission_recovery_result: PASS
 control_chain_regression_mission_recovery: PASS
 phase4e_stair_tuning_overrides_result: PASS
 control_chain_regression_stair_tuning: PASS
+go2w_control_chain_regression_result: PASS
 go2w_control_chain_regression_result: PASS
 ```
 
@@ -67,6 +75,9 @@ go2w_control_chain_regression_result: PASS
   foot raise, gait, speed, max velocity, and stair velocity overrides.
 - A 2026-05-04 rerun of the wrapper passed again when executed serially after a
   concurrent run with the mission flat verifier had produced a flaky timeout.
+- A 2026-05-04 migration-seal rerun passed again with fresh evidence directories
+  for the real-model baseline, stair fixture, mission recovery, and stair tuning
+  smoke test.
 - The wrapper intentionally does not call
   `verify_go2w_real_model_route_following.sh`; after dedicated hardening that
   verifier is a repeatable regression candidate, but this wrapper remains the
