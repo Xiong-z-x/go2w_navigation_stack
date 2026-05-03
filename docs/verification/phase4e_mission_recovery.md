@@ -73,19 +73,20 @@ mission_state_next_segment_index: 3
   route/segment identity.
 - A different nonterminal mission checkpoint is treated as busy rather than
   silently overwritten.
-- The mission API now also uses a single-flight admission gate, so concurrent
-  `RunMission` requests return `MISSION_BUSY` / `mission_state_in_use` instead
-  of racing the single JSON state file.
+- The mission API now also supports bounded FIFO queueing, so concurrent
+  `RunMission` requests can either queue, return `MISSION_BUSY` /
+  `mission_queue_full`, or be canceled while queued before activation. The
+  recovery verifier itself still does not exercise a persistent backend.
 - Retry is finite; the accepted verifier used the default retry limit and
   observed two retry attempts before the first run became recoverable.
 
 ## Open Validation Items
 - This is a production-style recovery skeleton, not a complete production
   Mission Orchestrator.
-- It does not yet provide multi-mission queueing, operator pause/resume
-  policy, mission priority management, fleet-level scheduling, or durable
-  storage beyond a single local JSON state file. Concurrent admission races
-  are now guarded by a single-flight slot, but that is still not full queueing.
+- It does not yet provide a persistent backend, operator pause/resume policy,
+  mission priority management, or fleet-level scheduling. Concurrent admission
+  is now bounded by an in-memory FIFO queue, but that is still not a durable
+  backend.
 - It still depends on current route, flat navigation, and stair executor
   skeletons.
 - It does not replace real robot-motion route tracking or stair dynamics.

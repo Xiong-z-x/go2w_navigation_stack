@@ -59,11 +59,12 @@ Gazebo GPU rendering 不是当前验收合同。RViz 可单独使用 WSLg/NVIDIA
   segment 接入 navigation-owned `NavigateToPose` gate；Phase 4D-min 已新增
   route tracking feedback observer；Phase 5A 已新增 live route tracking probe；
   现已额外提供 opt-in `RunMission` Action skeleton / mission API verifier，用于
-  route segmentation、flat/stair dispatch、单飞 admission gate 和诊断结果码；当前 mission API 又新增
-  JSON checkpoint 持久化、同一 mission goal resume、有限 retry，以及 opt-in
-  real-model flat-only execution gate。该 gate 在不启动 `go2w_flat_nav_executor`
-  的情况下把 mission flat segment 送到真实 Nav2 `/navigate_to_pose`，并通过共享
-  `mission_pose` helper 保留 route graph 的目标 yaw。它仍不是完整 production Mission Orchestrator。
+  route segmentation、flat/stair dispatch、bounded FIFO queueing、queue-full /
+  queued-cancel diagnostics 和诊断结果码；当前 mission API 又新增 JSON checkpoint
+  持久化、同一 mission goal resume、有限 retry，以及 opt-in real-model flat-only
+  execution gate。该 gate 在不启动 `go2w_flat_nav_executor` 的情况下把 mission flat
+  segment 送到真实 Nav2 `/navigate_to_pose`，并通过共享 `mission_pose` helper 保留
+  route graph 的目标 yaw。它仍不是完整 production Mission Orchestrator。
 
 ## 已完成闭环
 - Phase 1：Gazebo + `gz_ros2_control` + `/cmd_vel` 底盘可控闭环。
@@ -105,9 +106,11 @@ Gazebo GPU rendering 不是当前验收合同。RViz 可单独使用 WSLg/NVIDIA
   `/navigate_to_pose`，保留 route graph 目标 yaw，并观察到 `MISSION_SUCCEEDED`、
   非零 `/cmd_vel`、perception odom motion、diff-drive odom motion 和
   perception-owned `odom -> base_link`。
-- Mission API single-flight admission gate：通过 focused unit test 验证并发 `RunMission`
-  goal 会返回 `MISSION_BUSY` / `mission_state_in_use`，避免两个 mission 实例同时竞争
-  单一 JSON state file。
+- Mission API bounded FIFO scheduling policy：通过 focused unit test 验证并发 `RunMission`
+  goal 现在会进入 one-active-plus-one-queued 模式；队列满时返回 `MISSION_BUSY` /
+  `mission_queue_full`，queued goal 可在激活前取消返回 `MISSION_CANCELED` /
+  `mission_queue_canceled`，避免两个 mission 实例同时竞争单一 JSON state file，
+  但也不把队列误写成 persistent backend。
 - Phase 4E real-model stair fixture：通过 `tools/verify_phase4e_stair_fixture.sh`
   验证 opt-in real-model fixture 中 `/stair_exec` Action 成功、command gate
   `flat/wheeled -> stair/legged -> flat/wheeled`、阶段化 stair executor 状态、
@@ -135,8 +138,8 @@ Gazebo GPU rendering 不是当前验收合同。RViz 可单独使用 WSLg/NVIDIA
   复现后通过候选选择、goal tolerance 和 stale-process cleanup 收口，并取得 3 次
   clean-domain 连续 PASS。它是 opt-in regression 候选，但还不是 production
   `nav2_route` route tracking，也未自动纳入 stable control-chain wrapper。
-- `go2w_mission` 的 `RunMission` 已有 checkpoint/retry/resume skeleton 和单飞 admission gate，且 mission flat goal 的姿态转换已统一到共享 `mission_pose` helper，但仍不是完整 production Mission Orchestrator。
-- 未实现完整 production Mission Orchestrator 的多任务队列、操作员恢复策略、优先级调度和长期任务管理。
+- `go2w_mission` 的 `RunMission` 已有 checkpoint/retry/resume skeleton 和 bounded FIFO queueing，且 mission flat goal 的姿态转换已统一到共享 `mission_pose` helper，但仍不是完整 production Mission Orchestrator。
+- 未实现完整 production Mission Orchestrator 的 persistent state backend、操作员恢复策略、优先级调度和长期任务管理。
 - Phase 4C-min 的 flat executor 仍作为 deterministic verifier skeleton 保留；mission API
   现在已有 opt-in real-model flat-only gate 可绕过该 skeleton 并调用真实 Nav2
   `/navigate_to_pose`。
@@ -150,17 +153,18 @@ Gazebo GPU rendering 不是当前验收合同。RViz 可单独使用 WSLg/NVIDIA
 - 未实现 elevation mapping / traversability / automatic stair detection。
 
 ## 后续项目改进的直接起点
-本轮 production Mission Orchestrator skeleton hardening 的窄范围已完成：mission flat
-pose conversion 已集中到共享 `mission_pose` helper，`RunMission` 单飞 admission gate
-继续保持 `MISSION_BUSY` / `mission_state_in_use` 诊断，mission real-model flat gate 已完成
-fresh runtime 复验。
+本轮 production Mission Orchestrator scheduling policy 的窄范围已完成：mission flat
+pose conversion 已集中到共享 `mission_pose` helper，`RunMission` 现在采用 bounded FIFO
+queueing，queue-full 与 queued-cancel 诊断可重复验证，mission real-model flat gate
+已完成 fresh runtime 复验。
 
-下一轮项目改进建议改为单主题 production Mission Orchestrator scheduling policy：
+下一轮项目改进建议改为单主题 production Mission Orchestrator 的剩余子项：
 
-- 在现有 `RunMission` checkpoint/retry/resume skeleton 基础上，补任务队列、操作员恢复
-  介入策略或长期状态后端中的一个最小闭环，不要一次做全量 production 调度系统。
-- Mission API 现在已有单飞 admission gate；后续如果要真正 queueing 或 priority scheduling，
-  必须另开完整任务单，不要沿着当前 skeleton 直接扩展成隐式队列。
+- 在现有 `RunMission` checkpoint/retry/resume skeleton 基础上，补 persistent state
+  backend、操作员恢复介入策略或 priority scheduling 中的一个最小闭环，不要一次做全量
+  production 调度系统。
+- Mission API 现在已有 bounded FIFO queueing；后续如果要真正 persistence 或
+  priority scheduling，必须另开完整任务单，不要沿着当前 skeleton 直接扩展成隐式后端。
 - 保持 mission flat execution 的双路径：Phase 4C verifier skeleton 用于 deterministic
   诊断，opt-in real-model flat gate 用于真实 Nav2 flat motion 证据。
 - 不允许顺带切换默认仿真基线、重构 perception TF、做 stair dynamics、引入

@@ -75,7 +75,7 @@ def test_mission_api_accepts_empty_flat_behavior_tree_argument() -> None:
     assert normalize_flat_behavior_tree("__empty__") == ""
 
 
-def test_mission_api_single_flight_admission_gate_is_non_blocking() -> None:
+def test_mission_api_low_level_mission_lock_guard_is_non_blocking() -> None:
     runtime = object.__new__(MissionApiRuntime)
     runtime._mission_lock = threading.Lock()
 

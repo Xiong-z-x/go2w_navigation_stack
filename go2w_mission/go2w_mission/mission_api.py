@@ -22,6 +22,7 @@ from go2w_mission.mission_recovery import (
     is_recoverable_result_code,
     should_resume_checkpoint,
 )
+from go2w_mission.mission_scheduler import MissionScheduleGate
 
 
 EMPTY_FLAT_BEHAVIOR_TREE_SENTINEL = "__empty__"
@@ -110,6 +111,7 @@ class MissionApiRuntime:
         mission_retry_backoff_sec: float,
         mission_recovery_enabled: bool,
         flat_behavior_tree: str,
+        mission_queue_capacity: int,
     ) -> None:
         from nav2_msgs.action import ComputeRoute, NavigateToPose
         from rclpy.action import ActionClient
@@ -133,6 +135,9 @@ class MissionApiRuntime:
         self.mission_retry_backoff_sec = max(0.0, float(mission_retry_backoff_sec))
         self.mission_recovery_enabled = bool(mission_recovery_enabled)
         self.flat_behavior_tree = str(flat_behavior_tree)
+        self.mission_scheduler = MissionScheduleGate(
+            capacity=mission_queue_capacity,
+        )
         self._mission_lock = threading.Lock()
         loaded = self.state_store.load()
         if loaded is not None:
@@ -182,20 +187,69 @@ class MissionApiRuntime:
             route_frame_id=goal_spec.route_frame_id,
         )
 
-        if not self._admit_mission_slot():
+        admission = self.mission_scheduler.reserve()
+        if not admission.accepted:
             self.node.get_logger().info(
-                "mission_busy: another mission already holds the slot"
+                "mission_busy: mission_queue_full"
             )
             return self._finish(
                 goal_handle,
                 success=False,
                 result_code="MISSION_BUSY",
-                message="mission_state_in_use",
+                message="mission_queue_full",
                 segment_count=0,
                 segment_summary="",
             )
 
+        mission_lock_acquired = False
         try:
+            if admission.queued:
+                self.node.get_logger().info(
+                    "mission_queued: "
+                    f"key={mission_key} ticket={admission.ticket} "
+                    f"queue_position={admission.queue_position}"
+                )
+                goal_handle.publish_feedback(
+                    self._feedback("QUEUED", 0, "", "", 0.0)
+                )
+
+            if not self.mission_scheduler.wait_for_turn(
+                admission.ticket,
+                lambda: goal_handle.is_cancel_requested,
+                poll_timeout_sec=0.1,
+            ):
+                self.node.get_logger().info(
+                    "mission_queue_canceled: "
+                    f"key={mission_key} ticket={admission.ticket}"
+                )
+                return self._finish(
+                    goal_handle,
+                    success=False,
+                    result_code="MISSION_CANCELED",
+                    message="mission_queue_canceled",
+                    segment_count=0,
+                    segment_summary="",
+                )
+
+            if not self._mission_lock.acquire(blocking=False):
+                self.node.get_logger().warning(
+                    "mission_internal_lock_busy: "
+                    f"key={mission_key} ticket={admission.ticket}"
+                )
+                return self._finish(
+                    goal_handle,
+                    success=False,
+                    result_code="MISSION_BUSY",
+                    message="mission_state_in_use",
+                    segment_count=0,
+                    segment_summary="",
+                )
+            mission_lock_acquired = True
+
+            goal_handle.publish_feedback(
+                self._feedback("SCHEDULED", 0, "", "", 0.0)
+            )
+
             if not Path(goal_spec.graph_file).exists():
                 return self._finish(
                     goal_handle,
@@ -442,7 +496,10 @@ class MissionApiRuntime:
                 segment_summary=segment_summary,
             )
         finally:
-            self._release_mission_slot()
+            if mission_lock_acquired:
+                self._mission_lock.release()
+            self.mission_scheduler.release(admission.ticket)
+            self.mission_scheduler.release(admission.ticket)
 
     def _save_checkpoint(self, checkpoint: MissionCheckpoint) -> None:
         self.state_store.save(checkpoint)
@@ -999,6 +1056,7 @@ def parse_args(argv: list[str]) -> tuple[argparse.Namespace, list[str]]:
     parser.add_argument("--mission-retry-backoff-sec", type=float, default=0.5)
     parser.add_argument("--mission-recovery-enabled", type=_parse_bool, default=True)
     parser.add_argument("--flat-behavior-tree", default="success")
+    parser.add_argument("--mission-queue-capacity", type=int, default=2)
     parser.add_argument("--action-name", default="/go2w/mission/run")
     return parser.parse_known_args(argv)
 
@@ -1027,6 +1085,7 @@ def main(argv: list[str] | None = None) -> int:
                 mission_retry_backoff_sec=args.mission_retry_backoff_sec,
                 mission_recovery_enabled=args.mission_recovery_enabled,
                 flat_behavior_tree=args.flat_behavior_tree,
+                mission_queue_capacity=args.mission_queue_capacity,
             )
             self._callback_group = ReentrantCallbackGroup()
             self._server = ActionServer(

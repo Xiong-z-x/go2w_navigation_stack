@@ -3,6 +3,10 @@
 ## 目的
 验证 `go2w_mission` 内新增的 `RunMission` Action skeleton 是否可以在 ROS 2 Humble 环境下稳定运行，并对成功、无效目标、取消、以及 flat action 不可用路径给出可诊断结果。
 
+## 当前定位
+本文件保留的是 **bounded FIFO scheduling policy 之前的 skeleton 历史证据**。
+当前 `RunMission` 的队列策略已独立记录在 `docs/verification/mission_api_scheduling_policy.md`。
+
 ## 结论
 - `RunMission` Action contract 已生成并可被 `go2w_mission_api` 使用。
 - Mission API launch 能同时拉起 `route_server`、`go2w_command_gate`、`go2w_stair_executor`、`go2w_flat_nav_executor` 和 `go2w_mission_api`。
@@ -12,11 +16,13 @@
 - 这仍然是 skeleton，不是 production Mission Orchestrator，也不等于真实机器人运动上的 route tracking 或楼梯动力学。
 
 ## 额外硬化
-- `MissionApiRuntime` 现在在进入执行前会争抢单飞 admission slot。
-- 并发 `RunMission` goal 会返回 `MISSION_BUSY` / `mission_state_in_use`，而不是同时竞争单一 JSON state file。
+- 这份旧 skeleton 证据记录的是队列策略落地之前的 low-level admission guard 时代。
+- 当时 `MissionApiRuntime` 会在进入执行前争抢单飞 admission slot。
+- 当时并发 `RunMission` goal 会返回 `MISSION_BUSY` / `mission_state_in_use`，而不是同时竞争单一 JSON state file。
 - flat goal 现在通过共享 yaw-preserving helper 进入真实 Nav2 路径，避免 mission API 和
   Phase 4B runtime 的 orientation 语义不一致。
-- 这仍然不是 multi-mission queueing，也不是 priority scheduling。
+- 当前主线已经升级为 bounded FIFO scheduling policy，`RunMission` 的最新队列行为见
+  `docs/verification/mission_api_scheduling_policy.md`。
 
 ## 变更文件
 - `go2w_mission/action/RunMission.action`
@@ -55,7 +61,8 @@ source /opt/ros/humble/setup.bash && ./tools/verify_mission_api_skeleton.sh
 ## 后续风险
 - 现在只验证了 skeleton 级路由分段和动作调度，不等于真实楼梯动力学。
 - 生产级 Mission Orchestrator、恢复策略、状态持久化仍未实现。
-- 并发 admission race 已被单飞 gate 收口，但真正的任务队列和优先级调度仍需独立任务单。
+- 这里记录的是旧的单飞 gate 阶段；当前已补上 bounded FIFO queueing，但真正的生产级
+  任务队列、长期状态后端、操作员恢复策略和优先级调度仍需独立任务单。
 - 后续若扩展真实楼梯控制，必须先单独写完整任务单，不要顺手把本 skeleton 直接改成最终版。
 
 ## 追加验证
@@ -98,6 +105,7 @@ mission_api_skeleton_result: PASS
 ```
 
 - Verified facts:
-  - `MissionApiRuntime` 的单飞 admission gate 仍是非阻塞锁。
-  - 并发入口仍返回 `MISSION_BUSY` / `mission_state_in_use`，不是隐式 queue。
+  - `MissionApiRuntime` 的旧单飞 admission gate 仍是非阻塞锁层级的历史基线。
+  - 当前真正的并发调度行为已经升级为 bounded FIFO queueing，见
+    `docs/verification/mission_api_scheduling_policy.md`。
   - mission API 和 Phase 4B runtime 均通过共享 `mission_pose` helper 做 flat goal yaw conversion。

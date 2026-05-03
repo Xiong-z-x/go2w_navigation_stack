@@ -23,6 +23,7 @@ simulation-first 路线推进。
 - `docs/verification/phase4e_stair_fixture.md`
 - `docs/verification/phase4e_mission_recovery.md`
 - `docs/verification/phase4e_stair_tuning_overrides.md`
+- `docs/verification/mission_api_scheduling_policy.md`
 - `docs/verification/phase4_runtime_acceptance.md`
 - `docs/verification/phase4c_flat_segment_gate.md`
 - `docs/verification/phase4b_mission_segment_runtime.md`
@@ -62,10 +63,12 @@ simulation-first 路线推进。
   旧 `sim.launch.py` placeholder 路径仍是默认基线
 - `go2w_mission` 还额外提供 opt-in `RunMission` Action skeleton 与 mission API
   verifier，能诊断 route segmentation、flat/stair dispatch、invalid goal、
-  cancel、timeout、route unavailable、flat action unavailable 和单飞 admission gate；
-  当前已新增 JSON checkpoint、同一 mission goal resume 和有限 retry，但仍不是完整
+  cancel、timeout、route unavailable、flat action unavailable、bounded FIFO queueing 和
+  相关诊断；当前已新增 JSON checkpoint、同一 mission goal resume 和有限 retry，但仍不是完整
   production Mission Orchestrator。mission runtime real-model flat execution gate 也已经接通真实
-  Nav2 `/navigate_to_pose`，并通过共享 `mission_pose` helper 保留了目标 yaw；production Mission Orchestrator skeleton hardening 的当前窄范围已完成，下一步应进入独立的 mission scheduling policy / queueing / operator-intervention 最小任务。
+  Nav2 `/navigate_to_pose`，并通过共享 `mission_pose` helper 保留了目标 yaw；
+  production Mission Orchestrator 的 scheduling policy 窄范围已经完成，后续应转向
+  persistent state backend、operator-intervention policy 或 priority scheduling 中的单主题任务。
 
 不要把 Phase 4 accepted 误判成 production mission orchestration、真实 Nav2
 route tracking against robot motion、真实 `nav2_route` operation plugin、真实楼梯

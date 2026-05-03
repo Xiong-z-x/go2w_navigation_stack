@@ -14,12 +14,13 @@
 6. `README.md` 与历史验证记录
 
 ## 后续状态更新
-- 2026-05-04：production Mission Orchestrator skeleton hardening 的当前窄范围已完成。
-  已固化共享 `go2w_mission.mission_pose` flat pose conversion、`RunMission` 单飞
-  admission gate，以及 mission real-model flat execution fresh runtime 复验。
+- 2026-05-04：production Mission Orchestrator scheduling policy 的当前窄范围已完成。
+  已固化共享 `go2w_mission.mission_pose` flat pose conversion、bounded FIFO queueing、
+  queue-full / queued-cancel diagnostics，以及 mission real-model flat execution
+  fresh runtime 复验。
 - 本文下方的“下一任务建议自批准任务单”保留为历史执行入口。后续新的最小任务应转向
-  production Mission Orchestrator scheduling policy，例如 queueing、operator intervention
-  或长期状态后端中的一个单主题闭环。
+  production Mission Orchestrator remaining slice，例如 persistent state backend、
+  operator intervention 或 priority scheduling 中的一个单主题闭环。
 
 ## 总自检结论
 - 项目总目标未漂移：仍是 simulation-first 的 Go2W 跨楼层自主导航巡检系统。
@@ -33,8 +34,8 @@
 - 2026-05-02 后续执行已完成第一项项目改进：real-model same-floor Nav2
   route-following 的 DWB abort 风险已复现、修复并通过 3 次 clean-domain 连续验证。
   mission runtime real robot-motion flat execution gate 也已完成并接入真实 Nav2。
-  2026-05-04 又完成了当前窄范围的 production Mission Orchestrator skeleton hardening；
-  后续最大项目改进入口转为 production Mission Orchestrator scheduling policy，
+  2026-05-04 又完成了当前窄范围的 production Mission Orchestrator scheduling policy；
+  后续最大项目改进入口转为 production Mission Orchestrator remaining slice，
   仍然必须保持单主题、小步推进。
 
 ## 关键风险清单与处理状态
@@ -55,11 +56,12 @@
 - 更新阅读顺序，明确 `docs/superpowers/*` 是历史记录。
 - 更新注意事项，新增“项目改进起步顺序”和“工具/检索易错点”。
 - 更新新模型初始化提示词，使其可直接复制到新对话中使用。
-- 将 mission runtime real-model flat execution gate 作为已完成能力固化，并将下一步起点改为 production Mission Orchestrator skeleton hardening。
+- 将 mission runtime real-model flat execution gate 作为已完成能力固化；当时把下一步起点改为 production Mission Orchestrator scheduling policy，而该项现在也已完成。
 - mission runtime real-model flat execution gate 现在会从 route graph 保留目标 yaw 并写回
   `NavigateToPose`，避免 flat goal 退化成单位四元数后再被 DWB 误判失败。
-- 继续硬化 mission API single-flight admission gate，避免并发 `RunMission` goal 竞争单一 JSON
-  状态文件；这仍不是完整任务队列或优先级调度。
+- 继续硬化 mission API bounded FIFO scheduling policy，避免并发 `RunMission` goal 竞争单一 JSON
+  状态文件；当前已经有 one-active-plus-one-queued，但这仍不是 persistent backend 或
+  priority scheduling。
 - 将本地规划文件加入 `.gitignore`，避免把会话工作记忆误提交为正式项目事实源。
 - 扩展 `tools/verify_phase4_pre_handoff.sh`，把最终封板报告纳入交接一致性 gate。
 
@@ -91,14 +93,14 @@
 - Elevation mapping、traversability、automatic stair detection / connector generation：尚未实现。
 
 ## 后续项目改进推荐顺序
-1. 扩展 production Mission Orchestrator skeleton hardening：先补任务队列、长期状态后端、操作员恢复策略、优先级调度中的一个最小闭环。
+1. 扩展 production Mission Orchestrator remaining slice：先补 persistent state backend、操作员恢复策略、优先级调度中的一个最小闭环。
 2. 做 dedicated stair trajectory / wheel lock / body-height / gait tuning；不得把当前 phase-aware skeleton 当成真实控制器。
 3. 再评估 real-model path 是否可以扩大为默认 baseline。
 4. 最后进入 Phase 5 terrain-aware connector discovery、elevation mapping、traversability 和 automatic connector generation。
 
 ## 已执行的自批准任务单
 
-Task Goal: production Mission Orchestrator skeleton hardening。
+Task Goal: production Mission Orchestrator scheduling policy。
 
 Current Phase: `Phase 4 accepted`, post-Phase-4 hardening。
 
@@ -130,8 +132,8 @@ Definition of Done:
 - 现有 Phase 4C verifier skeleton 不被无证据移除；必须保留 deterministic 诊断路径。
 - 不改变 perception TF authority、默认 placeholder launch baseline、stair dynamics 或 map / localization 范围。
 
-执行状态：当前窄范围已完成。后续如要继续进入真正 queueing、operator intervention、priority scheduling
-或长期状态后端，必须另开新的完整任务单。
+执行状态：当前窄范围已完成。后续如要继续进入 persistent state backend、
+operator intervention 或 priority scheduling，必须另开新的完整任务单。
 
 ## 最终封板验证入口
 迁移前新模型接手前至少运行：

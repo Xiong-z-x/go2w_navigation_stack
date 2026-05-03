@@ -52,12 +52,13 @@
 19. `docs/verification/go2w_control_chain_regression.md`
 20. `docs/verification/go2w_real_model_route_following.md`
 21. `docs/verification/go2w_mission_real_flat_execution.md`
-22. `docs/verification/phase4e_stair_fixture.md`
-23. `docs/verification/phase4e_mission_recovery.md`
-24. `docs/verification/go2w_real_model_regression.md`
-25. `docs/verification/phase4e_stair_tuning_overrides.md`
-26. `docs/verification/phase4_runtime_acceptance.md`
-27. `docs/handoff/new_model_initialization_prompt.md`
+22. `docs/verification/mission_api_scheduling_policy.md`
+23. `docs/verification/phase4e_stair_fixture.md`
+24. `docs/verification/phase4e_mission_recovery.md`
+25. `docs/verification/go2w_real_model_regression.md`
+26. `docs/verification/phase4e_stair_tuning_overrides.md`
+27. `docs/verification/phase4_runtime_acceptance.md`
+28. `docs/handoff/new_model_initialization_prompt.md`
 
 ## 本目录文件职责
 - `current_project_state.md`：当前真实状态总览。
@@ -141,6 +142,16 @@ Mission runtime real-model flat execution gate 可用以下命令复现：
 并在 `launch_flat_nav_executor:=false` 下证明 `RunMission` flat-only segment 可调用
 真实 `/navigate_to_pose`。它仍不是 production Mission Orchestrator、真实 `nav2_route`
 robot-motion route tracking 或跨楼层真实闭环。
+
+Mission API bounded FIFO scheduling policy 可用以下命令复现：
+
+```bash
+./tools/verify_mission_api_scheduling_policy.sh
+```
+
+该 verifier 证明 `RunMission` 在 one-active-plus-one-queued 模式下可重复验证
+queue-full reject 与 queued cancel；它仍不是 persistent backend 或 production
+Mission Orchestrator。
 
 Phase 4E real-model stair fixture 验收可用以下命令复现：
 

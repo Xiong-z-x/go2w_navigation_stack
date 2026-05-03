@@ -33,9 +33,9 @@
   Orchestrator。它只是把 route compute、flat/stair dispatch 和诊断结果码串起来，
   当前虽已新增 JSON checkpoint、同一 goal resume 和有限 retry，仍依赖现有
   route server、`NavigateToPose` verifier 和 `/stair_exec` skeleton，不是完整生产调度器。
-- 不要把 `RunMission` 的并发入队误判成可并行执行。当前 mission API 只做单飞
-  admission gate；并发 goal 现在会返回 `MISSION_BUSY` / `mission_state_in_use`，
-  但这仍不是真正的任务队列。
+- 不要把 `RunMission` 的并发入队误判成可并行执行。当前 mission API 已是 bounded
+  FIFO queueing；并发 goal 可能 queue、`MISSION_BUSY` / `mission_queue_full` 或
+  queued cancel，但这仍不是真正的 persistent backend。
 - 不要把 mission runtime real-model flat execution gate 当成 production Mission
   Orchestrator。它已经把 flat segment 接到真实 Nav2 `/navigate_to_pose`，但仍只是
   opt-in flat-only gate，和完整生产调度器不是一回事。
@@ -190,8 +190,8 @@ connector discovery 或未来 default real-model re-baseline。不要把下一�
   忽略。正式交接事实必须写入 `docs/handoff/*`、`docs/architecture/*` 或 `docs/verification/*`。
 
 ## 后续项目改进起步顺序
-1. 当前窄范围 production Mission Orchestrator skeleton hardening 已完成。下一步进入
-   production Mission Orchestrator scheduling policy 时，只从任务队列、长期状态、
+1. 当前窄范围 production Mission Orchestrator scheduling policy 已完成。下一步进入
+   production Mission Orchestrator remaining slice 时，只从 persistent state backend、
    操作员恢复策略和优先级调度中选一个最小闭环落地。
 2. 再做 dedicated stair trajectory / wheel lock / body-height / gait tuning。
 3. 最后再进入 real-model default baseline 评估、Phase 5 elevation/traversability/

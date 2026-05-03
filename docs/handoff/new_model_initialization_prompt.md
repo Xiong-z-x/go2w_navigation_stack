@@ -139,8 +139,8 @@ simulation-first 路线构建 Go2W 跨楼层自主导航巡检系统：
 - Real Go2W model path 仍是 opt-in，未替换默认 `go2w_sim sim.launch.py` placeholder path。
 - 2026-05-02 最终封板报告已写入 `docs/handoff/pre_migration_final_freeze_report.md`；
   它给出当前最小后续项目改进路线，但不替代架构事实源。
-  当前下一步应进入 production Mission Orchestrator scheduling policy，而不是继续把
-  已完成的 mission flat execution skeleton hardening 当成未完成项。
+  当前下一步应进入 production Mission Orchestrator remaining slice，而不是继续把
+  已完成的 mission flat execution / scheduling policy 当成未完成项。
 
 ====================
 五、架构边界

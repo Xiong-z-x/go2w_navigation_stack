@@ -24,6 +24,7 @@ def generate_launch_description():
     mission_retry_backoff_sec = LaunchConfiguration("mission_retry_backoff_sec")
     mission_recovery_enabled = LaunchConfiguration("mission_recovery_enabled")
     flat_behavior_tree = LaunchConfiguration("flat_behavior_tree")
+    mission_queue_capacity = LaunchConfiguration("mission_queue_capacity")
 
     default_route_params_file = PathJoinSubstitution([
         FindPackageShare("go2w_navigation"),
@@ -111,6 +112,11 @@ def generate_launch_description():
                 "BT Navigator instead of the Phase 4C verifier action server."
             ),
         ),
+        DeclareLaunchArgument(
+            "mission_queue_capacity",
+            default_value="2",
+            description="Bounded outstanding mission capacity for RunMission.",
+        ),
         Node(
             package="nav2_route",
             executable="route_server",
@@ -190,6 +196,8 @@ def generate_launch_description():
                 mission_recovery_enabled,
                 "--flat-behavior-tree",
                 flat_behavior_tree,
+                "--mission-queue-capacity",
+                mission_queue_capacity,
                 "--action-name",
                 mission_action_name,
                 "--ros-args",
