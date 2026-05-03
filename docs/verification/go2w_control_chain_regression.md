@@ -19,6 +19,9 @@ traversability, or automatic connector generation.
   `2026-05-02T13:33+08:00`
 - Command: `./tools/verify_go2w_control_chain_regression.sh`
 - Result: `go2w_control_chain_regression_result: PASS`
+- Date: `2026-05-04T03:00+08:00`, serial rerun after a concurrent heavy-verifier flake
+- Command: `./tools/verify_go2w_control_chain_regression.sh`
+- Result: `go2w_control_chain_regression_result: PASS`
 
 ## Evidence Directories
 ```text
@@ -30,6 +33,10 @@ refresh_real_model_baseline: /tmp/go2w_real_model_baseline_1978
 refresh_stair_fixture: /tmp/go2w_phase4e_stair_fixture_2574
 refresh_mission_recovery: /tmp/go2w_phase4e_mission_recovery_3161
 refresh_stair_tuning_overrides: /tmp/go2w_phase4e_stair_fixture_3765
+serial_refresh_real_model_baseline: /tmp/go2w_real_model_baseline_30765
+serial_refresh_stair_fixture: /tmp/go2w_phase4e_stair_fixture_31452
+serial_refresh_mission_recovery: /tmp/go2w_phase4e_mission_recovery_32094
+serial_refresh_stair_tuning_overrides: /tmp/go2w_phase4e_stair_fixture_32816
 ```
 
 ## Result Keys
@@ -58,6 +65,8 @@ go2w_control_chain_regression_result: PASS
   `MISSION_SUCCEEDED`.
 - `verify_phase4e_stair_tuning_overrides.sh` passed with explicit body height,
   foot raise, gait, speed, max velocity, and stair velocity overrides.
+- A 2026-05-04 rerun of the wrapper passed again when executed serially after a
+  concurrent run with the mission flat verifier had produced a flaky timeout.
 - The wrapper intentionally does not call
   `verify_go2w_real_model_route_following.sh`; after dedicated hardening that
   verifier is a repeatable regression candidate, but this wrapper remains the
@@ -71,3 +80,7 @@ go2w_control_chain_regression_result: PASS
 - This wrapper does not prove real staircase dynamics or hardware gait tuning.
 - The real-model path remains opt-in and does not replace the default
   placeholder simulation baseline.
+- Do not run this wrapper in parallel with
+  `verify_go2w_mission_real_flat_execution.sh`; both are heavyweight and
+  concurrent execution can create false flake in the shared ROS/Gazebo
+  runtime.

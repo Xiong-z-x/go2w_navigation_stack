@@ -150,8 +150,18 @@ Mission API bounded FIFO scheduling policy 可用以下命令复现：
 ```
 
 该 verifier 证明 `RunMission` 在 one-active-plus-one-queued 模式下可重复验证
-queue-full reject 与 queued cancel；它仍不是 durable queue replay backend 或
+queue-full reject 与 queued cancel；它仍不是 priority scheduling 或完整
 production Mission Orchestrator。
+
+Mission API durable queue replay 可用以下命令复现：
+
+```bash
+./tools/verify_mission_api_queue_replay.sh
+```
+
+该 verifier 证明 outstanding queue records 会持久化为 replay ledger，restart
+pending 状态会阻止新 mission admission，operator 可通过 `MissionControl replay_queue`
+恢复 scheduler ticket order；它仍不是 priority scheduling 或完整长期任务管理。
 
 Phase 4E real-model stair fixture 验收可用以下命令复现：
 

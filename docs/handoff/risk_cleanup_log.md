@@ -63,9 +63,10 @@
 | 占位 URDF 耦合 geometry/control/sensors | 旧 `sim.launch.py` 默认路径仍保留 placeholder 以保护既有 Phase 1-5 验证链 | 后续独立任务决定是否切默认或拆分模型/仿真传感器职责 |
 | 真实 Go2W 模型尚未成为默认仿真基线 | 当前 real-model 路径是 opt-in，已覆盖 baseline、最小同层 route-following 和 Phase 4E stair fixture regression，但尚未覆盖所有历史验收，也未证明真实楼梯动力学 | 后续 default re-baseline 任务再决定是否替换默认；当前结论是保留 opt-in wrapper |
 | Phase 3C route graph 是手工 floor atlas | 目的是给 Phase 4 手工连接器提供基线，不是自动建图结果 | Phase 4 先证明控制交接；Phase 5 再自动连接器 |
-| 没有完整 production Mission Orchestrator | 当前已有 `RunMission` skeleton、JSON checkpoint、同一 goal resume、bounded FIFO queueing、operator control service 和有限 retry，但仍不是完整长生命周期调度器 | 后续用独立完整任务单推进 durable queue replay 或优先级调度 |
+| 没有完整 production Mission Orchestrator | 当前已有 `RunMission` skeleton、JSON checkpoint、同一 goal resume、bounded FIFO queueing、operator control service、operator-triggered durable queue replay 和有限 retry，但仍不是完整长生命周期调度器 | 后续用独立完整任务单推进 priority scheduling 或长期任务管理 |
 | Phase 4C-min flat executor 仍是 verifier skeleton | 本阶段只证明 mission 到 navigation-owned `NavigateToPose` gate 的调度；当前 real-model short `NavigateToPose` verifier 尚未替换 mission runtime skeleton | 后续 production mission / real route-tracking integration 任务处理 |
 | 真实楼梯执行控制器调参仍未覆盖 | Phase 4E 已补 phase-aware `/stair_exec` fixture、wheel lock/body-height/release 诊断和 leg hold outlet，但仍不覆盖物理楼梯运动学 | 后续 dedicated stair trajectory / gait tuning 任务处理 |
 | ROS discovery/lifecycle 偶发等待 | 曾有一次 Phase 4B 回归中 `route_server` 进程已启动但 lifecycle service 未被发现；换新 domain 复跑通过 | 先清理残留并换新 `ROS_DOMAIN_ID` 复跑；若复现，再单独加 discovery 诊断 |
 | Mission real-flat verifier 的 Nav2 lifecycle 偶发 configure 超时 | 2026-05-04 一次运行卡在 `bt_navigator/change_state` response timeout，外层症状是 `controller_server_lifecycle: inactive [2]`；清理 orphaned sim/perception/FAST-LIO/Nav2 进程后同一 verifier 在新 domain 通过 | 先读 evidence dir 中的 `nav2.log`，确认是否 lifecycle/RMW 超时；清理残留并换新 domain 复跑。若反复复现，再单独硬化 verifier cleanup / lifecycle diagnostics，不要直接改 mission API |
+| 重门禁并跑会制造假故障 | `verify_go2w_control_chain_regression.sh` 和 `verify_go2w_mission_real_flat_execution.sh` 同时运行时，曾出现 `mission_recovery_resume` timeout 和 `diff_drive_enable_odom_tf: FAIL_NO_PARAM`，但两个脚本在清理干净后串行重跑都恢复为 PASS | 这类 heavyweight ROS / Gazebo verifier 以后默认串行跑，不要并发；若必须并跑，先显式说明资源压力风险并准备单独的复验窗口 | 已记录 |
 | 没有 `map -> odom` 定位融合链 | Phase 3A 有意运行在 `odom`，Phase 3C 只提供 `map` 资产 | 后续定位/地图服务任务单再引入 |

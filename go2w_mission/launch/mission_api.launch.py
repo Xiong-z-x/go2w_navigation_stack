@@ -23,6 +23,9 @@ def generate_launch_description():
     mission_orchestrator_state_file = LaunchConfiguration(
         "mission_orchestrator_state_file"
     )
+    mission_queue_replay_state_file = LaunchConfiguration(
+        "mission_queue_replay_state_file"
+    )
     mission_retry_limit = LaunchConfiguration("mission_retry_limit")
     mission_retry_backoff_sec = LaunchConfiguration("mission_retry_backoff_sec")
     mission_recovery_enabled = LaunchConfiguration("mission_recovery_enabled")
@@ -96,6 +99,11 @@ def generate_launch_description():
             "mission_orchestrator_state_file",
             default_value="",
             description="Optional persistent mission orchestrator state file path.",
+        ),
+        DeclareLaunchArgument(
+            "mission_queue_replay_state_file",
+            default_value="",
+            description="Optional persistent mission queue replay state file path.",
         ),
         DeclareLaunchArgument(
             "mission_retry_limit",
@@ -204,6 +212,8 @@ def generate_launch_description():
                 mission_state_file,
                 "--mission-orchestrator-state-file",
                 mission_orchestrator_state_file,
+                "--mission-queue-replay-state-file",
+                mission_queue_replay_state_file,
                 "--mission-retry-limit",
                 mission_retry_limit,
                 "--mission-retry-backoff-sec",

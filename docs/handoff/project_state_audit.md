@@ -4,7 +4,7 @@
 - 当前正式阶段仍是 `Phase 4 accepted`，但仓库已经补上多个 post-Phase-4 hardening gate。
 - 当前最可信的事实源仍是 `docs/architecture/system_blueprint.md`、`docs/architecture/interface_contracts.md` 和 `docs/architecture/architecture_state.md`。
 - 当前没有证据表明完整 production Mission Orchestrator、真实机器人运动上的稳定 `nav2_route` route tracking、真实楼梯动力学、`map_server` / AMCL / `map -> odom`、elevation mapping、traversability 或 automatic connector generation 已完成。
-- production Mission Orchestrator 的当前窄范围已完成到 bounded FIFO queueing 与 operator control service；共享 flat pose helper、bounded FIFO queueing、mission real-flat runtime gate 和 operator-state snapshot 均有 fresh evidence。它仍不等于完整 production Mission Orchestrator。
+- production Mission Orchestrator 的当前窄范围已完成到 bounded FIFO queueing、operator control service 与 operator-triggered durable queue replay；共享 flat pose helper、bounded FIFO queueing、mission real-flat runtime gate、operator-state snapshot 和 queue replay ledger 均有 fresh evidence。它仍不等于完整 production Mission Orchestrator。
 - 阶段结论必须由代码、配置、脚本、测试和 runtime evidence 交叉验证，不允许只看计划、注释或旧日志。
 
 ## 状态判定规则
@@ -54,8 +54,9 @@
 | Post-Phase-4 real-model baseline | 真实 Go2W 模型、四 foot wheel controller、leg controller、站立初始化 | 已完成 | `docs/verification/go2w_real_model_motion_mode_baseline.md`、`tools/verify_go2w_real_model_baseline.sh` | 这是 opt-in 基线，不是默认仿真替换。 |
 | Post-Phase-4 real-model route-following | 短 `NavigateToPose` 同层 smoke + dedicated hardening | 已完成 | `docs/verification/go2w_real_model_route_following.md`、`tools/verify_go2w_real_model_route_following.sh` | 这是 opt-in regression candidate，不是 production route tracking。 |
 | Post-Phase-4 mission flat execution | `RunMission` flat-only segment 接真实 Nav2 `/navigate_to_pose` | 已完成 | `docs/verification/go2w_mission_real_flat_execution.md`、`tools/verify_go2w_mission_real_flat_execution.sh` | 证明 mission flat gate 可绕过 verifier-only flat executor。 |
-| Post-Phase-4 mission scheduling policy | `RunMission` bounded FIFO queueing、queue-full reject、queued cancel | 已完成 | `docs/verification/mission_api_scheduling_policy.md`、`tools/verify_mission_api_scheduling_policy.sh` | 仍不是 durable queue replay backend。 |
-| Post-Phase-4 mission operator control | `MissionControl` pause/resume/status/cancel_active、operator-state snapshot | 已完成 | `docs/verification/mission_api_orchestrator_control.md`、`tools/verify_mission_api_orchestrator_control.sh` | 仍不是 durable queue replay backend 或 priority scheduling。 |
+| Post-Phase-4 mission scheduling policy | `RunMission` bounded FIFO queueing、queue-full reject、queued cancel | 已完成 | `docs/verification/mission_api_scheduling_policy.md`、`tools/verify_mission_api_scheduling_policy.sh` | 仍不是 priority scheduling。 |
+| Post-Phase-4 mission operator control | `MissionControl` pause/resume/status/cancel_active、operator-state snapshot | 已完成 | `docs/verification/mission_api_orchestrator_control.md`、`tools/verify_mission_api_orchestrator_control.sh` | 仍不是 priority scheduling 或完整长期任务管理。 |
+| Post-Phase-4 mission queue replay | outstanding queue record ledger、replay-pending admission gate、`MissionControl replay_queue` | 已完成 | `docs/verification/mission_api_queue_replay.md`、`tools/verify_mission_api_queue_replay.sh` | 是 operator-triggered queue replay，不是 action goal-handle resurrection 或 priority scheduling。 |
 | Phase 4E stair fixture | phase-aware `/stair_exec` fixture、wheel lock、body height transition、leg hold/release | 已完成 | `docs/verification/phase4e_stair_fixture.md`、`tools/verify_phase4e_stair_fixture.sh` | 仍是 control skeleton，不是实机楼梯动力学。 |
 | Phase 4E mission recovery | JSON checkpoint、same-goal resume、有限 retry | 已完成 | `docs/verification/phase4e_mission_recovery.md`、`tools/verify_phase4e_mission_recovery.sh` | 是 production-style recovery skeleton，不是完整调度器。 |
 | Stable control-chain regression wrapper | real-model baseline + stair fixture + mission recovery + stair tuning smoke | 已完成 | `docs/verification/go2w_control_chain_regression.md`、`tools/verify_go2w_control_chain_regression.sh` | 保持 conservative 门禁，不包含 route-following smoke。 |
@@ -66,13 +67,13 @@
 - Phase 4 迁移前交接包已集中化，新的接手入口不再散落在历史计划里。
 - Phase 4A / 4B / 4C / 4D / 4 runtime gates 都已经形成可重复验证链。
 - 真实 Go2W 模型、motion-mode baseline、route-following smoke、mission real flat gate、Phase 4E stair fixture 和 mission recovery 都已经补齐。
-- Mission API 并发 goal 的 bounded FIFO scheduling policy 已经接入，one-active-plus-one-queued 时可返回 `MISSION_BUSY` / `mission_queue_full` 或 `MISSION_CANCELED` / `mission_queue_canceled`；控制面还额外提供 `MissionControl` pause/resume/status/cancel_active，避免两个 `RunMission` 同时竞争同一个 JSON state file，同时不把队列误当成 durable queue replay backend。
+- Mission API 并发 goal 的 bounded FIFO scheduling policy 已经接入，one-active-plus-one-queued 时可返回 `MISSION_BUSY` / `mission_queue_full` 或 `MISSION_CANCELED` / `mission_queue_canceled`；控制面还额外提供 `MissionControl` pause/resume/status/cancel_active/replay_queue，避免两个 `RunMission` 同时竞争同一个 JSON state file，并新增 operator-triggered durable queue replay ledger。
 - Mission flat goal 的姿态转换已统一到共享 `mission_pose` helper，mission API 和 Phase 4B runtime 不再在 yaw 处理上分叉。
 - Mission real flat gate 之前的 yaw 丢失问题已经修复，并回写到 `docs/verification/go2w_mission_real_flat_execution.md`。
-- Production Mission Orchestrator scheduling / control 的当前窄范围已完成：`mission_api.py` 和 `phase4b_mission_runtime.py` 共用 `mission_pose`，bounded FIFO queueing 有 focused unit test，`MissionControl` 控制面有 focused unit test，`tools/verify_go2w_mission_real_flat_execution.sh` 在 clean-domain rerun 中通过。
+- Production Mission Orchestrator scheduling / control / queue replay 的当前窄范围已完成：`mission_api.py` 和 `phase4b_mission_runtime.py` 共用 `mission_pose`，bounded FIFO queueing 有 focused unit test，`MissionControl` 控制面有 focused unit test，queue replay ledger 有 focused unit test 和 `tools/verify_mission_api_queue_replay.sh`，`tools/verify_go2w_mission_real_flat_execution.sh` 在 clean-domain rerun 中通过。
 
 ## 未解决事项
-- 生产级 Mission Orchestrator 仍未完成，但 bounded FIFO queueing 和 operator control service 已经落地。
+- 生产级 Mission Orchestrator 仍未完成，但 bounded FIFO queueing、operator control service 和 operator-triggered durable queue replay 已经落地。
 - 真实机器人运动上的稳定 `nav2_route` route tracking 仍未完成。
 - 真实楼梯动力学、gait tuning、wheel lock/body-height 的物理控制仍未完成。
 - 默认仿真基线切换到 real-model 仍未批准。
@@ -110,7 +111,7 @@
 - 环境 / 依赖缺口：real-model 仍是 opt-in，Gazebo GPU 也仍不是接受合同。
 
 最值得优先推进的 3 个问题：
-1. Production Mission Orchestrator remaining slice：只补 durable queue replay / priority scheduling 中的一个最小闭环。
+1. Production Mission Orchestrator remaining slice：只补 priority scheduling 或长期任务管理中的一个最小闭环。
 2. 真实楼梯控制和 gait / body-height / wheel-lock 调参，但必须单独成题，不和 mission 调度混在一起。
 3. 真实 `nav2_route` robot-motion route tracking 的独立验证和门禁化。
 

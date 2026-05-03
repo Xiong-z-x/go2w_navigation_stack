@@ -12,7 +12,15 @@ from go2w_mission.mission_orchestrator import (
     MissionOrchestratorStateStore,
     build_initial_orchestrator_state,
 )
+from go2w_mission.mission_queue_replay import (
+    QUEUED_STATE,
+    MissionQueueRecord,
+    MissionQueueReplayState,
+    MissionQueueReplayStateStore,
+    build_initial_queue_replay_state,
+)
 from go2w_mission.mission_scheduler import MissionScheduleGate
+from go2w_mission.mission_recovery import build_mission_key
 from go2w_mission.phase4b_mission_segments import MissionSegment
 
 
@@ -85,6 +93,11 @@ def _build_runtime(monkeypatch, tmp_path: Path):
     runtime.mission_recovery_enabled = False
     runtime.flat_behavior_tree = "success"
     runtime.mission_scheduler = MissionScheduleGate(capacity=2)
+    runtime.queue_replay_state_store = SimpleNamespace(
+        save=lambda state: None,
+    )
+    runtime.queue_replay_state = build_initial_queue_replay_state(2)
+    runtime._queue_replay_lock = threading.Lock()
     runtime.orchestrator_state_store = SimpleNamespace(
         save=lambda state: None,
     )
@@ -539,3 +552,141 @@ def test_mission_api_operator_cancel_active_goal(
     assert "value" in result_box
     assert result_box["value"]["result_code"] == "MISSION_CANCELED"
     assert result_box["value"]["message"] == "mission_operator_canceled"
+
+
+def test_queue_replay_store_round_trips_records(tmp_path: Path) -> None:
+    state_file = tmp_path / "mission_queue_replay.json"
+    store = MissionQueueReplayStateStore(state_file)
+    record = MissionQueueRecord(
+        mission_key="100->202:map:graph:deadbeef",
+        ticket=0,
+        queue_position=1,
+        state=QUEUED_STATE,
+        start_id=100,
+        goal_id=202,
+        graph_file="go2w_navigation/graphs/phase3c_hospital_multifloor_route.geojson",
+        route_frame_id="map",
+        expected_stair_duration_sec=0.3,
+        result_timeout_sec=4.0,
+        flat_result_timeout_sec=4.0,
+        last_command="ADMIT",
+        last_message="ticket=0 queued=True",
+        admitted_at=1234.5,
+        updated_at=1234.5,
+    )
+    state = MissionQueueReplayState(
+        queue_replay_pending=True,
+        queue_capacity=2,
+        next_ticket=1,
+        records=(record,),
+        last_command="BOOT",
+        last_message="queue_replay_pending",
+        updated_at=1234.5,
+    )
+
+    store.save(state)
+    loaded = store.load()
+
+    assert loaded == state
+    assert loaded is not None
+    assert loaded.summary().startswith("replay=PENDING")
+
+    store.clear()
+    assert store.load() is None
+
+
+def test_mission_api_replay_queue_restores_pending_record(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    runtime, graph_file = _build_runtime(monkeypatch, tmp_path)
+    mission_key = build_mission_key(
+        start_id=100,
+        goal_id=202,
+        graph_file=str(graph_file),
+        route_frame_id="map",
+    )
+    record = MissionQueueRecord(
+        mission_key=mission_key,
+        ticket=0,
+        queue_position=1,
+        state=QUEUED_STATE,
+        start_id=100,
+        goal_id=202,
+        graph_file=str(graph_file),
+        route_frame_id="map",
+        expected_stair_duration_sec=0.3,
+        result_timeout_sec=4.0,
+        flat_result_timeout_sec=4.0,
+        last_command="ADMIT",
+        last_message="ticket=0 queued=True",
+        admitted_at=1234.5,
+        updated_at=1234.5,
+    )
+    runtime.queue_replay_state = MissionQueueReplayState(
+        queue_replay_pending=True,
+        queue_capacity=2,
+        next_ticket=1,
+        records=(record,),
+        last_command="BOOT",
+        last_message="queue_replay_pending",
+        updated_at=1234.5,
+    )
+
+    reserve_calls = {"count": 0}
+    original_reserve = runtime.mission_scheduler.reserve
+
+    def reserve_spy():
+        reserve_calls["count"] += 1
+        return original_reserve()
+
+    runtime.mission_scheduler.reserve = reserve_spy
+
+    execute_calls = {"count": 0}
+
+    def fake_execute_segments(
+        goal_handle,
+        graph,
+        goal_spec,
+        segments,
+        *,
+        mission_key: str,
+        segment_summary: str,
+        start_index: int,
+        route_edge_ids: tuple[int, ...],
+    ):
+        execute_calls["count"] += 1
+        return {
+            "success": True,
+            "result_code": "MISSION_SUCCEEDED",
+            "message": "mission_succeeded",
+            "current_segment_index": len(segments) - 1 if segments else 0,
+            "current_segment_type": segments[-1].segment_type if segments else "",
+            "active_owner": "flat",
+            "next_segment_index": len(segments),
+            "retry_count": 0,
+        }
+
+    monkeypatch.setattr(runtime, "_execute_segments", fake_execute_segments)
+
+    pending_goal = _make_goal_handle(graph_file, start_id=100, goal_id=202)
+    pending_result = runtime.execute(pending_goal)
+
+    assert pending_result["result_code"] == "MISSION_BUSY"
+    assert pending_result["message"] == "mission_queue_replay_pending"
+
+    replay_result = runtime.handle_orchestrator_command("replay_queue", "operator_replay")
+    assert replay_result["accepted"] is True
+    assert replay_result["message"] == "queue_replayed"
+    assert "replay=ACKED" in replay_result["state_summary"]
+    assert runtime.queue_replay_state.queue_replay_pending is False
+    assert runtime.mission_scheduler.snapshot().queued_tickets == (0,)
+
+    replayed_goal = _make_goal_handle(graph_file, start_id=100, goal_id=202)
+    replayed_result = runtime.execute(replayed_goal)
+
+    assert reserve_calls["count"] == 0
+    assert execute_calls["count"] == 1
+    assert replayed_result["result_code"] == "MISSION_SUCCEEDED"
+    assert replayed_result["message"] == "mission_succeeded"
+    assert runtime.queue_replay_state.record_count == 0

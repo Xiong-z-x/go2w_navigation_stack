@@ -19,8 +19,9 @@ The control slice is intentionally narrow:
 - `cancel_active` cooperatively interrupts the active mission through the
   existing mission execution checks.
 
-This is still not a durable queue replay backend, priority scheduler, or full
-long-lived production Mission Orchestrator.
+This control slice is still not a priority scheduler or full long-lived
+production Mission Orchestrator. Durable queue replay is covered separately in
+`docs/verification/mission_api_queue_replay.md`.
 
 ## Implemented Runtime Surface
 - `go2w_mission.mission_orchestrator.MissionOrchestratorStateStore` persists the
@@ -81,8 +82,8 @@ Summary: 47 tests, 0 errors, 0 failures, 0 skipped
 ```
 
 ## Open Validation Items
-- This verifies operator control and persistent operator state, not durable
-  queue replay across process restarts.
+- This verifies operator control and persistent operator state. Durable queue
+  replay is covered separately in `docs/verification/mission_api_queue_replay.md`.
 - This does not add priority scheduling.
 - The active mission cancellation is cooperative through the existing mission
   execution checks, not a preemptive hard stop.

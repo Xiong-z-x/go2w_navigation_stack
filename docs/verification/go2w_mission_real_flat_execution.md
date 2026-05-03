@@ -140,6 +140,44 @@ inactive [2]
   inspect `nav2.log`, clear residual processes, and rerun in a clean domain before
   changing mission or route graph code.
 
+## Serial Rerun After Concurrent Heavy Verifier
+- Date: `2026-05-04T03:05+08:00`
+- Command:
+
+```bash
+./tools/verify_go2w_mission_real_flat_execution.sh
+```
+
+- Evidence directory:
+
+```text
+/tmp/go2w_mission_real_flat_execution_33491
+```
+
+- Result:
+
+```text
+go2w_mission_real_flat_execution_result: PASS
+```
+
+- Key result lines:
+
+```text
+mission_real_flat_goal_status: SUCCEEDED
+mission_real_flat_goal_result_code: MISSION_SUCCEEDED
+mission_real_flat_segment_summary: flat:10
+mission_real_flat_cmd_vel_nonzero_count: 15
+mission_real_flat_execution_result: PASS
+post_mission_map_odom: ABSENT
+post_mission_odom_base_link_authority: PRESENT
+go2w_mission_real_flat_execution_result: PASS
+```
+
+- This rerun passed after the control-chain wrapper had been run separately,
+  confirming the earlier `FAIL_NO_PARAM` symptom was a heavy-verifier
+  concurrency flake. Keep this verifier serialized with the other heavyweight
+  Gazebo jobs.
+
 ## Verified Facts
 - Real-model controllers reached `active`.
 - `/clock`, `/imu`, `/lidar_points`, and `/joint_states` produced messages.
@@ -214,5 +252,9 @@ go2w_mission_real_flat_execution_result: PASS
 - The real Go2W path remains opt-in and does not replace the default
   `sim.launch.py` placeholder baseline.
 - Stair traversal and real stair dynamics remain open.
-- Production Mission Orchestrator durable queue replay, priority scheduling,
-  and long-term task state remain open.
+- Production Mission Orchestrator priority scheduling and long-term task state
+  remain open; durable queue replay is covered separately in
+  `docs/verification/mission_api_queue_replay.md`.
+- Do not run this verifier in parallel with
+  `verify_go2w_control_chain_regression.sh`; the shared ROS/Gazebo runtime can
+  produce false timeout / parameter-discovery flakes under combined load.

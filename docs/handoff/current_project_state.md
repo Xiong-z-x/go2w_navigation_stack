@@ -61,8 +61,10 @@ Gazebo GPU rendering 不是当前验收合同。RViz 可单独使用 WSLg/NVIDIA
   现已额外提供 opt-in `RunMission` Action skeleton / mission API verifier，用于
   route segmentation、flat/stair dispatch、bounded FIFO queueing、queue-full /
   queued-cancel diagnostics 和诊断结果码；当前 mission API 又新增 JSON checkpoint
-  持久化、同一 mission goal resume、有限 retry，以及 opt-in real-model flat-only
-  execution gate。该 gate 在不启动 `go2w_flat_nav_executor` 的情况下把 mission flat
+  持久化、同一 mission goal resume、有限 retry、operator-state snapshot、
+  `MissionControl` pause/resume/status/cancel_active/replay_queue 控制面、
+  durable queue replay ledger，以及 opt-in real-model flat-only execution gate。
+  该 gate 在不启动 `go2w_flat_nav_executor` 的情况下把 mission flat
   segment 送到真实 Nav2 `/navigate_to_pose`，并通过共享 `mission_pose` helper 保留
   route graph 的目标 yaw。它仍不是完整 production Mission Orchestrator。
 
@@ -111,6 +113,11 @@ Gazebo GPU rendering 不是当前验收合同。RViz 可单独使用 WSLg/NVIDIA
   `mission_queue_full`，queued goal 可在激活前取消返回 `MISSION_CANCELED` /
   `mission_queue_canceled`，避免两个 mission 实例同时竞争单一 JSON state file，
   但也不把队列误写成 persistent backend。
+- Mission API durable queue replay：通过 `tools/verify_mission_api_queue_replay.sh`
+  验证 outstanding queue records 会写入 JSON replay ledger；重启待 replay 状态下新
+  mission 会返回 `MISSION_BUSY` / `mission_queue_replay_pending`；operator 通过
+  `MissionControl replay_queue` 显式恢复 scheduler ticket order 后，匹配的同一
+  mission key 可复用持久化 queue record。该能力仍不是 priority scheduling 或完整长期任务管理。
 - Phase 4E real-model stair fixture：通过 `tools/verify_phase4e_stair_fixture.sh`
   验证 opt-in real-model fixture 中 `/stair_exec` Action 成功、command gate
   `flat/wheeled -> stair/legged -> flat/wheeled`、阶段化 stair executor 状态、
@@ -138,8 +145,8 @@ Gazebo GPU rendering 不是当前验收合同。RViz 可单独使用 WSLg/NVIDIA
   复现后通过候选选择、goal tolerance 和 stale-process cleanup 收口，并取得 3 次
   clean-domain 连续 PASS。它是 opt-in regression 候选，但还不是 production
   `nav2_route` route tracking，也未自动纳入 stable control-chain wrapper。
-- `go2w_mission` 的 `RunMission` 已有 checkpoint/retry/resume skeleton、bounded FIFO queueing、持久化 operator-state snapshot backend，以及 `MissionControl` pause/resume/status/cancel_active 控制面；mission flat goal 的姿态转换已统一到共享 `mission_pose` helper，但仍不是完整 production Mission Orchestrator。
-- 未实现完整 production Mission Orchestrator 的 durable queue replay、优先级调度和长期任务管理。
+- `go2w_mission` 的 `RunMission` 已有 checkpoint/retry/resume skeleton、bounded FIFO queueing、持久化 operator-state snapshot backend、`MissionControl` pause/resume/status/cancel_active/replay_queue 控制面，以及 operator-triggered durable queue replay ledger；mission flat goal 的姿态转换已统一到共享 `mission_pose` helper，但仍不是完整 production Mission Orchestrator。
+- 未实现完整 production Mission Orchestrator 的优先级调度和长期任务管理。
 - Phase 4C-min 的 flat executor 仍作为 deterministic verifier skeleton 保留；mission API
   现在已有 opt-in real-model flat-only gate 可绕过该 skeleton 并调用真实 Nav2
   `/navigate_to_pose`。
@@ -153,19 +160,20 @@ Gazebo GPU rendering 不是当前验收合同。RViz 可单独使用 WSLg/NVIDIA
 - 未实现 elevation mapping / traversability / automatic stair detection。
 
 ## 后续项目改进的直接起点
-本轮 production Mission Orchestrator scheduling policy 的窄范围已完成：mission flat
+本轮 production Mission Orchestrator durable queue replay 的窄范围已完成：mission flat
 pose conversion 已集中到共享 `mission_pose` helper，`RunMission` 现在采用 bounded FIFO
 queueing，queue-full 与 queued-cancel 诊断可重复验证，mission real-model flat gate
-已完成 fresh runtime 复验，且 mission control service / operator-state snapshot 也已接入并验证。
+已完成 fresh runtime 复验，mission control service / operator-state snapshot 已接入并验证，
+且 outstanding queue records 现在可通过 operator-triggered replay ledger 持久化与恢复。
 
 下一轮项目改进建议改为单主题 production Mission Orchestrator 的剩余子项：
 
-- 在现有 `RunMission` checkpoint/retry/resume skeleton、bounded FIFO queueing 和
-  operator control service 基础上，优先补 durable queue replay 或 priority scheduling 中的
-  一个最小闭环，不要一次做全量 production 调度系统。
-- Mission API 现在已有 bounded FIFO queueing 和 operator control service；后续如果要真正
-  durable replay 或 priority scheduling，必须另开完整任务单，不要沿着当前 skeleton
-  直接扩展成隐式后端。
+- 在现有 `RunMission` checkpoint/retry/resume skeleton、bounded FIFO queueing、
+  operator control service 和 durable queue replay 基础上，下一步优先补
+  priority scheduling 或长期任务管理中的一个最小闭环，不要一次做全量 production 调度系统。
+- Mission API 现在已有 bounded FIFO queueing、operator control service 和 operator-triggered
+  durable replay；后续如果要 priority scheduling，必须另开完整任务单，不要沿着当前 skeleton
+  直接扩展成隐式优先级后端。
 - 保持 mission flat execution 的双路径：Phase 4C verifier skeleton 用于 deterministic
   诊断，opt-in real-model flat gate 用于真实 Nav2 flat motion 证据。
 - 不允许顺带切换默认仿真基线、重构 perception TF、做 stair dynamics、引入

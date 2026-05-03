@@ -70,6 +70,7 @@ Summary: 104 tests, 0 errors, 0 failures, 0 skipped
 
 ## Open Validation Items
 - This verifies bounded queueing, not a complete production Mission Orchestrator.
-- This does not add durable queue replay or priority scheduling.
+- This does not add priority scheduling. Durable queue replay is covered
+  separately in `docs/verification/mission_api_queue_replay.md`.
 - The bounded queue remains an in-memory scheduling policy layered on top of the existing
   mission execution path.

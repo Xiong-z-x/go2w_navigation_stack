@@ -62,6 +62,33 @@ class MissionScheduleGate:
                 queued=queue_position > 1,
             )
 
+    def restore(
+        self,
+        *,
+        active_ticket: int | None,
+        queued_tickets: tuple[int, ...],
+        next_ticket: int | None = None,
+    ) -> None:
+        with self._condition:
+            filtered_queue = tuple(
+                ticket for ticket in queued_tickets if ticket != active_ticket
+            )
+            self._queue = deque(filtered_queue)
+            self._active_ticket = active_ticket if active_ticket is not None and active_ticket >= 0 else None
+            restored_candidates = [ticket for ticket in filtered_queue]
+            if self._active_ticket is not None:
+                restored_candidates.append(self._active_ticket)
+            if next_ticket is None:
+                if restored_candidates:
+                    self._next_ticket = max(self._next_ticket, max(restored_candidates) + 1)
+            else:
+                self._next_ticket = max(
+                    self._next_ticket,
+                    int(next_ticket),
+                    (max(restored_candidates) + 1) if restored_candidates else 0,
+                )
+            self._condition.notify_all()
+
     def wait_for_turn(
         self,
         ticket: int,

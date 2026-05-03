@@ -22,6 +22,15 @@ from go2w_mission.mission_orchestrator import (
     build_initial_orchestrator_state,
     sanitize_orchestrator_state_for_runtime,
 )
+from go2w_mission.mission_queue_replay import (
+    ACTIVE_STATE,
+    QUEUED_STATE,
+    MissionQueueRecord,
+    MissionQueueReplayState,
+    MissionQueueReplayStateStore,
+    build_initial_queue_replay_state,
+    sanitize_queue_replay_state_for_runtime,
+)
 from go2w_mission.mission_recovery import (
     MissionCheckpoint,
     MissionStateStore,
@@ -31,6 +40,7 @@ from go2w_mission.mission_recovery import (
     should_resume_checkpoint,
 )
 from go2w_mission.mission_scheduler import MissionScheduleGate
+from go2w_mission.mission_scheduler import MissionQueueAdmission
 
 
 EMPTY_FLAT_BEHAVIOR_TREE_SENTINEL = "__empty__"
@@ -116,6 +126,7 @@ class MissionApiRuntime:
         stair_exec_action: str,
         mission_state_file: str,
         mission_orchestrator_state_file: str,
+        mission_queue_replay_state_file: str,
         mission_retry_limit: int,
         mission_retry_backoff_sec: float,
         mission_recovery_enabled: bool,
@@ -174,6 +185,33 @@ class MissionApiRuntime:
                 updated_at=time.time(),
             )
         )
+        queue_replay_state_path = (
+            Path(mission_queue_replay_state_file).expanduser()
+            if mission_queue_replay_state_file.strip()
+            else MissionQueueReplayStateStore.default_path()
+        )
+        self.queue_replay_state_store = MissionQueueReplayStateStore(
+            queue_replay_state_path
+        )
+        loaded_queue_replay_state = self.queue_replay_state_store.load()
+        if loaded_queue_replay_state is None:
+            self.queue_replay_state = build_initial_queue_replay_state(
+                mission_queue_capacity
+            )
+        else:
+            self.queue_replay_state = sanitize_queue_replay_state_for_runtime(
+                loaded_queue_replay_state,
+                queue_capacity=mission_queue_capacity,
+            )
+        if self.queue_replay_state.record_count > 0:
+            self.queue_replay_state = self.queue_replay_state.with_updates(
+                queue_replay_pending=True,
+                last_command="BOOT",
+                last_message="queue_replay_pending",
+                updated_at=time.time(),
+            )
+        self.queue_replay_state_store.save(self.queue_replay_state)
+        self._queue_replay_lock = threading.Lock()
         self._mission_lock = threading.Lock()
         loaded = self.state_store.load()
         if loaded is not None:
@@ -183,9 +221,13 @@ class MissionApiRuntime:
                 f"next_segment_index={loaded.next_segment_index} "
                 f"result_code={loaded.result_code}"
             )
+            self.node.get_logger().info(
+                "mission_orchestrator_loaded: "
+                f"{self.orchestrator_state.summary()}"
+            )
         self.node.get_logger().info(
-            "mission_orchestrator_loaded: "
-            f"{self.orchestrator_state.summary()}"
+            "mission_queue_replay_loaded: "
+            f"{self.queue_replay_state.summary()}"
         )
 
     def _admit_mission_slot(self) -> bool:
@@ -241,19 +283,49 @@ class MissionApiRuntime:
                 segment_summary="",
             )
 
-        admission = self.mission_scheduler.reserve()
-        if not admission.accepted:
+        queue_replay_state = self._queue_replay_state_snapshot()
+        if queue_replay_state.queue_replay_pending:
             self.node.get_logger().info(
-                "mission_busy: mission_queue_full"
+                "mission_queue_replay_pending: "
+                f"key={mission_key} state={queue_replay_state.summary()}"
             )
             return self._finish(
                 goal_handle,
                 success=False,
                 result_code="MISSION_BUSY",
-                message="mission_queue_full",
+                message="mission_queue_replay_pending",
                 segment_count=0,
                 segment_summary="",
             )
+
+        replay_record = queue_replay_state.find_record(mission_key)
+        if replay_record is not None:
+            admission = MissionQueueAdmission(
+                accepted=True,
+                ticket=replay_record.ticket,
+                queue_position=replay_record.queue_position,
+                queued=replay_record.state == QUEUED_STATE,
+            )
+            self.node.get_logger().info(
+                "mission_queue_replayed: "
+                f"key={mission_key} ticket={admission.ticket} "
+                f"queue_position={admission.queue_position} "
+                f"state={replay_record.state}"
+            )
+        else:
+            admission = self.mission_scheduler.reserve()
+            if not admission.accepted:
+                self.node.get_logger().info(
+                    "mission_busy: mission_queue_full"
+                )
+                return self._finish(
+                    goal_handle,
+                    success=False,
+                    result_code="MISSION_BUSY",
+                    message="mission_queue_full",
+                    segment_count=0,
+                    segment_summary="",
+                )
 
         mission_lock_acquired = False
         active_mission_registered = False
@@ -268,6 +340,20 @@ class MissionApiRuntime:
                 ),
                 queue_snapshot=self.mission_scheduler.snapshot(),
             )
+            if replay_record is None:
+                self._upsert_queue_record(
+                    self._queue_record_for_goal(
+                        mission_key=mission_key,
+                        ticket=admission.ticket,
+                        queue_position=admission.queue_position,
+                        goal_spec=goal_spec,
+                        state=QUEUED_STATE,
+                        last_command="ADMIT",
+                        last_message=(
+                            f"ticket={admission.ticket} queued={admission.queued}"
+                        ),
+                    )
+                )
             if admission.queued:
                 self.node.get_logger().info(
                     "mission_queued: "
@@ -284,6 +370,11 @@ class MissionApiRuntime:
                 can_activate=lambda: not self._orchestrator_is_paused(),
                 poll_timeout_sec=0.1,
             ):
+                self._remove_queue_record(
+                    mission_key,
+                    last_command="CANCEL",
+                    last_message="mission_queue_canceled",
+                )
                 self.node.get_logger().info(
                     "mission_queue_canceled: "
                     f"key={mission_key} ticket={admission.ticket}"
@@ -318,6 +409,17 @@ class MissionApiRuntime:
                 last_message="mission_active",
             )
             active_mission_registered = True
+            self._upsert_queue_record(
+                self._queue_record_for_goal(
+                    mission_key=mission_key,
+                    ticket=admission.ticket,
+                    queue_position=admission.queue_position,
+                    goal_spec=goal_spec,
+                    state=ACTIVE_STATE,
+                    last_command="ACTIVE",
+                    last_message="mission_active",
+                )
+            )
 
             if self._mission_cancel_requested(goal_handle):
                 return self._finish(
@@ -587,6 +689,11 @@ class MissionApiRuntime:
                     last_command="COMPLETE",
                     last_message="mission_finished",
                 )
+                self._remove_queue_record(
+                    mission_key,
+                    last_command="COMPLETE",
+                    last_message="mission_finished",
+                )
             else:
                 self._save_orchestrator_state(
                     self.orchestrator_state.with_updates(
@@ -632,6 +739,107 @@ class MissionApiRuntime:
             self.orchestrator_state = state
             self.orchestrator_state_store.save(state)
             return state
+
+    def _queue_replay_state_snapshot(self) -> MissionQueueReplayState:
+        with self._queue_replay_lock:
+            return self.queue_replay_state
+
+    def _queue_replay_summary(self) -> str:
+        return self._queue_replay_state_snapshot().summary()
+
+    def _queue_replay_is_pending(self) -> bool:
+        return self._queue_replay_state_snapshot().queue_replay_pending
+
+    def _save_queue_replay_state(
+        self,
+        state: MissionQueueReplayState,
+    ) -> MissionQueueReplayState:
+        with self._queue_replay_lock:
+            self.queue_replay_state = state
+            self.queue_replay_state_store.save(state)
+            return state
+
+    def _queue_record_for_goal(
+        self,
+        *,
+        mission_key: str,
+        ticket: int,
+        queue_position: int,
+        goal_spec: MissionGoalSpec,
+        state: str,
+        last_command: str,
+        last_message: str,
+    ) -> MissionQueueRecord:
+        now = time.time()
+        return MissionQueueRecord(
+            mission_key=mission_key,
+            ticket=ticket,
+            queue_position=queue_position,
+            state=state,
+            start_id=goal_spec.start_id,
+            goal_id=goal_spec.goal_id,
+            graph_file=goal_spec.graph_file,
+            route_frame_id=goal_spec.route_frame_id,
+            expected_stair_duration_sec=goal_spec.expected_stair_duration_sec,
+            result_timeout_sec=goal_spec.result_timeout_sec,
+            flat_result_timeout_sec=goal_spec.flat_result_timeout_sec,
+            last_command=last_command,
+            last_message=last_message,
+            admitted_at=now,
+            updated_at=now,
+        )
+
+    def _upsert_queue_record(
+        self,
+        record: MissionQueueRecord,
+    ) -> MissionQueueReplayState:
+        updated_state = self._queue_replay_state_snapshot().upsert_record(
+            record
+        ).with_updates(
+            last_command=record.last_command,
+            last_message=record.last_message,
+            updated_at=time.time(),
+        )
+        if not updated_state.records:
+            updated_state = updated_state.with_updates(queue_replay_pending=False)
+        return self._save_queue_replay_state(updated_state)
+
+    def _remove_queue_record(
+        self,
+        mission_key: str,
+        *,
+        last_command: str,
+        last_message: str,
+    ) -> MissionQueueReplayState:
+        current_state = self._queue_replay_state_snapshot()
+        pruned_state = current_state.remove_record(mission_key)
+        updated_state = pruned_state.with_updates(
+            last_command=last_command,
+            last_message=last_message,
+            updated_at=time.time(),
+            queue_replay_pending=current_state.queue_replay_pending
+            if pruned_state.records
+            else False,
+        )
+        return self._save_queue_replay_state(updated_state)
+
+    def _restore_queue_replay_scheduler(self) -> None:
+        state = self._queue_replay_state_snapshot()
+        self.mission_scheduler.restore(
+            active_ticket=state.active_ticket if state.active_ticket >= 0 else None,
+            queued_tickets=state.queued_tickets,
+            next_ticket=state.next_ticket,
+        )
+
+    def _combined_state_summary(
+        self,
+        state: MissionOrchestratorState | None = None,
+    ) -> str:
+        current_state = state or self._orchestrator_state_snapshot()
+        return (
+            f"{current_state.summary()} "
+            f"queue_replay={self._queue_replay_summary()}"
+        )
 
     def _register_active_mission(
         self,
@@ -683,7 +891,7 @@ class MissionApiRuntime:
                 "accepted": True,
                 "mode": current_state.mode,
                 "message": "snapshot",
-                "state_summary": current_state.summary(),
+                "state_summary": self._combined_state_summary(current_state),
             }
 
         if normalized_command == "pause":
@@ -701,7 +909,7 @@ class MissionApiRuntime:
                 "accepted": True,
                 "mode": updated_state.mode,
                 "message": "mission_paused",
-                "state_summary": updated_state.summary(),
+                "state_summary": self._combined_state_summary(updated_state),
             }
 
         if normalized_command == "resume":
@@ -719,7 +927,7 @@ class MissionApiRuntime:
                 "accepted": True,
                 "mode": updated_state.mode,
                 "message": "mission_resumed",
-                "state_summary": updated_state.summary(),
+                "state_summary": self._combined_state_summary(updated_state),
             }
 
         if normalized_command == "cancel_active":
@@ -728,7 +936,7 @@ class MissionApiRuntime:
                     "accepted": False,
                     "mode": current_state.mode,
                     "message": "no_active_mission",
-                    "state_summary": current_state.summary(),
+                    "state_summary": self._combined_state_summary(current_state),
                 }
             self._operator_cancel_active.set()
             updated_state = self._save_orchestrator_state(
@@ -743,14 +951,57 @@ class MissionApiRuntime:
                 "accepted": True,
                 "mode": updated_state.mode,
                 "message": "operator_cancel_active_requested",
-                "state_summary": updated_state.summary(),
+                "state_summary": self._combined_state_summary(updated_state),
+            }
+
+        if normalized_command == "replay_queue":
+            queue_state = self._queue_replay_state_snapshot()
+            if not queue_state.records:
+                return {
+                    "accepted": False,
+                    "mode": current_state.mode,
+                    "message": "no_replay_records",
+                    "state_summary": self._combined_state_summary(current_state),
+                }
+            if not queue_state.queue_replay_pending:
+                return {
+                    "accepted": False,
+                    "mode": current_state.mode,
+                    "message": "queue_replay_not_pending",
+                    "state_summary": self._combined_state_summary(current_state),
+                }
+            self._restore_queue_replay_scheduler()
+            updated_queue_state = self._save_queue_replay_state(
+                queue_state.with_updates(
+                    queue_replay_pending=False,
+                    last_command="replay_queue",
+                    last_message=normalized_reason or "queue_replay_acknowledged",
+                    updated_at=time.time(),
+                )
+            )
+            updated_state = self._save_orchestrator_state(
+                current_state.with_updates(
+                    last_command="replay_queue",
+                    last_message=normalized_reason or "queue_replay_acknowledged",
+                    updated_at=time.time(),
+                ),
+                queue_snapshot=self.mission_scheduler.snapshot(),
+            )
+            return {
+                "accepted": True,
+                "mode": updated_state.mode,
+                "message": "queue_replayed",
+                "state_summary": (
+                    f"{updated_state.summary()} "
+                    f"queue_replay={updated_queue_state.summary()}"
+                ),
             }
 
         return {
             "accepted": False,
             "mode": current_state.mode,
             "message": "unsupported_command",
-            "state_summary": current_state.summary(),
+            "state_summary": self._combined_state_summary(current_state),
         }
 
     def _compute_route_edge_ids(
@@ -1298,6 +1549,7 @@ def parse_args(argv: list[str]) -> tuple[argparse.Namespace, list[str]]:
     parser.add_argument("--stair-exec-action", default="/stair_exec")
     parser.add_argument("--mission-state-file", default="")
     parser.add_argument("--mission-orchestrator-state-file", default="")
+    parser.add_argument("--mission-queue-replay-state-file", default="")
     parser.add_argument("--mission-retry-limit", type=int, default=2)
     parser.add_argument("--mission-retry-backoff-sec", type=float, default=0.5)
     parser.add_argument("--mission-recovery-enabled", type=_parse_bool, default=True)
@@ -1333,6 +1585,7 @@ def main(argv: list[str] | None = None) -> int:
                 stair_exec_action=args.stair_exec_action,
                 mission_state_file=args.mission_state_file,
                 mission_orchestrator_state_file=args.mission_orchestrator_state_file,
+                mission_queue_replay_state_file=args.mission_queue_replay_state_file,
                 mission_retry_limit=args.mission_retry_limit,
                 mission_retry_backoff_sec=args.mission_retry_backoff_sec,
                 mission_recovery_enabled=args.mission_recovery_enabled,

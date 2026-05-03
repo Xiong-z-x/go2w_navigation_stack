@@ -35,8 +35,8 @@
   route server、`NavigateToPose` verifier 和 `/stair_exec` skeleton，不是完整生产调度器。
 - 不要把 `RunMission` 的并发入队误判成可并行执行。当前 mission API 已是 bounded
   FIFO queueing；并发 goal 可能 queue、`MISSION_BUSY` / `mission_queue_full` 或
-  queued cancel，且现在还多了 operator-state snapshot 和 `MissionControl` 控制面，但这仍
-  不是 durable queue replay backend。
+  queued cancel，且现在还多了 operator-state snapshot、`MissionControl` 控制面和
+  operator-triggered durable queue replay ledger；这仍不是 priority scheduler 或完整长期任务管理器。
 - 不要把 mission runtime real-model flat execution gate 当成 production Mission
   Orchestrator。它已经把 flat segment 接到真实 Nav2 `/navigate_to_pose`，但仍只是
   opt-in flat-only gate，和完整生产调度器不是一回事。
@@ -113,9 +113,9 @@ Go2W real model / motion-mode baseline 已补上 opt-in 真实模型、四 foot 
 controller profile、`flat -> wheeled` / `stair -> legged` 状态和启动站立验证；
 Phase 4 accepted 已完成总验收；`RunMission` skeleton 也已完成并验证；Phase 4E
 又补上 real-model stair fixture、mission recovery checkpoint/resume、operator control
-service 和 opt-in real-model regression wrapper。后续最小任务必须另有完整任务单或当前
+service、operator-triggered durable queue replay 和 opt-in real-model regression wrapper。后续最小任务必须另有完整任务单或当前
 自主审批模式下的自批准任务单，当前最优先的单主题起点是 production Mission
-Orchestrator remaining slice（durable queue replay 或 priority scheduling）；后续再考虑
+Orchestrator remaining slice（priority scheduling 或长期任务管理）；后续再考虑
 真实 stair trajectory / gait tuning、Phase 5 terrain-aware connector discovery 或未来
 default real-model re-baseline。不要把下一步扩大为真实多楼层
 自主、自动楼梯检测、traversability 或 `map -> odom` 定位链。
@@ -190,11 +190,15 @@ default real-model re-baseline。不要把下一步扩大为真实多楼层
   搜索结果失真。安全做法是拆分关键词、用单引号包裹 pattern，或逐个转义反引号。
 - `task_plan.md`、`findings.md`、`progress.md` 是本地 agent 工作记忆，已被 `.gitignore`
   忽略。正式交接事实必须写入 `docs/handoff/*`、`docs/architecture/*` 或 `docs/verification/*`。
+- `verify_go2w_control_chain_regression.sh` 与
+  `verify_go2w_mission_real_flat_execution.sh` 不要并行跑；它们都是重型
+  ROS/Gazebo verifier，并发时会放大资源争用，出现假 timeout / 假 NO_PARAM。
+  先串行复验，除非明确要测并发鲁棒性。
 
 ## 后续项目改进起步顺序
-1. 当前窄范围 production Mission Orchestrator scheduling policy 已完成。下一步进入
-   production Mission Orchestrator remaining slice 时，只从 durable queue replay 或
-   优先级调度中选一个最小闭环落地。
+1. 当前窄范围 production Mission Orchestrator scheduling policy、operator control 和
+   durable queue replay 已完成。下一步进入 production Mission Orchestrator remaining
+   slice 时，只从 priority scheduling 或长期任务管理中选一个最小闭环落地。
 2. 再做 dedicated stair trajectory / wheel lock / body-height / gait tuning。
 3. 最后再进入 real-model default baseline 评估、Phase 5 elevation/traversability/
    automatic connector generation。
