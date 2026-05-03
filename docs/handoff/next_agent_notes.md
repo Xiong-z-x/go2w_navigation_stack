@@ -39,6 +39,9 @@
 - 不要把 mission runtime real-model flat execution gate 当成 production Mission
   Orchestrator。它已经把 flat segment 接到真实 Nav2 `/navigate_to_pose`，但仍只是
   opt-in flat-only gate，和完整生产调度器不是一回事。
+- 不要让 `go2w_mission` 的 flat goal pose conversion 在 `mission_api` 和
+  `phase4b_mission_runtime` 之间再次分叉；当前 canonical helper 是
+  `go2w_mission.mission_pose.pose_stamped_from_xy_yaw()`。
 - 不要把 Phase 4E real-model stair fixture 当成真实楼梯动力学。它只证明
   `/stair_exec` 在 opt-in real-model fixture 下能完成 phase-aware action 闭环、
   `flat/wheeled -> stair/legged -> flat/wheeled` 控制权交接、profile-limited

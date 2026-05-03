@@ -36,6 +36,7 @@
 | Mission real-flat verifier 的 route graph 容易在 perception settle 前变 stale | 先生成的 flat-only graph 会被后续 perception odom 漂移污染，导致把 route mismatch 误判成 Nav2 本体问题 | verifier 在 mission API ready 后重新生成并 `reload /route_server/set_route_graph`，然后立即发送 `RunMission` goal | 已修复 |
 | Mission flat-only fixture 误用了 node id `0` | mission API 对 node id `0` 的 goal 语义是无效输入，而不是可运行的最小 graph | 统一改用正整数 node id（例如 `100 -> 101`）作为 flat-only verification graph | 已修复 |
 | Mission flat goal 丢失了目标 yaw | `build_flat_goal_from_segment()` 只传 x/y，`_to_pose_stamped()` 又把朝向硬写成单位四元数，DWB 在 real-model flat gate 里更容易 abort | route graph 的 target node 写入 `yaw`，mission flat goal 从 graph 读取 yaw 并转换成四元数 | 已修复 |
+| Mission API 与 Phase 4B runtime 的 flat pose conversion 容易再次分叉 | 两处各自维护 `_to_pose_stamped()`，后续一旦有人只修其中一个就会重新引入 yaw 语义不一致 | 抽出共享 `go2w_mission.mission_pose` helper，让两条路径都通过同一处 yaw-to-quaternion 转换 | 已修复 |
 | 修改 mission / Nav2 源码后复跑却仍用旧 install space | `behavior_tree` 等 launch 参数和 Python entrypoint 会继续取旧 install 中的已生成产物 | 明确要求改动后先重建 affected packages 或确认 install space 非旧版本，再跑 real Nav2 / mission 验证 | 已修复 |
 | 宽 `pkill -f` 可能误杀当前 shell 或工作区调试进程 | 误把进程名或脚本名匹配到当前会话，导致验证过程自身被中断 | 收窄清理脚本的匹配范围，避免 broad `pkill -f`，并在注意文档中标注风险 | 已修复 |
 | 阶段完成度容易被计划 / 摘要 / 旧日志误报 | 旧计划、README 摘要、TODO 和旧日志容易被误读成 current fact，导致阶段完成度虚高 | 新增 `docs/handoff/project_state_audit.md`，并在 `AGENTS.md`、`architecture_state.md`、`next_agent_notes.md` 中固化四态判定规则 | 已修复 |

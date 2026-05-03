@@ -143,6 +143,9 @@ go2w_mission_real_flat_execution_result: PASS
   quaternion. The accepted fix preserves target yaw in the generated route
   graph and converts that yaw to a quaternion before sending
   `NavigateToPose`.
+- That pose conversion is now shared between `mission_api.py` and
+  `phase4b_mission_runtime.py` through `go2w_mission.mission_pose`, so the two
+  mission flat execution paths no longer drift on orientation handling.
 
 ## Open Validation Items
 - This verifies a flat-only mission fixture, not a complete flat/stair/flat

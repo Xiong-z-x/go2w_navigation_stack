@@ -3,6 +3,7 @@ import threading
 
 import pytest
 
+from go2w_mission import mission_api as mission_api_module
 from go2w_mission.mission_api import (
     MissionApiRuntime,
     MissionGoalSpec,
@@ -85,6 +86,43 @@ def test_mission_api_single_flight_admission_gate_is_non_blocking() -> None:
 
     assert runtime._admit_mission_slot() is True
     runtime._release_mission_slot()
+
+
+def test_mission_api_flat_pose_conversion_uses_shared_yaw_helper(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, object] = {}
+
+    def fake_pose_stamped_from_xy_yaw(
+        *, frame_id: str, x: float, y: float, yaw: float
+    ):
+        captured["frame_id"] = frame_id
+        captured["x"] = x
+        captured["y"] = y
+        captured["yaw"] = yaw
+        return object()
+
+    monkeypatch.setattr(
+        mission_api_module,
+        "pose_stamped_from_xy_yaw",
+        fake_pose_stamped_from_xy_yaw,
+    )
+
+    spec = type(
+        "Spec",
+        (),
+        {
+            "frame_id": "map",
+            "x": 3.5,
+            "y": -1.25,
+            "yaw": 1.5,
+        },
+    )()
+
+    sentinel = mission_api_module._to_pose_stamped(spec)
+
+    assert sentinel is not None
+    assert captured == {"frame_id": "map", "x": 3.5, "y": -1.25, "yaw": 1.5}
 
 
 def test_mission_real_flat_execution_verifier_contract() -> None:

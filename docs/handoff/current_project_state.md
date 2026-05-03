@@ -62,8 +62,8 @@ Gazebo GPU rendering 不是当前验收合同。RViz 可单独使用 WSLg/NVIDIA
   route segmentation、flat/stair dispatch、单飞 admission gate 和诊断结果码；当前 mission API 又新增
   JSON checkpoint 持久化、同一 mission goal resume、有限 retry，以及 opt-in
   real-model flat-only execution gate。该 gate 在不启动 `go2w_flat_nav_executor`
-  的情况下把 mission flat segment 送到真实 Nav2 `/navigate_to_pose`。它仍不是完整
-  production Mission Orchestrator。
+  的情况下把 mission flat segment 送到真实 Nav2 `/navigate_to_pose`，并通过共享
+  `mission_pose` helper 保留 route graph 的目标 yaw。它仍不是完整 production Mission Orchestrator。
 
 ## 已完成闭环
 - Phase 1：Gazebo + `gz_ros2_control` + `/cmd_vel` 底盘可控闭环。
@@ -135,7 +135,7 @@ Gazebo GPU rendering 不是当前验收合同。RViz 可单独使用 WSLg/NVIDIA
   复现后通过候选选择、goal tolerance 和 stale-process cleanup 收口，并取得 3 次
   clean-domain 连续 PASS。它是 opt-in regression 候选，但还不是 production
   `nav2_route` route tracking，也未自动纳入 stable control-chain wrapper。
-- `go2w_mission` 的 `RunMission` 已有 checkpoint/retry/resume skeleton 和单飞 admission gate，但不是完整 production Mission Orchestrator。
+- `go2w_mission` 的 `RunMission` 已有 checkpoint/retry/resume skeleton 和单飞 admission gate，且 mission flat goal 的姿态转换已统一到共享 `mission_pose` helper，但仍不是完整 production Mission Orchestrator。
 - 未实现完整 production Mission Orchestrator 的多任务队列、操作员恢复策略、优先级调度和长期任务管理。
 - Phase 4C-min 的 flat executor 仍作为 deterministic verifier skeleton 保留；mission API
   现在已有 opt-in real-model flat-only gate 可绕过该 skeleton 并调用真实 Nav2

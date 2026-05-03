@@ -13,6 +13,7 @@ from go2w_mission.phase4b_mission_segments import (
     MissionSegment,
     build_mission_segments,
 )
+from go2w_mission.mission_pose import pose_stamped_from_xy_yaw
 from go2w_mission.mission_recovery import (
     MissionCheckpoint,
     MissionStateStore,
@@ -1084,11 +1085,9 @@ def _spin_until_or_cancel(node, goal_handle, future, timeout_sec: float) -> str:
 
 
 def _to_pose_stamped(spec):
-    from geometry_msgs.msg import PoseStamped
-
-    pose = PoseStamped()
-    pose.header.frame_id = spec.frame_id
-    pose.pose.position.x = spec.x
-    pose.pose.position.y = spec.y
-    pose.pose.orientation.w = 1.0
-    return pose
+    return pose_stamped_from_xy_yaw(
+        frame_id=spec.frame_id,
+        x=spec.x,
+        y=spec.y,
+        yaw=float(getattr(spec, "yaw", 0.0)),
+    )

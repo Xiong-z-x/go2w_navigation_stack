@@ -64,6 +64,7 @@
 - Phase 4A / 4B / 4C / 4D / 4 runtime gates 都已经形成可重复验证链。
 - 真实 Go2W 模型、motion-mode baseline、route-following smoke、mission real flat gate、Phase 4E stair fixture 和 mission recovery 都已经补齐。
 - Mission API 并发 goal 的单飞 admission gate 已经接入，避免两个 `RunMission` 同时竞争同一个 JSON state file。
+- Mission flat goal 的姿态转换已统一到共享 `mission_pose` helper，mission API 和 Phase 4B runtime 不再在 yaw 处理上分叉。
 - Mission real flat gate 之前的 yaw 丢失问题已经修复，并回写到 `docs/verification/go2w_mission_real_flat_execution.md`。
 
 ## 未解决事项

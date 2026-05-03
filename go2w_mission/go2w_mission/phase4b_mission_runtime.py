@@ -13,6 +13,7 @@ from go2w_mission.phase4b_mission_segments import (
     build_mission_segments,
     classify_stair_result,
 )
+from go2w_mission.mission_pose import pose_stamped_from_xy_yaw
 
 
 @dataclass(frozen=True)
@@ -73,25 +74,13 @@ def _edge_heading_yaw(edge) -> float:
     return 0.0
 
 
-def _yaw_to_quat(yaw: float):
-    from geometry_msgs.msg import Quaternion
-
-    half_yaw = float(yaw) * 0.5
-    q = Quaternion()
-    q.z = math.sin(half_yaw)
-    q.w = math.cos(half_yaw)
-    return q
-
-
 def _to_pose_stamped(spec: FlatGoalSpec):
-    from geometry_msgs.msg import PoseStamped
-
-    pose = PoseStamped()
-    pose.header.frame_id = spec.frame_id
-    pose.pose.position.x = spec.x
-    pose.pose.position.y = spec.y
-    pose.pose.orientation = _yaw_to_quat(spec.yaw)
-    return pose
+    return pose_stamped_from_xy_yaw(
+        frame_id=spec.frame_id,
+        x=spec.x,
+        y=spec.y,
+        yaw=spec.yaw,
+    )
 
 
 def final_result_for_timeout(mode: str) -> str:

@@ -1,8 +1,15 @@
+import math
+
+import pytest
+
+from go2w_mission.mission_pose import yaw_to_quaternion_components
 from go2w_mission.phase4b_mission_runtime import (
+    FlatGoalSpec,
     build_flat_goal_from_segment,
     build_stair_goal_from_segment,
     final_result_for_flat_timeout,
     final_result_for_timeout,
+    _to_pose_stamped,
 )
 from go2w_mission.phase4a_route_graph import Phase4ARouteGraph, RouteEdge, RouteNode
 from go2w_mission.phase4b_mission_segments import MissionSegment
@@ -130,3 +137,31 @@ def test_build_flat_goal_from_segment_prefers_target_yaw_property() -> None:
 def test_flat_timeout_result_mapping() -> None:
     assert final_result_for_flat_timeout("flat_timeout") == "MISSION_TIMEOUT"
     assert final_result_for_flat_timeout("flat_cancel") == "MISSION_FAILED"
+
+
+def test_yaw_to_quaternion_components_uses_half_angle() -> None:
+    z, w = yaw_to_quaternion_components(math.pi)
+
+    assert z == pytest.approx(1.0)
+    assert w == pytest.approx(0.0)
+
+
+def test_flat_pose_conversion_uses_shared_yaw_helper(monkeypatch: pytest.MonkeyPatch) -> None:
+    captured: dict[str, object] = {}
+
+    def fake_pose_stamped_from_xy_yaw(*, frame_id: str, x: float, y: float, yaw: float):
+        captured["frame_id"] = frame_id
+        captured["x"] = x
+        captured["y"] = y
+        captured["yaw"] = yaw
+        return object()
+
+    monkeypatch.setattr(
+        "go2w_mission.phase4b_mission_runtime.pose_stamped_from_xy_yaw",
+        fake_pose_stamped_from_xy_yaw,
+    )
+
+    sentinel = _to_pose_stamped(FlatGoalSpec(frame_id="map", x=1.0, y=2.0, yaw=0.75))
+
+    assert sentinel is not None
+    assert captured == {"frame_id": "map", "x": 1.0, "y": 2.0, "yaw": 0.75}

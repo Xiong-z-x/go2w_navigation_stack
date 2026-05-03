@@ -7,11 +7,15 @@
 - `RunMission` Action contract 已生成并可被 `go2w_mission_api` 使用。
 - Mission API launch 能同时拉起 `route_server`、`go2w_command_gate`、`go2w_stair_executor`、`go2w_flat_nav_executor` 和 `go2w_mission_api`。
 - 成功、无效目标、取消、flat action 不可用四条路径都已通过 verifier。
+- mission API 和 Phase 4B runtime 的 flat goal 姿态转换现在共用 `mission_pose` helper，
+  目标 yaw 不再在两条路径之间分叉。
 - 这仍然是 skeleton，不是 production Mission Orchestrator，也不等于真实机器人运动上的 route tracking 或楼梯动力学。
 
 ## 额外硬化
 - `MissionApiRuntime` 现在在进入执行前会争抢单飞 admission slot。
 - 并发 `RunMission` goal 会返回 `MISSION_BUSY` / `mission_state_in_use`，而不是同时竞争单一 JSON state file。
+- flat goal 现在通过共享 yaw-preserving helper 进入真实 Nav2 路径，避免 mission API 和
+  Phase 4B runtime 的 orientation 语义不一致。
 - 这仍然不是 multi-mission queueing，也不是 priority scheduling。
 
 ## 变更文件
