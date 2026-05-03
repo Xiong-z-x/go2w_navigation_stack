@@ -24,6 +24,9 @@ simulation-first 路线推进。
 - `docs/verification/phase4e_mission_recovery.md`
 - `docs/verification/phase4e_stair_tuning_overrides.md`
 - `docs/verification/mission_api_scheduling_policy.md`
+- `docs/verification/mission_api_orchestrator_control.md`
+- `docs/verification/mission_api_queue_replay.md`
+- `docs/verification/mission_api_task_history.md`
 - `docs/verification/phase4_runtime_acceptance.md`
 - `docs/verification/phase4c_flat_segment_gate.md`
 - `docs/verification/phase4b_mission_segment_runtime.md`
@@ -65,12 +68,13 @@ simulation-first 路线推进。
   verifier，能诊断 route segmentation、flat/stair dispatch、invalid goal、
   cancel、timeout、route unavailable、flat action unavailable、bounded FIFO queueing 和
   相关诊断；当前已新增 JSON checkpoint、同一 mission goal resume、有限 retry、operator-state
-  snapshot backend、`MissionControl` pause/resume/status/cancel_active/replay_queue 控制面，
-  以及 operator-triggered durable queue replay ledger，但仍不是完整
+  snapshot backend、`MissionControl` pause/resume/status/cancel_active/replay_queue/history/archive_history
+  控制面、operator-triggered durable queue replay ledger 和 bounded terminal task-history
+  ledger，但仍不是完整
   production Mission Orchestrator。mission runtime real-model flat execution gate 也已经接通真实
   Nav2 `/navigate_to_pose`，并通过共享 `mission_pose` helper 保留了目标 yaw；
-  production Mission Orchestrator scheduling policy、控制面和 queue replay 窄范围已经完成，
-  后续应转向 priority scheduling 或长期任务管理中的单主题任务。
+  production Mission Orchestrator scheduling policy、控制面、queue replay 和 task history
+  窄范围已经完成，后续应转向 priority scheduling 单主题任务。
 
 不要把 Phase 4 accepted 误判成 production mission orchestration、真实 Nav2
 route tracking against robot motion、真实 `nav2_route` operation plugin、真实楼梯

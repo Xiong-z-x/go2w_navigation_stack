@@ -26,6 +26,10 @@ def generate_launch_description():
     mission_queue_replay_state_file = LaunchConfiguration(
         "mission_queue_replay_state_file"
     )
+    mission_task_history_file = LaunchConfiguration("mission_task_history_file")
+    mission_task_history_retention_limit = LaunchConfiguration(
+        "mission_task_history_retention_limit"
+    )
     mission_retry_limit = LaunchConfiguration("mission_retry_limit")
     mission_retry_backoff_sec = LaunchConfiguration("mission_retry_backoff_sec")
     mission_recovery_enabled = LaunchConfiguration("mission_recovery_enabled")
@@ -104,6 +108,16 @@ def generate_launch_description():
             "mission_queue_replay_state_file",
             default_value="",
             description="Optional persistent mission queue replay state file path.",
+        ),
+        DeclareLaunchArgument(
+            "mission_task_history_file",
+            default_value="",
+            description="Optional persistent mission task history state file path.",
+        ),
+        DeclareLaunchArgument(
+            "mission_task_history_retention_limit",
+            default_value="50",
+            description="Retention limit for terminal mission history records.",
         ),
         DeclareLaunchArgument(
             "mission_retry_limit",
@@ -214,6 +228,10 @@ def generate_launch_description():
                 mission_orchestrator_state_file,
                 "--mission-queue-replay-state-file",
                 mission_queue_replay_state_file,
+                "--mission-task-history-file",
+                mission_task_history_file,
+                "--mission-task-history-retention-limit",
+                mission_task_history_retention_limit,
                 "--mission-retry-limit",
                 mission_retry_limit,
                 "--mission-retry-backoff-sec",

@@ -13,6 +13,7 @@ The current policy is intentionally small:
 
 This is still not a complete production Mission Orchestrator and not priority scheduling.
 Operator pause/resume/status/cancel_active control is covered by a separate control gate.
+Durable queue replay and bounded task history are covered by separate gates.
 
 ## Implemented Runtime Surface
 - `go2w_mission.mission_scheduler.MissionScheduleGate` provides bounded FIFO admission.
@@ -40,7 +41,7 @@ mission_scheduling_policy_result: PASS
 - Focused pytest result:
 
 ```text
-11 passed in 0.17s
+19 passed in 1.26s
 ```
 
 ## Package Verification
@@ -49,7 +50,7 @@ mission_scheduling_policy_result: PASS
 - `source /opt/ros/humble/setup.bash && colcon test --packages-select go2w_mission`
   passed.
 - `source /opt/ros/humble/setup.bash && colcon test-result --verbose`
-  reported `104 tests, 0 errors, 0 failures, 0 skipped`.
+  reported `112 tests, 0 errors, 0 failures, 0 skipped`.
 
 ## Verified Facts
 - `RunMission` admits one active goal plus one queued goal in FIFO order.
@@ -64,13 +65,14 @@ mission_scheduling_policy_result: PASS
 ## Key Result Lines
 ```text
 mission_scheduling_policy_result: PASS
-11 passed in 0.17s
-Summary: 104 tests, 0 errors, 0 failures, 0 skipped
+19 passed in 1.26s
+Summary: 112 tests, 0 errors, 0 failures, 0 skipped
 ```
 
 ## Open Validation Items
 - This verifies bounded queueing, not a complete production Mission Orchestrator.
-- This does not add priority scheduling. Durable queue replay is covered
-  separately in `docs/verification/mission_api_queue_replay.md`.
+- This does not add priority scheduling. Durable queue replay and bounded task
+  history are covered separately in `docs/verification/mission_api_queue_replay.md`
+  and `docs/verification/mission_api_task_history.md`.
 - The bounded queue remains an in-memory scheduling policy layered on top of the existing
   mission execution path.

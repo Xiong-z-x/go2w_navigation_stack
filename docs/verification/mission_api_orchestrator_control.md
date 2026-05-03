@@ -21,7 +21,8 @@ The control slice is intentionally narrow:
 
 This control slice is still not a priority scheduler or full long-lived
 production Mission Orchestrator. Durable queue replay is covered separately in
-`docs/verification/mission_api_queue_replay.md`.
+`docs/verification/mission_api_queue_replay.md`, and bounded task history is
+covered separately in `docs/verification/mission_api_task_history.md`.
 
 ## Implemented Runtime Surface
 - `go2w_mission.mission_orchestrator.MissionOrchestratorStateStore` persists the
@@ -52,7 +53,7 @@ mission_orchestrator_control_result: PASS
 - Focused pytest result:
 
 ```text
-6 passed in 0.50s
+11 passed in 0.40s
 ```
 
 ## Package Verification
@@ -61,7 +62,7 @@ mission_orchestrator_control_result: PASS
 - `source /opt/ros/humble/setup.bash && colcon test --packages-select go2w_mission`
   passed.
 - `source /opt/ros/humble/setup.bash && colcon test-result --verbose`
-  reported `47 tests, 0 errors, 0 failures, 0 skipped`.
+  reported `112 tests, 0 errors, 0 failures, 0 skipped`.
 
 ## Verified Facts
 - The operator snapshot state store round-trips `PAUSED` state and summary text.
@@ -77,13 +78,15 @@ mission_orchestrator_control_result: PASS
 ## Key Result Lines
 ```text
 mission_orchestrator_control_result: PASS
-6 passed in 0.50s
-Summary: 47 tests, 0 errors, 0 failures, 0 skipped
+11 passed in 0.40s
+Summary: 112 tests, 0 errors, 0 failures, 0 skipped
 ```
 
 ## Open Validation Items
 - This verifies operator control and persistent operator state. Durable queue
-  replay is covered separately in `docs/verification/mission_api_queue_replay.md`.
+  replay and bounded task history are covered separately in
+  `docs/verification/mission_api_queue_replay.md` and
+  `docs/verification/mission_api_task_history.md`.
 - This does not add priority scheduling.
 - The active mission cancellation is cooperative through the existing mission
   execution checks, not a preemptive hard stop.

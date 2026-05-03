@@ -36,7 +36,8 @@
 - 不要把 `RunMission` 的并发入队误判成可并行执行。当前 mission API 已是 bounded
   FIFO queueing；并发 goal 可能 queue、`MISSION_BUSY` / `mission_queue_full` 或
   queued cancel，且现在还多了 operator-state snapshot、`MissionControl` 控制面和
-  operator-triggered durable queue replay ledger；这仍不是 priority scheduler 或完整长期任务管理器。
+  operator-triggered durable queue replay ledger、bounded terminal task-history ledger；
+  这仍不是 priority scheduler、fleet-level task assignment 或完整生产调度器。
 - 不要把 mission runtime real-model flat execution gate 当成 production Mission
   Orchestrator。它已经把 flat segment 接到真实 Nav2 `/navigate_to_pose`，但仍只是
   opt-in flat-only gate，和完整生产调度器不是一回事。
@@ -113,9 +114,10 @@ Go2W real model / motion-mode baseline 已补上 opt-in 真实模型、四 foot 
 controller profile、`flat -> wheeled` / `stair -> legged` 状态和启动站立验证；
 Phase 4 accepted 已完成总验收；`RunMission` skeleton 也已完成并验证；Phase 4E
 又补上 real-model stair fixture、mission recovery checkpoint/resume、operator control
-service、operator-triggered durable queue replay 和 opt-in real-model regression wrapper。后续最小任务必须另有完整任务单或当前
+service、operator-triggered durable queue replay、bounded terminal task history 和
+opt-in real-model regression wrapper。后续最小任务必须另有完整任务单或当前
 自主审批模式下的自批准任务单，当前最优先的单主题起点是 production Mission
-Orchestrator remaining slice（priority scheduling 或长期任务管理）；后续再考虑
+Orchestrator remaining slice（priority scheduling）；后续再考虑
 真实 stair trajectory / gait tuning、Phase 5 terrain-aware connector discovery 或未来
 default real-model re-baseline。不要把下一步扩大为真实多楼层
 自主、自动楼梯检测、traversability 或 `map -> odom` 定位链。
@@ -196,9 +198,10 @@ default real-model re-baseline。不要把下一步扩大为真实多楼层
   先串行复验，除非明确要测并发鲁棒性。
 
 ## 后续项目改进起步顺序
-1. 当前窄范围 production Mission Orchestrator scheduling policy、operator control 和
-   durable queue replay 已完成。下一步进入 production Mission Orchestrator remaining
-   slice 时，只从 priority scheduling 或长期任务管理中选一个最小闭环落地。
+1. 当前窄范围 production Mission Orchestrator scheduling policy、operator control、
+   durable queue replay 和 bounded terminal task history 已完成。下一步进入
+   production Mission Orchestrator remaining slice 时，只做 priority scheduling 或另一个
+   明确命名的单主题 orchestration gap。
 2. 再做 dedicated stair trajectory / wheel lock / body-height / gait tuning。
 3. 最后再进入 real-model default baseline 评估、Phase 5 elevation/traversability/
    automatic connector generation。

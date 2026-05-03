@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from pathlib import Path
-from types import SimpleNamespace
+import sys
+from types import ModuleType, SimpleNamespace
 import threading
 import time
 
@@ -20,6 +21,12 @@ from go2w_mission.mission_queue_replay import (
     build_initial_queue_replay_state,
 )
 from go2w_mission.mission_scheduler import MissionScheduleGate
+from go2w_mission.mission_task_history import (
+    MissionTaskHistoryRecord,
+    MissionTaskHistoryState,
+    MissionTaskHistoryStateStore,
+    build_initial_task_history_state,
+)
 from go2w_mission.mission_recovery import build_mission_key
 from go2w_mission.phase4b_mission_segments import MissionSegment
 
@@ -69,6 +76,31 @@ class _FakeGraph:
         return []
 
 
+def _install_fake_run_mission_module(monkeypatch) -> None:
+    class _Result:
+        def __init__(self) -> None:
+            self.success = False
+            self.result_code = ""
+            self.message = ""
+            self.segment_count = 0
+            self.segment_summary = ""
+
+    class _Feedback:
+        def __init__(self) -> None:
+            self.state = ""
+            self.current_segment_index = 0
+            self.current_segment_type = ""
+            self.active_owner = ""
+            self.progress = 0.0
+
+    action_module = ModuleType("go2w_mission.action")
+    action_module.RunMission = SimpleNamespace(
+        Result=_Result,
+        Feedback=_Feedback,
+    )
+    monkeypatch.setitem(sys.modules, "go2w_mission.action", action_module)
+
+
 def _wait_until(predicate, *, timeout_sec: float = 5.0) -> bool:
     deadline = time.monotonic() + timeout_sec
     while time.monotonic() < deadline:
@@ -78,7 +110,9 @@ def _wait_until(predicate, *, timeout_sec: float = 5.0) -> bool:
     return predicate()
 
 
-def _build_runtime(monkeypatch, tmp_path: Path):
+def _build_runtime(monkeypatch, tmp_path: Path, *, fake_finish: bool = True):
+    if not fake_finish:
+        _install_fake_run_mission_module(monkeypatch)
     graph_file = tmp_path / "mission_queue.geojson"
     graph_file.write_text("{}", encoding="utf-8")
 
@@ -98,6 +132,12 @@ def _build_runtime(monkeypatch, tmp_path: Path):
     )
     runtime.queue_replay_state = build_initial_queue_replay_state(2)
     runtime._queue_replay_lock = threading.Lock()
+    runtime.task_history_state_store = SimpleNamespace(
+        save=lambda state: None,
+    )
+    runtime.task_history_state = build_initial_task_history_state(50)
+    runtime._task_history_lock = threading.Lock()
+    runtime._task_history_context = None
     runtime.orchestrator_state_store = SimpleNamespace(
         save=lambda state: None,
     )
@@ -137,22 +177,31 @@ def _build_runtime(monkeypatch, tmp_path: Path):
 
     monkeypatch.setattr(runtime, "_feedback", fake_feedback)
 
-    def fake_finish(goal_handle, *, success: bool, result_code: str, message: str, segment_count: int, segment_summary: str):
-        if success:
-            goal_handle.succeed()
-        elif result_code == "MISSION_CANCELED":
-            goal_handle.canceled()
-        else:
-            goal_handle.abort()
-        return {
-            "success": success,
-            "result_code": result_code,
-            "message": message,
-            "segment_count": segment_count,
-            "segment_summary": segment_summary,
-        }
+    if fake_finish:
+        def fake_finish(
+            goal_handle,
+            *,
+            success: bool,
+            result_code: str,
+            message: str,
+            segment_count: int,
+            segment_summary: str,
+        ):
+            if success:
+                goal_handle.succeed()
+            elif result_code == "MISSION_CANCELED":
+                goal_handle.canceled()
+            else:
+                goal_handle.abort()
+            return {
+                "success": success,
+                "result_code": result_code,
+                "message": message,
+                "segment_count": segment_count,
+                "segment_summary": segment_summary,
+            }
 
-    monkeypatch.setattr(runtime, "_finish", fake_finish)
+        monkeypatch.setattr(runtime, "_finish", fake_finish)
     monkeypatch.setattr(
         runtime,
         "_compute_route_edge_ids",
@@ -690,3 +739,203 @@ def test_mission_api_replay_queue_restores_pending_record(
     assert replayed_result["result_code"] == "MISSION_SUCCEEDED"
     assert replayed_result["message"] == "mission_succeeded"
     assert runtime.queue_replay_state.record_count == 0
+
+
+def test_mission_task_history_store_round_trips_and_archives(
+    tmp_path: Path,
+) -> None:
+    state_file = tmp_path / "mission_task_history.json"
+    store = MissionTaskHistoryStateStore(state_file)
+    record_one = MissionTaskHistoryRecord(
+        run_id="100->202:map:graph:deadbeef:0:1000",
+        mission_key="100->202:map:graph:deadbeef",
+        ticket=0,
+        queue_position=1,
+        state="SUCCEEDED",
+        result_code="MISSION_SUCCEEDED",
+        message="mission_succeeded",
+        start_id=100,
+        goal_id=202,
+        graph_file="go2w_navigation/graphs/phase3c_hospital_multifloor_route.geojson",
+        route_frame_id="map",
+        segment_count=3,
+        segment_summary="flat:10;stair:500;flat:11",
+        admitted_at=1000.0,
+        activated_at=1001.0,
+        completed_at=1002.0,
+        last_command="COMPLETE",
+        last_message="mission_finished",
+        updated_at=1002.0,
+    )
+    record_two = record_one.with_updates(
+        run_id="101->203:map:graph:deadbeef:1:2000",
+        mission_key="101->203:map:graph:deadbeef",
+        ticket=1,
+        queue_position=2,
+        state="FAILED",
+        result_code="MISSION_ROUTE_UNAVAILABLE",
+        message="route_goal_rejected",
+        start_id=101,
+        goal_id=203,
+        admitted_at=2000.0,
+        activated_at=2001.0,
+        completed_at=2002.0,
+        last_message="route_goal_rejected",
+        updated_at=2002.0,
+    )
+    state = MissionTaskHistoryState(
+        retention_limit=2,
+        records=(record_one, record_two),
+        last_command="COMPLETE",
+        last_message="mission_finished",
+        updated_at=2002.0,
+    )
+
+    store.save(state)
+    loaded = store.load()
+
+    assert loaded == state
+    assert loaded is not None
+    assert loaded.summary().startswith("history=records=2 retain=2")
+
+    trimmed = loaded.archive_to_limit(1)
+    assert trimmed.record_count == 1
+    assert trimmed.latest_record is not None
+    assert trimmed.latest_record.run_id == record_two.run_id
+
+    store.save(trimmed)
+    loaded_trimmed = store.load()
+    assert loaded_trimmed is not None
+    assert loaded_trimmed.record_count == 1
+    assert loaded_trimmed.latest_record is not None
+    assert loaded_trimmed.latest_record.run_id == record_two.run_id
+
+
+def test_mission_api_records_terminal_task_history_and_summary(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    runtime, graph_file = _build_runtime(monkeypatch, tmp_path, fake_finish=False)
+
+    def fake_execute_segments(
+        goal_handle,
+        graph,
+        goal_spec,
+        segments,
+        *,
+        mission_key: str,
+        segment_summary: str,
+        start_index: int,
+        route_edge_ids: tuple[int, ...],
+    ):
+        return {
+            "success": True,
+            "result_code": "MISSION_SUCCEEDED",
+            "message": "mission_succeeded",
+            "current_segment_index": len(segments) - 1 if segments else 0,
+            "current_segment_type": segments[-1].segment_type if segments else "",
+            "active_owner": "flat",
+            "next_segment_index": len(segments),
+            "retry_count": 0,
+        }
+
+    monkeypatch.setattr(runtime, "_execute_segments", fake_execute_segments)
+
+    goal = _make_goal_handle(graph_file, start_id=100, goal_id=202)
+    result = runtime.execute(goal)
+    mission_key = build_mission_key(
+        start_id=100,
+        goal_id=202,
+        graph_file=str(graph_file),
+        route_frame_id="map",
+    )
+
+    assert result.success is True
+    assert result.result_code == "MISSION_SUCCEEDED"
+    assert runtime.task_history_state.record_count == 1
+    assert runtime.task_history_state.latest_record is not None
+    assert runtime.task_history_state.latest_record.mission_key == mission_key
+    assert runtime.task_history_state.latest_record.result_code == "MISSION_SUCCEEDED"
+    assert runtime.task_history_state.latest_record.state == "SUCCEEDED"
+
+    history_result = runtime.handle_orchestrator_command("history", "operator_review")
+    assert history_result["accepted"] is True
+    assert history_result["message"] == "history_snapshot"
+    assert "history=records=1" in history_result["state_summary"]
+    assert "latest_result=MISSION_SUCCEEDED" in history_result["state_summary"]
+
+
+def test_mission_api_archive_history_trims_old_records(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    runtime, graph_file = _build_runtime(monkeypatch, tmp_path, fake_finish=False)
+    record_one = MissionTaskHistoryRecord(
+        run_id="100->202:map:graph:deadbeef:0:1000",
+        mission_key="100->202:map:graph:deadbeef",
+        ticket=0,
+        queue_position=1,
+        state="SUCCEEDED",
+        result_code="MISSION_SUCCEEDED",
+        message="mission_succeeded",
+        start_id=100,
+        goal_id=202,
+        graph_file="go2w_navigation/graphs/phase3c_hospital_multifloor_route.geojson",
+        route_frame_id="map",
+        segment_count=3,
+        segment_summary="flat:10;stair:500;flat:11",
+        admitted_at=1000.0,
+        activated_at=1001.0,
+        completed_at=1002.0,
+        last_command="COMPLETE",
+        last_message="mission_finished",
+        updated_at=1002.0,
+    )
+    record_two = record_one.with_updates(
+        run_id="101->203:map:graph:deadbeef:1:2000",
+        mission_key="101->203:map:graph:deadbeef",
+        ticket=1,
+        queue_position=2,
+        state="FAILED",
+        result_code="MISSION_ROUTE_UNAVAILABLE",
+        message="route_goal_rejected",
+        start_id=101,
+        goal_id=203,
+        admitted_at=2000.0,
+        activated_at=2001.0,
+        completed_at=2002.0,
+        last_message="route_goal_rejected",
+        updated_at=2002.0,
+    )
+    record_three = record_two.with_updates(
+        run_id="102->204:map:graph:deadbeef:2:3000",
+        mission_key="102->204:map:graph:deadbeef",
+        ticket=2,
+        queue_position=3,
+        state="CANCELED",
+        result_code="MISSION_CANCELED",
+        message="mission_canceled",
+        start_id=102,
+        goal_id=204,
+        admitted_at=3000.0,
+        activated_at=3001.0,
+        completed_at=3002.0,
+        last_command="CANCEL",
+        last_message="mission_canceled",
+        updated_at=3002.0,
+    )
+    runtime.task_history_state = MissionTaskHistoryState(
+        retention_limit=50,
+        records=(record_one, record_two, record_three),
+        last_command="COMPLETE",
+        last_message="mission_finished",
+        updated_at=3002.0,
+    )
+
+    archive_result = runtime.handle_orchestrator_command("archive_history", "retain=2")
+    assert archive_result["accepted"] is True
+    assert archive_result["message"] == "history_archived"
+    assert runtime.task_history_state.record_count == 2
+    assert runtime.task_history_state.latest_record is not None
+    assert runtime.task_history_state.latest_record.run_id == record_three.run_id
+    assert "history=records=2 retain=2" in archive_result["state_summary"]

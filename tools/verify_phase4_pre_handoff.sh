@@ -92,6 +92,10 @@ required_files=(
   "docs/verification/go2w_control_chain_regression.md"
   "docs/verification/go2w_real_model_route_following.md"
   "docs/verification/go2w_mission_real_flat_execution.md"
+  "docs/verification/mission_api_scheduling_policy.md"
+  "docs/verification/mission_api_orchestrator_control.md"
+  "docs/verification/mission_api_queue_replay.md"
+  "docs/verification/mission_api_task_history.md"
   "docs/verification/go2w_real_model_regression.md"
   "docs/verification/phase4e_stair_fixture.md"
   "docs/verification/phase4e_mission_recovery.md"
@@ -106,6 +110,10 @@ required_files=(
   "tools/verify_go2w_control_chain_regression.sh"
   "tools/verify_go2w_real_model_route_following.sh"
   "tools/verify_go2w_mission_real_flat_execution.sh"
+  "tools/verify_mission_api_scheduling_policy.sh"
+  "tools/verify_mission_api_orchestrator_control.sh"
+  "tools/verify_mission_api_queue_replay.sh"
+  "tools/verify_mission_api_task_history.sh"
   "tools/verify_go2w_real_model_regression.sh"
   "tools/verify_phase4e_stair_fixture.sh"
   "tools/verify_phase4e_mission_recovery.sh"
@@ -127,12 +135,14 @@ require_contains "docs/handoff/phase4_migration_handoff_report.md" 'route graph 
 require_contains "docs/handoff/pre_migration_final_freeze_report.md" '迁移前最终封板' "final_freeze_report_ready"
 require_contains "docs/handoff/pre_migration_final_freeze_report.md" 'mission runtime real robot-motion flat execution' "final_freeze_next_task_mission_flat_execution"
 require_contains "docs/handoff/pre_migration_final_freeze_report.md" 'production Mission Orchestrator (scheduling policy|skeleton hardening)' "final_freeze_next_task_production_mission"
+require_contains "docs/handoff/pre_migration_final_freeze_report.md" 'task-history ledger' "final_freeze_task_history"
 require_contains "docs/handoff/pre_migration_final_freeze_report.md" 'route graph 保留目标 yaw' "final_freeze_flat_goal_yaw"
 require_contains "docs/handoff/current_project_state.md" '\.go2w_external/workspaces/fast_lio_ros2' "handoff_fastlio_repo_local_ws"
 require_contains "docs/handoff/current_project_state.md" "当前正式阶段：\`Phase 4 accepted\`" "handoff_current_phase4accepted"
 require_contains "docs/handoff/current_project_state.md" '保留 route graph 目标 yaw' "handoff_flat_goal_yaw"
 require_contains "docs/handoff/next_agent_notes.md" "不要把 \`nav2_route\` 当成 3D 地形规划器" "handoff_nav2_route_warning"
 require_contains "docs/handoff/next_agent_notes.md" 'production Mission Orchestrator (scheduling policy|skeleton hardening)' "handoff_next_step_production_mission"
+require_contains "docs/handoff/next_agent_notes.md" 'bounded terminal task history' "handoff_task_history_warning"
 require_contains "docs/handoff/next_agent_notes.md" 'Mission flat goal 不能只带 x/y' "handoff_next_step_flat_goal_yaw"
 require_contains "docs/handoff/new_model_initialization_prompt.md" '可直接复制到新的对话中使用' "new_model_prompt_ready"
 require_contains "docs/verification/phase4a_stair_handoff_acceptance.md" 'phase4a_stair_handoff_result: PASS' "phase4a_acceptance_evidence"
@@ -142,11 +152,14 @@ require_contains "docs/verification/phase4d_route_tracking_feedback.md" 'phase4d
 require_contains "docs/verification/phase4_runtime_acceptance.md" 'phase4_runtime_acceptance_result: PASS' "phase4_runtime_acceptance_evidence"
 require_contains "docs/verification/go2w_control_chain_regression.md" 'go2w_control_chain_regression_result: PASS' "control_chain_regression_evidence"
 require_contains "docs/verification/go2w_real_model_route_following.md" 'three consecutive clean-domain PASS' "route_following_hardened_regression_candidate"
+require_contains "docs/verification/mission_api_task_history.md" 'mission_task_history_result: PASS' "mission_task_history_evidence"
 require_contains "docs/verification/go2w_real_model_regression.md" 'not be treated as the stable control-chain migration gate' "real_model_regression_boundary"
 require_contains "docs/handoff/README.md" 'verify_go2w_control_chain_regression.sh' "handoff_readme_control_chain_entry"
 require_contains "docs/handoff/new_model_initialization_prompt.md" 'Real-model same-floor route-following 已完成 dedicated hardening' "new_model_prompt_route_following_hardened"
+require_contains "docs/handoff/new_model_initialization_prompt.md" 'task history' "new_model_prompt_task_history"
 require_contains "README.md" "当前正式阶段：\`Phase 4 accepted\`" "readme_current_phase4accepted"
 require_contains "README.md" 'production Mission Orchestrator (scheduling policy|skeleton hardening)' "readme_next_step_production_mission"
+require_contains "README.md" 'task history' "readme_task_history"
 require_contains "README.md" '保留了目标 yaw' "readme_flat_goal_yaw"
 require_contains "docs/handoff/README.md" "当前阶段：已验收 \`Phase 4 accepted\`" "handoff_readme_current_phase4accepted"
 require_contains "README.md" 'docs/handoff/README.md' "readme_handoff_entry"
@@ -186,6 +199,10 @@ bash -n \
   "${ROOT_DIR}/tools/verify_phase4d_route_tracking_feedback.sh" \
   "${ROOT_DIR}/tools/verify_go2w_control_chain_regression.sh" \
   "${ROOT_DIR}/tools/verify_go2w_mission_real_flat_execution.sh" \
+  "${ROOT_DIR}/tools/verify_mission_api_scheduling_policy.sh" \
+  "${ROOT_DIR}/tools/verify_mission_api_orchestrator_control.sh" \
+  "${ROOT_DIR}/tools/verify_mission_api_queue_replay.sh" \
+  "${ROOT_DIR}/tools/verify_mission_api_task_history.sh" \
   "${ROOT_DIR}/tools/verify_go2w_real_model_regression.sh" \
   "${ROOT_DIR}/tools/verify_phase4_runtime_acceptance.sh"
 print_kv "bash_syntax" "PASS"

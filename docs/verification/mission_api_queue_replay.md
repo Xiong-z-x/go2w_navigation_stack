@@ -17,7 +17,8 @@ outstanding mission admissions:
   scheduling policy tests.
 
 This is still not priority scheduling, fleet-level mission management, or a
-complete long-lived production Mission Orchestrator.
+complete production Mission Orchestrator. Bounded task history is covered
+separately in `docs/verification/mission_api_task_history.md`.
 
 ## Implemented Runtime Surface
 - `go2w_mission.mission_queue_replay.MissionQueueReplayStateStore` persists
@@ -27,7 +28,8 @@ complete long-lived production Mission Orchestrator.
 - `go2w_mission.mission_api.MissionApiRuntime` records queue admission,
   activation, queued cancel, and mission completion transitions.
 - `MissionControl` now supports `replay_queue` in addition to
-  `pause`, `resume`, `status`, and `cancel_active`.
+  `pause`, `resume`, `status`, and `cancel_active`; `history` /
+  `archive_history` is covered by the task-history verification gate.
 - `go2w_mission/launch/mission_api.launch.py` exposes:
   - `mission_queue_replay_state_file`
 
@@ -42,7 +44,7 @@ complete long-lived production Mission Orchestrator.
 - Result:
 
 ```text
-2 passed, 6 deselected in 0.01s
+2 passed, 9 deselected in 0.02s
 mission_queue_replay_result: PASS
 ```
 
@@ -59,7 +61,7 @@ mission_queue_replay_result: PASS
 
 ## Key Result Lines
 ```text
-2 passed, 6 deselected in 0.01s
+2 passed, 9 deselected in 0.02s
 mission_queue_replay_result: PASS
 ```
 
@@ -67,6 +69,6 @@ mission_queue_replay_result: PASS
 - This verifies operator-triggered replay of mission queue records, not automatic
   ROS action goal-handle resurrection after a process restart.
 - This does not add priority scheduling.
-- This does not add fleet-level or long-term mission management.
+- This does not add fleet-level task assignment or priority scheduling.
 - It does not change perception TF authority, default launch baseline, stair
   dynamics, AMCL / `map_server`, or terrain-aware connector generation.

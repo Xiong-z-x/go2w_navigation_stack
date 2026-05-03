@@ -11,7 +11,7 @@
 
 ## 有效范围
 - 初始迁移快照日期：2026-04-30
-- 当前补充状态日期：2026-05-02
+- 当前补充状态日期：2026-05-04
 - 当前阶段：已验收 `Phase 4 accepted`
 - 当前主线：ROS 2 Humble + Gazebo Fortress-only + FAST-LIO external cache
 - 当前最终封板：`docs/handoff/pre_migration_final_freeze_report.md`
@@ -53,12 +53,15 @@
 20. `docs/verification/go2w_real_model_route_following.md`
 21. `docs/verification/go2w_mission_real_flat_execution.md`
 22. `docs/verification/mission_api_scheduling_policy.md`
-23. `docs/verification/phase4e_stair_fixture.md`
-24. `docs/verification/phase4e_mission_recovery.md`
-25. `docs/verification/go2w_real_model_regression.md`
-26. `docs/verification/phase4e_stair_tuning_overrides.md`
-27. `docs/verification/phase4_runtime_acceptance.md`
-28. `docs/handoff/new_model_initialization_prompt.md`
+23. `docs/verification/mission_api_orchestrator_control.md`
+24. `docs/verification/mission_api_queue_replay.md`
+25. `docs/verification/mission_api_task_history.md`
+26. `docs/verification/phase4e_stair_fixture.md`
+27. `docs/verification/phase4e_mission_recovery.md`
+28. `docs/verification/go2w_real_model_regression.md`
+29. `docs/verification/phase4e_stair_tuning_overrides.md`
+30. `docs/verification/phase4_runtime_acceptance.md`
+31. `docs/handoff/new_model_initialization_prompt.md`
 
 ## 本目录文件职责
 - `current_project_state.md`：当前真实状态总览。
@@ -153,6 +156,15 @@ Mission API bounded FIFO scheduling policy 可用以下命令复现：
 queue-full reject 与 queued cancel；它仍不是 priority scheduling 或完整
 production Mission Orchestrator。
 
+Mission API operator control 可用以下命令复现：
+
+```bash
+./tools/verify_mission_api_orchestrator_control.sh
+```
+
+该 verifier 证明 `MissionControl` pause/resume/status/cancel_active 与
+operator-state snapshot backend 可重复验证。
+
 Mission API durable queue replay 可用以下命令复现：
 
 ```bash
@@ -161,7 +173,18 @@ Mission API durable queue replay 可用以下命令复现：
 
 该 verifier 证明 outstanding queue records 会持久化为 replay ledger，restart
 pending 状态会阻止新 mission admission，operator 可通过 `MissionControl replay_queue`
-恢复 scheduler ticket order；它仍不是 priority scheduling 或完整长期任务管理。
+恢复 scheduler ticket order；它仍不是 priority scheduling。
+
+Mission API bounded task history 可用以下命令复现：
+
+```bash
+./tools/verify_mission_api_task_history.sh
+```
+
+该 verifier 证明 terminal `RunMission` history 会持久化到 bounded JSON ledger，
+`MissionControl history` 可查询摘要，`MissionControl archive_history` 可裁剪旧记录；
+它仍不是 priority scheduling、fleet-level task assignment 或完整 production
+Mission Orchestrator。
 
 Phase 4E real-model stair fixture 验收可用以下命令复现：
 

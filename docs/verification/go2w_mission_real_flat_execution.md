@@ -252,9 +252,10 @@ go2w_mission_real_flat_execution_result: PASS
 - The real Go2W path remains opt-in and does not replace the default
   `sim.launch.py` placeholder baseline.
 - Stair traversal and real stair dynamics remain open.
-- Production Mission Orchestrator priority scheduling and long-term task state
-  remain open; durable queue replay is covered separately in
-  `docs/verification/mission_api_queue_replay.md`.
+- Production Mission Orchestrator priority scheduling remains open; durable queue
+  replay and bounded task history are covered separately in
+  `docs/verification/mission_api_queue_replay.md` and
+  `docs/verification/mission_api_task_history.md`.
 - Do not run this verifier in parallel with
   `verify_go2w_control_chain_regression.sh`; the shared ROS/Gazebo runtime can
   produce false timeout / parameter-discovery flakes under combined load.

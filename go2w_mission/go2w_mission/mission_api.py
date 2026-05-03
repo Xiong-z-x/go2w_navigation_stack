@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import argparse
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
+import re
 from pathlib import Path
 import sys
 import threading
@@ -31,6 +32,15 @@ from go2w_mission.mission_queue_replay import (
     build_initial_queue_replay_state,
     sanitize_queue_replay_state_for_runtime,
 )
+from go2w_mission.mission_task_history import (
+    MissionTaskHistoryRecord,
+    MissionTaskHistoryState,
+    MissionTaskHistoryStateStore,
+    build_initial_task_history_state,
+    build_mission_run_id,
+    mission_history_state_for_result,
+    sanitize_task_history_state_for_runtime,
+)
 from go2w_mission.mission_recovery import (
     MissionCheckpoint,
     MissionStateStore,
@@ -55,6 +65,23 @@ class MissionGoalSpec:
     expected_stair_duration_sec: float
     result_timeout_sec: float
     flat_result_timeout_sec: float
+
+
+@dataclass(frozen=True)
+class MissionTaskHistoryContext:
+    run_id: str
+    mission_key: str
+    ticket: int
+    queue_position: int
+    start_id: int
+    goal_id: int
+    graph_file: str
+    route_frame_id: str
+    admitted_at: float
+    activated_at: float
+
+    def with_updates(self, **changes: Any) -> "MissionTaskHistoryContext":
+        return replace(self, **changes)
 
 
 def validate_mission_goal(spec: MissionGoalSpec) -> MissionGoalSpec:
@@ -127,6 +154,8 @@ class MissionApiRuntime:
         mission_state_file: str,
         mission_orchestrator_state_file: str,
         mission_queue_replay_state_file: str,
+        mission_task_history_file: str,
+        mission_task_history_retention_limit: int,
         mission_retry_limit: int,
         mission_retry_backoff_sec: float,
         mission_recovery_enabled: bool,
@@ -212,6 +241,33 @@ class MissionApiRuntime:
             )
         self.queue_replay_state_store.save(self.queue_replay_state)
         self._queue_replay_lock = threading.Lock()
+        task_history_state_path = (
+            Path(mission_task_history_file).expanduser()
+            if mission_task_history_file.strip()
+            else MissionTaskHistoryStateStore.default_path()
+        )
+        self.task_history_state_store = MissionTaskHistoryStateStore(
+            task_history_state_path
+        )
+        loaded_task_history_state = self.task_history_state_store.load()
+        if loaded_task_history_state is None:
+            self.task_history_state = build_initial_task_history_state(
+                mission_task_history_retention_limit
+            )
+        else:
+            self.task_history_state = sanitize_task_history_state_for_runtime(
+                loaded_task_history_state,
+                retention_limit=mission_task_history_retention_limit,
+            )
+        self._task_history_lock = threading.Lock()
+        self._task_history_context: MissionTaskHistoryContext | None = None
+        self._save_task_history_state(
+            self.task_history_state.with_updates(
+                last_command="BOOT",
+                last_message="history_ready",
+                updated_at=time.time(),
+            )
+        )
         self._mission_lock = threading.Lock()
         loaded = self.state_store.load()
         if loaded is not None:
@@ -228,6 +284,10 @@ class MissionApiRuntime:
         self.node.get_logger().info(
             "mission_queue_replay_loaded: "
             f"{self.queue_replay_state.summary()}"
+        )
+        self.node.get_logger().info(
+            "mission_task_history_loaded: "
+            f"{self.task_history_state.summary()}"
         )
 
     def _admit_mission_slot(self) -> bool:
@@ -299,6 +359,7 @@ class MissionApiRuntime:
             )
 
         replay_record = queue_replay_state.find_record(mission_key)
+        queue_record = replay_record
         if replay_record is not None:
             admission = MissionQueueAdmission(
                 accepted=True,
@@ -326,6 +387,17 @@ class MissionApiRuntime:
                     segment_count=0,
                     segment_summary="",
                 )
+            queue_record = self._queue_record_for_goal(
+                mission_key=mission_key,
+                ticket=admission.ticket,
+                queue_position=admission.queue_position,
+                goal_spec=goal_spec,
+                state=QUEUED_STATE,
+                last_command="ADMIT",
+                last_message=(
+                    f"ticket={admission.ticket} queued={admission.queued}"
+                ),
+            )
 
         mission_lock_acquired = False
         active_mission_registered = False
@@ -341,19 +413,10 @@ class MissionApiRuntime:
                 queue_snapshot=self.mission_scheduler.snapshot(),
             )
             if replay_record is None:
-                self._upsert_queue_record(
-                    self._queue_record_for_goal(
-                        mission_key=mission_key,
-                        ticket=admission.ticket,
-                        queue_position=admission.queue_position,
-                        goal_spec=goal_spec,
-                        state=QUEUED_STATE,
-                        last_command="ADMIT",
-                        last_message=(
-                            f"ticket={admission.ticket} queued={admission.queued}"
-                        ),
-                    )
-                )
+                self._upsert_queue_record(queue_record)
+            self._set_task_history_context(
+                self._task_history_context_for_queue_record(queue_record)
+            )
             if admission.queued:
                 self.node.get_logger().info(
                     "mission_queued: "
@@ -409,6 +472,7 @@ class MissionApiRuntime:
                 last_message="mission_active",
             )
             active_mission_registered = True
+            self._touch_task_history_context(activated_at=time.time())
             self._upsert_queue_record(
                 self._queue_record_for_goal(
                     mission_key=mission_key,
@@ -703,6 +767,7 @@ class MissionApiRuntime:
                     ),
                     queue_snapshot=self.mission_scheduler.snapshot(),
                 )
+            self._clear_task_history_context()
 
     def _save_checkpoint(self, checkpoint: MissionCheckpoint) -> None:
         self.state_store.save(checkpoint)
@@ -758,6 +823,148 @@ class MissionApiRuntime:
             self.queue_replay_state = state
             self.queue_replay_state_store.save(state)
             return state
+
+    def _task_history_state_snapshot(self) -> MissionTaskHistoryState:
+        with self._task_history_lock:
+            return self.task_history_state
+
+    def _task_history_summary(self) -> str:
+        return self._task_history_state_snapshot().summary()
+
+    def _task_history_context_snapshot(
+        self,
+    ) -> MissionTaskHistoryContext | None:
+        with self._task_history_lock:
+            return self._task_history_context
+
+    def _set_task_history_context(
+        self,
+        context: MissionTaskHistoryContext,
+    ) -> MissionTaskHistoryContext:
+        with self._task_history_lock:
+            self._task_history_context = context
+            return context
+
+    def _touch_task_history_context(
+        self,
+        *,
+        activated_at: float | None = None,
+    ) -> MissionTaskHistoryContext | None:
+        with self._task_history_lock:
+            if self._task_history_context is None:
+                return None
+            updates: dict[str, Any] = {}
+            if activated_at is not None:
+                updates["activated_at"] = float(activated_at)
+            if updates:
+                self._task_history_context = self._task_history_context.with_updates(
+                    **updates
+                )
+            return self._task_history_context
+
+    def _clear_task_history_context(self) -> None:
+        with self._task_history_lock:
+            self._task_history_context = None
+
+    def _save_task_history_state(
+        self,
+        state: MissionTaskHistoryState,
+    ) -> MissionTaskHistoryState:
+        with self._task_history_lock:
+            self.task_history_state = state
+            self.task_history_state_store.save(state)
+            return state
+
+    def _task_history_context_for_queue_record(
+        self,
+        record: MissionQueueRecord,
+    ) -> MissionTaskHistoryContext:
+        admitted_at = float(record.admitted_at)
+        return MissionTaskHistoryContext(
+            run_id=build_mission_run_id(
+                record.mission_key,
+                record.ticket,
+                admitted_at,
+            ),
+            mission_key=record.mission_key,
+            ticket=record.ticket,
+            queue_position=record.queue_position,
+            start_id=record.start_id,
+            goal_id=record.goal_id,
+            graph_file=record.graph_file,
+            route_frame_id=record.route_frame_id,
+            admitted_at=admitted_at,
+            activated_at=0.0,
+        )
+
+    def _append_task_history_record(
+        self,
+        *,
+        success: bool,
+        result_code: str,
+        message: str,
+        segment_count: int,
+        segment_summary: str,
+    ) -> None:
+        context = self._task_history_context_snapshot()
+        if context is None:
+            return
+        now = time.time()
+        last_command = "CANCEL" if result_code == "MISSION_CANCELED" else "COMPLETE"
+        record = MissionTaskHistoryRecord(
+            run_id=context.run_id,
+            mission_key=context.mission_key,
+            ticket=context.ticket,
+            queue_position=context.queue_position,
+            state=mission_history_state_for_result(
+                success=success,
+                result_code=result_code,
+            ),
+            result_code=result_code,
+            message=message,
+            start_id=context.start_id,
+            goal_id=context.goal_id,
+            graph_file=context.graph_file,
+            route_frame_id=context.route_frame_id,
+            segment_count=int(segment_count),
+            segment_summary=segment_summary,
+            admitted_at=context.admitted_at,
+            activated_at=context.activated_at,
+            completed_at=now,
+            last_command=last_command,
+            last_message=message,
+            updated_at=now,
+        )
+        updated_state = self._task_history_state_snapshot().append_record(
+            record
+        ).with_updates(
+            last_command=last_command,
+            last_message=message,
+            updated_at=now,
+        )
+        self._save_task_history_state(updated_state)
+
+    def _archive_task_history(
+        self,
+        retain_limit: int,
+        *,
+        last_command: str,
+        last_message: str,
+    ) -> MissionTaskHistoryState:
+        archived_state = self._task_history_state_snapshot().archive_to_limit(
+            retain_limit
+        ).with_updates(
+            last_command=last_command,
+            last_message=last_message,
+            updated_at=time.time(),
+        )
+        return self._save_task_history_state(archived_state)
+
+    def _parse_task_history_retain_limit(self, reason: str) -> int:
+        match = re.search(r"retain\s*=\s*(\d+)", str(reason))
+        if match is not None:
+            return max(1, int(match.group(1)))
+        return self._task_history_state_snapshot().retention_limit
 
     def _queue_record_for_goal(
         self,
@@ -838,7 +1045,8 @@ class MissionApiRuntime:
         current_state = state or self._orchestrator_state_snapshot()
         return (
             f"{current_state.summary()} "
-            f"queue_replay={self._queue_replay_summary()}"
+            f"queue_replay={self._queue_replay_summary()} "
+            f"task_history={self._task_history_summary()}"
         )
 
     def _register_active_mission(
@@ -993,7 +1201,52 @@ class MissionApiRuntime:
                 "message": "queue_replayed",
                 "state_summary": (
                     f"{updated_state.summary()} "
-                    f"queue_replay={updated_queue_state.summary()}"
+                    f"queue_replay={updated_queue_state.summary()} "
+                    f"task_history={self._task_history_summary()}"
+                ),
+            }
+
+        if normalized_command == "history":
+            return {
+                "accepted": True,
+                "mode": current_state.mode,
+                "message": "history_snapshot",
+                "state_summary": self._combined_state_summary(current_state),
+            }
+
+        if normalized_command == "archive_history":
+            current_history_state = self._task_history_state_snapshot()
+            if current_history_state.record_count == 0:
+                return {
+                    "accepted": False,
+                    "mode": current_state.mode,
+                    "message": "no_history_records",
+                    "state_summary": self._combined_state_summary(current_state),
+                }
+            retain_limit = self._parse_task_history_retain_limit(
+                normalized_reason
+            )
+            updated_history_state = self._archive_task_history(
+                retain_limit,
+                last_command="archive_history",
+                last_message=normalized_reason or f"retain={retain_limit}",
+            )
+            updated_state = self._save_orchestrator_state(
+                current_state.with_updates(
+                    last_command="archive_history",
+                    last_message=normalized_reason or f"retain={retain_limit}",
+                    updated_at=time.time(),
+                ),
+                queue_snapshot=self.mission_scheduler.snapshot(),
+            )
+            return {
+                "accepted": True,
+                "mode": updated_state.mode,
+                "message": "history_archived",
+                "state_summary": (
+                    f"{updated_state.summary()} "
+                    f"queue_replay={self._queue_replay_summary()} "
+                    f"task_history={updated_history_state.summary()}"
                 ),
             }
 
@@ -1524,6 +1777,19 @@ class MissionApiRuntime:
         result.message = message
         result.segment_count = int(segment_count)
         result.segment_summary = segment_summary
+        try:
+            self._append_task_history_record(
+                success=success,
+                result_code=result_code,
+                message=message,
+                segment_count=segment_count,
+                segment_summary=segment_summary,
+            )
+        except Exception as exc:  # pragma: no cover - defensive logging
+            self.node.get_logger().warning(
+                "mission_task_history_save_failed: "
+                f"{exc}"
+            )
         return result
 
 
@@ -1550,6 +1816,12 @@ def parse_args(argv: list[str]) -> tuple[argparse.Namespace, list[str]]:
     parser.add_argument("--mission-state-file", default="")
     parser.add_argument("--mission-orchestrator-state-file", default="")
     parser.add_argument("--mission-queue-replay-state-file", default="")
+    parser.add_argument("--mission-task-history-file", default="")
+    parser.add_argument(
+        "--mission-task-history-retention-limit",
+        type=int,
+        default=50,
+    )
     parser.add_argument("--mission-retry-limit", type=int, default=2)
     parser.add_argument("--mission-retry-backoff-sec", type=float, default=0.5)
     parser.add_argument("--mission-recovery-enabled", type=_parse_bool, default=True)
@@ -1586,6 +1858,10 @@ def main(argv: list[str] | None = None) -> int:
                 mission_state_file=args.mission_state_file,
                 mission_orchestrator_state_file=args.mission_orchestrator_state_file,
                 mission_queue_replay_state_file=args.mission_queue_replay_state_file,
+                mission_task_history_file=args.mission_task_history_file,
+                mission_task_history_retention_limit=(
+                    args.mission_task_history_retention_limit
+                ),
                 mission_retry_limit=args.mission_retry_limit,
                 mission_retry_backoff_sec=args.mission_retry_backoff_sec,
                 mission_recovery_enabled=args.mission_recovery_enabled,
