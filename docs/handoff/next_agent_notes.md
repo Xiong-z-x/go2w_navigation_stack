@@ -152,6 +152,11 @@ connector discovery 或未来 default real-model re-baseline。不要把下一�
   会直接拒绝。
 - Mission real-flat verifier 依赖在 mission API ready 后重新生成并 reload route graph；
   不要删掉这一步，否则 perception odom 漂移后更容易把 stale graph 当成 Nav2 问题。
+- Mission real-flat verifier 曾出现一次 Nav2 lifecycle configure 超时：`bt_navigator/change_state`
+  response timeout 后外层看到 `controller_server_lifecycle: inactive [2]`。这类失败先看
+  evidence dir 的 `nav2.log`，清理 orphaned sim/perception/FAST-LIO/Nav2 进程并换新
+  ROS domain 复跑；2026-05-04 clean-domain rerun 已通过。不要把这个症状直接归因到
+  mission API 或 route graph。
 - Mission fixture 不要再使用 node id `0`；mission API 会正确拒绝它作为 `invalid_goal`。
 - Mission flat goal 不能只带 x/y；必须从 route graph 读回目标 yaw 并转换成四元数，
   否则 real-model flat gate 会更容易在 DWB 局部规划阶段 abort。
@@ -185,8 +190,9 @@ connector discovery 或未来 default real-model re-baseline。不要把下一�
   忽略。正式交接事实必须写入 `docs/handoff/*`、`docs/architecture/*` 或 `docs/verification/*`。
 
 ## 后续项目改进起步顺序
-1. 先做 production Mission Orchestrator skeleton hardening，把任务队列、长期状态、
-   操作员恢复策略和优先级调度中的一个最小闭环落地。
+1. 当前窄范围 production Mission Orchestrator skeleton hardening 已完成。下一步进入
+   production Mission Orchestrator scheduling policy 时，只从任务队列、长期状态、
+   操作员恢复策略和优先级调度中选一个最小闭环落地。
 2. 再做 dedicated stair trajectory / wheel lock / body-height / gait tuning。
 3. 最后再进入 real-model default baseline 评估、Phase 5 elevation/traversability/
    automatic connector generation。

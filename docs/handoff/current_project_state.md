@@ -150,7 +150,12 @@ Gazebo GPU rendering 不是当前验收合同。RViz 可单独使用 WSLg/NVIDIA
 - 未实现 elevation mapping / traversability / automatic stair detection。
 
 ## 后续项目改进的直接起点
-下一轮项目改进建议先做单主题 production Mission Orchestrator skeleton hardening：
+本轮 production Mission Orchestrator skeleton hardening 的窄范围已完成：mission flat
+pose conversion 已集中到共享 `mission_pose` helper，`RunMission` 单飞 admission gate
+继续保持 `MISSION_BUSY` / `mission_state_in_use` 诊断，mission real-model flat gate 已完成
+fresh runtime 复验。
+
+下一轮项目改进建议改为单主题 production Mission Orchestrator scheduling policy：
 
 - 在现有 `RunMission` checkpoint/retry/resume skeleton 基础上，补任务队列、操作员恢复
   介入策略或长期状态后端中的一个最小闭环，不要一次做全量 production 调度系统。

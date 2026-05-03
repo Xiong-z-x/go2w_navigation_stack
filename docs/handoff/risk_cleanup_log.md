@@ -67,4 +67,5 @@
 | Phase 4C-min flat executor 仍是 verifier skeleton | 本阶段只证明 mission 到 navigation-owned `NavigateToPose` gate 的调度；当前 real-model short `NavigateToPose` verifier 尚未替换 mission runtime skeleton | 后续 production mission / real route-tracking integration 任务处理 |
 | 真实楼梯执行控制器调参仍未覆盖 | Phase 4E 已补 phase-aware `/stair_exec` fixture、wheel lock/body-height/release 诊断和 leg hold outlet，但仍不覆盖物理楼梯运动学 | 后续 dedicated stair trajectory / gait tuning 任务处理 |
 | ROS discovery/lifecycle 偶发等待 | 曾有一次 Phase 4B 回归中 `route_server` 进程已启动但 lifecycle service 未被发现；换新 domain 复跑通过 | 先清理残留并换新 `ROS_DOMAIN_ID` 复跑；若复现，再单独加 discovery 诊断 |
+| Mission real-flat verifier 的 Nav2 lifecycle 偶发 configure 超时 | 2026-05-04 一次运行卡在 `bt_navigator/change_state` response timeout，外层症状是 `controller_server_lifecycle: inactive [2]`；清理 orphaned sim/perception/FAST-LIO/Nav2 进程后同一 verifier 在新 domain 通过 | 先读 evidence dir 中的 `nav2.log`，确认是否 lifecycle/RMW 超时；清理残留并换新 domain 复跑。若反复复现，再单独硬化 verifier cleanup / lifecycle diagnostics，不要直接改 mission API |
 | 没有 `map -> odom` 定位融合链 | Phase 3A 有意运行在 `odom`，Phase 3C 只提供 `map` 资产 | 后续定位/地图服务任务单再引入 |

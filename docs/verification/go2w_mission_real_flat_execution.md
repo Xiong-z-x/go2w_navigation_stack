@@ -81,6 +81,65 @@ go2w_mission_real_flat_execution_result: PASS
 go2w_mission_real_flat_execution_result: PASS
 ```
 
+## Production Skeleton Hardening Rerun
+- Date: `2026-05-04T00:07+08:00`
+- Command:
+
+```bash
+./tools/verify_go2w_mission_real_flat_execution.sh
+```
+
+- Evidence directory:
+
+```text
+/tmp/go2w_mission_real_flat_execution_9341
+```
+
+- Result:
+
+```text
+go2w_mission_real_flat_execution_result: PASS
+```
+
+- Key result lines:
+
+```text
+controller_server_lifecycle: active
+planner_server_lifecycle: active
+bt_navigator_lifecycle: active
+mission_real_flat_graph_target_yaw: -0.265109
+mission_real_flat_goal_status: SUCCEEDED
+mission_real_flat_goal_result_code: MISSION_SUCCEEDED
+mission_real_flat_segment_summary: flat:10
+mission_real_flat_cmd_vel_nonzero_count: 15
+mission_real_flat_execution_result: PASS
+post_mission_map_odom: ABSENT
+post_mission_odom_base_link_authority: PRESENT
+```
+
+### Non-Passing Attempt During This Rerun
+- Evidence directory:
+
+```text
+/tmp/go2w_mission_real_flat_execution_7053
+```
+
+- Observed failure:
+
+```text
+controller_server_lifecycle: FAIL
+inactive [2]
+```
+
+- Log evidence showed Nav2 lifecycle manager configured `controller_server` and
+  `planner_server`, then timed out while sending the `bt_navigator/change_state`
+  response. After manually clearing the failed run's orphaned sim / perception /
+  FAST-LIO / Nav2 processes, the same verifier passed in a new ROS domain.
+- Current judgment: this is a ROS lifecycle / runtime-cleanup flake, not evidence
+  of a mission API code regression. Future failures of this shape should first
+  inspect `nav2.log`, clear residual processes, and rerun in a clean domain before
+  changing mission or route graph code.
+
 ## Verified Facts
 - Real-model controllers reached `active`.
 - `/clock`, `/imu`, `/lidar_points`, and `/joint_states` produced messages.

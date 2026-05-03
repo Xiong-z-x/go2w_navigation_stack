@@ -13,6 +13,14 @@
 5. `docs/handoff/*`
 6. `README.md` 与历史验证记录
 
+## 后续状态更新
+- 2026-05-04：production Mission Orchestrator skeleton hardening 的当前窄范围已完成。
+  已固化共享 `go2w_mission.mission_pose` flat pose conversion、`RunMission` 单飞
+  admission gate，以及 mission real-model flat execution fresh runtime 复验。
+- 本文下方的“下一任务建议自批准任务单”保留为历史执行入口。后续新的最小任务应转向
+  production Mission Orchestrator scheduling policy，例如 queueing、operator intervention
+  或长期状态后端中的一个单主题闭环。
+
 ## 总自检结论
 - 项目总目标未漂移：仍是 simulation-first 的 Go2W 跨楼层自主导航巡检系统。
 - 当前正式状态可信：`Phase 4 accepted`，并已有 Phase 5A、real-model baseline、
@@ -25,7 +33,8 @@
 - 2026-05-02 后续执行已完成第一项项目改进：real-model same-floor Nav2
   route-following 的 DWB abort 风险已复现、修复并通过 3 次 clean-domain 连续验证。
   mission runtime real robot-motion flat execution gate 也已完成并接入真实 Nav2。
-  当前最大项目改进入口现在转为 production Mission Orchestrator skeleton hardening，
+  2026-05-04 又完成了当前窄范围的 production Mission Orchestrator skeleton hardening；
+  后续最大项目改进入口转为 production Mission Orchestrator scheduling policy，
   仍然必须保持单主题、小步推进。
 
 ## 关键风险清单与处理状态
@@ -87,7 +96,7 @@
 3. 再评估 real-model path 是否可以扩大为默认 baseline。
 4. 最后进入 Phase 5 terrain-aware connector discovery、elevation mapping、traversability 和 automatic connector generation。
 
-## 下一任务建议自批准任务单
+## 已执行的自批准任务单
 
 Task Goal: production Mission Orchestrator skeleton hardening。
 
@@ -120,6 +129,9 @@ Definition of Done:
 - Mission API / runtime 的最小调度或恢复闭环可重复验证，并保持 success/failure/cancel/timeout/unavailable 诊断。
 - 现有 Phase 4C verifier skeleton 不被无证据移除；必须保留 deterministic 诊断路径。
 - 不改变 perception TF authority、默认 placeholder launch baseline、stair dynamics 或 map / localization 范围。
+
+执行状态：当前窄范围已完成。后续如要继续进入真正 queueing、operator intervention、priority scheduling
+或长期状态后端，必须另开新的完整任务单。
 
 ## 最终封板验证入口
 迁移前新模型接手前至少运行：

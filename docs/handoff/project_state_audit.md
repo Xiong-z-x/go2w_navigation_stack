@@ -3,7 +3,8 @@
 ## 审计结论
 - 当前正式阶段仍是 `Phase 4 accepted`，但仓库已经补上多个 post-Phase-4 hardening gate。
 - 当前最可信的事实源仍是 `docs/architecture/system_blueprint.md`、`docs/architecture/interface_contracts.md` 和 `docs/architecture/architecture_state.md`。
-- 当前没有证据表明 production Mission Orchestrator、真实机器人运动上的稳定 `nav2_route` route tracking、真实楼梯动力学、`map_server` / AMCL / `map -> odom`、elevation mapping、traversability 或 automatic connector generation 已完成。
+- 当前没有证据表明完整 production Mission Orchestrator、真实机器人运动上的稳定 `nav2_route` route tracking、真实楼梯动力学、`map_server` / AMCL / `map -> odom`、elevation mapping、traversability 或 automatic connector generation 已完成。
+- production Mission Orchestrator skeleton hardening 的当前窄范围已完成：共享 flat pose helper、单飞 admission gate 和 mission real-flat runtime gate 均有 fresh evidence。它仍不等于完整 production Mission Orchestrator。
 - 阶段结论必须由代码、配置、脚本、测试和 runtime evidence 交叉验证，不允许只看计划、注释或旧日志。
 
 ## 状态判定规则
@@ -66,6 +67,7 @@
 - Mission API 并发 goal 的单飞 admission gate 已经接入，避免两个 `RunMission` 同时竞争同一个 JSON state file。
 - Mission flat goal 的姿态转换已统一到共享 `mission_pose` helper，mission API 和 Phase 4B runtime 不再在 yaw 处理上分叉。
 - Mission real flat gate 之前的 yaw 丢失问题已经修复，并回写到 `docs/verification/go2w_mission_real_flat_execution.md`。
+- Production Mission Orchestrator skeleton hardening 的当前窄范围已完成：`mission_api.py` 和 `phase4b_mission_runtime.py` 共用 `mission_pose`，单飞 admission gate 有 focused unit test，`tools/verify_go2w_mission_real_flat_execution.sh` 在 clean-domain rerun 中通过。
 
 ## 未解决事项
 - 生产级 Mission Orchestrator 仍未完成。
@@ -106,13 +108,13 @@
 - 环境 / 依赖缺口：real-model 仍是 opt-in，Gazebo GPU 也仍不是接受合同。
 
 最值得优先推进的 3 个问题：
-1. 生产级 Mission Orchestrator skeleton hardening，只补任务队列 / 长期状态 / 操作员恢复中的一个最小闭环。
+1. Production Mission Orchestrator scheduling policy：只补任务队列 / 长期状态 / 操作员恢复中的一个最小闭环。
 2. 真实楼梯控制和 gait / body-height / wheel-lock 调参，但必须单独成题，不和 mission 调度混在一起。
 3. 真实 `nav2_route` robot-motion route tracking 的独立验证和门禁化。
 
 如果这三个问题不先收口，后续继续扩功能只会放大误判。
 
 ## 下一步建议
-1. 先做 production Mission Orchestrator skeleton hardening，仍然只做一个最小闭环，不要扩成完整长期调度系统。
+1. 下一步进入 production Mission Orchestrator scheduling policy 的独立任务，仍然只做一个最小闭环，不要扩成完整长期调度系统。
 2. 同步维持 current_project_state、risk_cleanup_log、next_agent_notes、architecture_state 和本审计文档的口径一致。
 3. 后续每次阶段审计都先输出四态判定，再决定是否写代码。

@@ -65,8 +65,7 @@ simulation-first 路线推进。
   cancel、timeout、route unavailable、flat action unavailable 和单飞 admission gate；
   当前已新增 JSON checkpoint、同一 mission goal resume 和有限 retry，但仍不是完整
   production Mission Orchestrator。mission runtime real-model flat execution gate 也已经接通真实
-  Nav2 `/navigate_to_pose`，并通过共享 `mission_pose` helper 保留了目标 yaw；下一步优先
-  production Mission Orchestrator skeleton hardening。
+  Nav2 `/navigate_to_pose`，并通过共享 `mission_pose` helper 保留了目标 yaw；production Mission Orchestrator skeleton hardening 的当前窄范围已完成，下一步应进入独立的 mission scheduling policy / queueing / operator-intervention 最小任务。
 
 不要把 Phase 4 accepted 误判成 production mission orchestration、真实 Nav2
 route tracking against robot motion、真实 `nav2_route` operation plugin、真实楼梯

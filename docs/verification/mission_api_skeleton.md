@@ -77,3 +77,27 @@ PYTHONPATH="$PWD/go2w_mission" python3 -m pytest go2w_mission/test/test_mission_
 ```text
 test_mission_api_single_flight_admission_gate_is_non_blocking: PASS
 ```
+
+## 2026-05-04 硬化复验
+- Command:
+
+```bash
+PYTHONPATH="$PWD/go2w_mission" python3 -m pytest go2w_mission/test/test_phase4b_mission_runtime.py go2w_mission/test/test_mission_api_skeleton.py -q
+source /opt/ros/humble/setup.bash && ./tools/verify_mission_api_skeleton.sh
+```
+
+- Result:
+
+```text
+16 passed in 0.03s
+mission_api_success: PASS
+mission_api_invalid_goal: PASS
+mission_api_cancel: PASS
+mission_api_unavailable_action: PASS
+mission_api_skeleton_result: PASS
+```
+
+- Verified facts:
+  - `MissionApiRuntime` 的单飞 admission gate 仍是非阻塞锁。
+  - 并发入口仍返回 `MISSION_BUSY` / `mission_state_in_use`，不是隐式 queue。
+  - mission API 和 Phase 4B runtime 均通过共享 `mission_pose` helper 做 flat goal yaw conversion。
