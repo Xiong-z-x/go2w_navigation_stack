@@ -4,9 +4,10 @@
 Phase 4C-min、Phase 4D-min 和 Phase 4 accepted 已在 2026-05-01 补充验收；Phase 5A、
 real-model baseline / route-following、Phase 4E stair fixture / mission recovery 和
 real-model regression wrapper 已在 2026-05-02 前后补充验收。2026-05-04 又补充了
-production Mission Orchestrator 窄范围 hardening：bounded FIFO scheduling、operator
-control service、operator-triggered durable queue replay 和 bounded terminal task
-history。最新状态以 `docs/architecture/architecture_state.md`、
+Mission API scheduling / control / replay / history 的窄范围 hardening：bounded FIFO
+scheduling、queued priority scheduling、operator control service、operator-triggered
+durable queue replay 和 bounded terminal task history。最新状态以
+`docs/architecture/architecture_state.md`、
 `docs/verification/phase4a_stair_handoff_acceptance.md` 和
 `docs/verification/phase4b_mission_segment_runtime.md`、
 `docs/verification/phase4c_flat_segment_gate.md`、
@@ -20,6 +21,7 @@ history。最新状态以 `docs/architecture/architecture_state.md`、
 `docs/verification/phase4e_mission_recovery.md` 和
 `docs/verification/go2w_real_model_regression.md`、
 `docs/verification/mission_api_scheduling_policy.md`、
+`docs/verification/mission_api_priority_scheduling.md`、
 `docs/verification/mission_api_orchestrator_control.md`、
 `docs/verification/mission_api_queue_replay.md` 和
 `docs/verification/mission_api_task_history.md` 为准。
@@ -76,7 +78,7 @@ active phase 标签，也不等于真实楼梯动力学或完整 production Miss
   `ComputeAndTrackRoute` feedback verifier skeleton。
 - mission 负责目标语义、楼层语义、分段调度和 mission recovery；当前已有 Phase 4A
   handoff demo、Phase 4B-min one-shot mission segment runtime、Phase 4D-min feedback
-  observer、RunMission skeleton、bounded FIFO queueing、operator control service、
+  observer、RunMission skeleton、bounded queueing、queued priority scheduling、operator control service、
   operator-triggered durable queue replay、bounded terminal task history 和 Phase 4E
   checkpoint/resume/retry skeleton。
 - control 负责最终 locomotion mode 与 stair execution；当前已有 Phase 4A
@@ -99,8 +101,8 @@ active phase 标签，也不等于真实楼梯动力学或完整 production Miss
 - `go2w_control`：Phase 4A 已有 `StairExec` Action、command gate 和最小 stair executor skeleton；Phase 4E 已补充 phase-aware stair execution diagnostics。
 - `go2w_mission`：Phase 4A 已有 handoff demo 和最小验证 launch；Phase 4B-min
   已有 one-shot mission segment runtime；Phase 4C/4D 已有 flat gate 与 feedback
-  observer；Phase 4E 已有 checkpoint/recovery skeleton；当前还具备 bounded FIFO
-  queueing、operator control service、durable queue replay 和 bounded terminal
+  observer；Phase 4E 已有 checkpoint/recovery skeleton；当前还具备 bounded queueing、
+  non-preemptive queued priority scheduling、operator control service、durable queue replay 和 bounded terminal
   task history。它仍尚不是完整 production orchestrator。
 
 ## 6. 到目前为止已完成的内容
@@ -138,7 +140,8 @@ active phase 标签，也不等于真实楼梯动力学或完整 production Miss
 - Mission runtime real-model flat execution gate：`RunMission` flat-only segment 可在
   不启动 `go2w_flat_nav_executor` 时调用真实 Nav2 `/navigate_to_pose`，并通过共享
   `mission_pose` helper 保留 route graph 目标 yaw。
-- Mission API scheduling / control / replay / history：bounded FIFO queueing、
+- Mission API scheduling / priority / control / replay / history：bounded queueing、
+  explicit `RunMission` priority、non-preemptive queued priority order、
   `MissionControl` pause/resume/status/cancel_active/replay_queue/history/archive_history、
   operator-triggered durable queue replay ledger 和 bounded terminal task-history
   ledger 已有 focused verifier 证据。
@@ -151,10 +154,11 @@ graph / hospital world 资产、Phase 4A 最小楼梯控制权交接骨架、Pha
 mission segment runtime、Phase 4C-min flat/stair/flat execution gate、Phase 4D-min
 route tracking feedback observation gate、Phase 4 accepted 总验收 gate，以及 Phase 4E
 stair fixture / mission recovery / real-model regression 后续硬化。mission 层当前还
-具备 bounded FIFO scheduling、operator control、queue replay 和 task history 的窄范围
-生产化骨架。但它还不是完整跨楼层自主系统：完整 production Mission Orchestrator 的
-priority scheduling、fleet-level/operator workflow policy，真实 Nav2 route tracking
-against robot motion、真实楼梯控制、自动连接器均未实现。
+具备 bounded FIFO scheduling、non-preemptive queued priority scheduling、
+operator control、queue replay 和 task history 的窄范围生产化骨架。但它还不是完整
+跨楼层自主系统：完整 production Mission Orchestrator 的 fleet-level/operator
+workflow policy，真实 Nav2 route tracking against robot motion、真实楼梯控制、
+自动连接器均未实现。
 
 ## 8. 本次已清理/已修复的问题
 - 修复活动 FAST-LIO 验证脚本仍默认 `/tmp` 的路径漂移。
@@ -179,17 +183,17 @@ against robot motion、真实楼梯控制、自动连接器均未实现。
   Phase 4E stair fixture、Phase 4E mission recovery 和 real-model regression wrapper。
 - 新增 mission runtime real-model flat execution gate，并修复 route graph 目标 yaw
   传递到 `NavigateToPose` 的姿态语义。
-- 新增 Mission API bounded FIFO scheduling、operator control、durable queue replay
-  和 task-history ledger 的 focused verifiers 与文档证据。
+- 新增 Mission API bounded FIFO scheduling、non-preemptive priority scheduling、
+  operator control、durable queue replay 和 task-history ledger 的 focused verifiers 与文档证据。
 
 ## 9. 仍然存在但暂不可修复的风险或限制
 - Gazebo GPU rendering 在当前 WSLg/Fortress/Ogre2 路径下仍不稳定。
 - Unitree Go2W 真实模型已作为 opt-in 路径导入并验证，但尚未替换默认 placeholder launch。
 - Phase 3C route graph 是手工 floor atlas，不是自动地图生成。
 - 没有完整 production Mission Orchestrator；当前已有 RunMission skeleton、JSON checkpoint、
-  同一 goal resume、bounded FIFO queueing、operator control service、operator-triggered
-  durable queue replay、bounded terminal task history 和有限 retry，但还没有优先级调度
-  或完整 fleet-level/operator workflow policy。
+  同一 goal resume、bounded queueing、non-preemptive queued priority scheduling、
+  operator control service、operator-triggered durable queue replay、bounded terminal task
+  history 和有限 retry，但还没有完整 fleet-level/operator workflow policy。
 - Phase 4C-min flat executor 是 verifier skeleton，不执行真实 Nav2 route tracking against robot motion。
 - Phase 4D-min feedback executor 是 verifier skeleton，不执行真实 `nav2_route`
   tracking against robot motion，也不执行真实 route operation plugin。

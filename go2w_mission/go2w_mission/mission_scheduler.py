@@ -13,6 +13,7 @@ class MissionQueueAdmission:
     queue_position: int = 0
     queued: bool = False
     rejected_reason: str = ""
+    priority: int = 0
 
 
 @dataclass(frozen=True)
@@ -20,6 +21,14 @@ class MissionScheduleSnapshot:
     capacity: int
     active_ticket: int | None
     queued_tickets: tuple[int, ...]
+    active_priority: int = 0
+    queued_priorities: tuple[tuple[int, int], ...] = ()
+
+
+@dataclass(frozen=True)
+class MissionQueueEntry:
+    ticket: int
+    priority: int
 
 
 class MissionScheduleGate:
@@ -33,15 +42,16 @@ class MissionScheduleGate:
     def __init__(self, *, capacity: int = 2) -> None:
         self._capacity = max(1, int(capacity))
         self._condition = threading.Condition()
-        self._queue: deque[int] = deque()
+        self._queue: deque[MissionQueueEntry] = deque()
         self._active_ticket: int | None = None
+        self._active_priority = 0
         self._next_ticket = 0
 
     @property
     def capacity(self) -> int:
         return self._capacity
 
-    def reserve(self) -> MissionQueueAdmission:
+    def reserve(self, *, priority: int = 0) -> MissionQueueAdmission:
         with self._condition:
             outstanding = len(self._queue) + (1 if self._active_ticket is not None else 0)
             if outstanding >= self._capacity:
@@ -52,14 +62,21 @@ class MissionScheduleGate:
 
             ticket = self._next_ticket
             self._next_ticket += 1
-            self._queue.append(ticket)
-            queue_position = len(self._queue) + (1 if self._active_ticket is not None else 0)
+            entry = MissionQueueEntry(ticket=ticket, priority=int(priority))
+            self._queue.append(entry)
+            ordered_queue = self._ordered_queue_locked()
+            queue_position = (
+                ordered_queue.index(entry)
+                + 1
+                + (1 if self._active_ticket is not None else 0)
+            )
             self._condition.notify_all()
             return MissionQueueAdmission(
                 accepted=True,
                 ticket=ticket,
                 queue_position=queue_position,
                 queued=queue_position > 1,
+                priority=entry.priority,
             )
 
     def restore(
@@ -68,14 +85,24 @@ class MissionScheduleGate:
         active_ticket: int | None,
         queued_tickets: tuple[int, ...],
         next_ticket: int | None = None,
+        ticket_priorities: dict[int, int] | None = None,
+        active_priority: int = 0,
     ) -> None:
         with self._condition:
-            filtered_queue = tuple(
+            priorities = ticket_priorities or {}
+            filtered_tickets = tuple(
                 ticket for ticket in queued_tickets if ticket != active_ticket
             )
-            self._queue = deque(filtered_queue)
+            self._queue = deque(
+                MissionQueueEntry(
+                    ticket=ticket,
+                    priority=int(priorities.get(ticket, 0)),
+                )
+                for ticket in filtered_tickets
+            )
             self._active_ticket = active_ticket if active_ticket is not None and active_ticket >= 0 else None
-            restored_candidates = [ticket for ticket in filtered_queue]
+            self._active_priority = int(active_priority) if self._active_ticket is not None else 0
+            restored_candidates = [ticket for ticket in filtered_tickets]
             if self._active_ticket is not None:
                 restored_candidates.append(self._active_ticket)
             if next_ticket is None:
@@ -110,12 +137,15 @@ class MissionScheduleGate:
                         self._condition.notify_all()
                     return False
 
-                if self._active_ticket is None and self._queue and self._queue[0] == ticket:
+                ordered_queue = self._ordered_queue_locked()
+                if self._active_ticket is None and ordered_queue and ordered_queue[0].ticket == ticket:
                     if not can_activate():
                         self._condition.wait(timeout=poll_timeout_sec)
                         continue
-                    self._queue.popleft()
+                    entry = ordered_queue[0]
+                    self._remove_ticket_locked(entry.ticket)
                     self._active_ticket = ticket
+                    self._active_priority = entry.priority
                     self._condition.notify_all()
                     return True
 
@@ -126,9 +156,9 @@ class MissionScheduleGate:
             changed = False
             if self._active_ticket == ticket:
                 self._active_ticket = None
+                self._active_priority = 0
                 changed = True
-            if ticket in self._queue:
-                self._queue.remove(ticket)
+            if self._remove_ticket_locked(ticket):
                 changed = True
             if changed:
                 self._condition.notify_all()
@@ -138,12 +168,20 @@ class MissionScheduleGate:
             return MissionScheduleSnapshot(
                 capacity=self._capacity,
                 active_ticket=self._active_ticket,
-                queued_tickets=tuple(self._queue),
+                queued_tickets=tuple(entry.ticket for entry in self._ordered_queue_locked()),
+                active_priority=self._active_priority,
+                queued_priorities=tuple(
+                    (entry.ticket, entry.priority)
+                    for entry in self._ordered_queue_locked()
+                ),
             )
 
     def _remove_ticket_locked(self, ticket: int) -> bool:
-        try:
-            self._queue.remove(ticket)
-        except ValueError:
-            return False
-        return True
+        for entry in tuple(self._queue):
+            if entry.ticket == ticket:
+                self._queue.remove(entry)
+                return True
+        return False
+
+    def _ordered_queue_locked(self) -> tuple[MissionQueueEntry, ...]:
+        return tuple(sorted(self._queue, key=lambda entry: (-entry.priority, entry.ticket)))

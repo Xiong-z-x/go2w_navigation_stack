@@ -65,6 +65,7 @@ class MissionGoalSpec:
     expected_stair_duration_sec: float
     result_timeout_sec: float
     flat_result_timeout_sec: float
+    priority: int = 0
 
 
 @dataclass(frozen=True)
@@ -73,6 +74,7 @@ class MissionTaskHistoryContext:
     mission_key: str
     ticket: int
     queue_position: int
+    priority: int
     start_id: int
     goal_id: int
     graph_file: str
@@ -109,6 +111,7 @@ def validate_mission_goal(spec: MissionGoalSpec) -> MissionGoalSpec:
         expected_stair_duration_sec=spec.expected_stair_duration_sec,
         result_timeout_sec=spec.result_timeout_sec,
         flat_result_timeout_sec=spec.flat_result_timeout_sec,
+        priority=int(spec.priority),
     )
 
 
@@ -310,6 +313,7 @@ class MissionApiRuntime:
                     ),
                     result_timeout_sec=float(request.result_timeout_sec),
                     flat_result_timeout_sec=float(request.flat_result_timeout_sec),
+                    priority=int(getattr(request, "priority", 0)),
                 )
             )
         except ValueError as exc:
@@ -366,15 +370,17 @@ class MissionApiRuntime:
                 ticket=replay_record.ticket,
                 queue_position=replay_record.queue_position,
                 queued=replay_record.state == QUEUED_STATE,
+                priority=replay_record.priority,
             )
             self.node.get_logger().info(
                 "mission_queue_replayed: "
                 f"key={mission_key} ticket={admission.ticket} "
                 f"queue_position={admission.queue_position} "
+                f"priority={admission.priority} "
                 f"state={replay_record.state}"
             )
         else:
-            admission = self.mission_scheduler.reserve()
+            admission = self.mission_scheduler.reserve(priority=goal_spec.priority)
             if not admission.accepted:
                 self.node.get_logger().info(
                     "mission_busy: mission_queue_full"
@@ -421,7 +427,8 @@ class MissionApiRuntime:
                 self.node.get_logger().info(
                     "mission_queued: "
                     f"key={mission_key} ticket={admission.ticket} "
-                    f"queue_position={admission.queue_position}"
+                    f"queue_position={admission.queue_position} "
+                    f"priority={admission.priority}"
                 )
                 goal_handle.publish_feedback(
                     self._feedback("QUEUED", 0, "", "", 0.0)
@@ -800,6 +807,7 @@ class MissionApiRuntime:
                 state = state.with_updates(
                     queue_capacity=queue_snapshot.capacity,
                     queued_tickets=tuple(queue_snapshot.queued_tickets),
+                    queued_priorities=tuple(queue_snapshot.queued_priorities),
                 )
             self.orchestrator_state = state
             self.orchestrator_state_store.save(state)
@@ -889,6 +897,7 @@ class MissionApiRuntime:
             mission_key=record.mission_key,
             ticket=record.ticket,
             queue_position=record.queue_position,
+            priority=record.priority,
             start_id=record.start_id,
             goal_id=record.goal_id,
             graph_file=record.graph_file,
@@ -916,6 +925,7 @@ class MissionApiRuntime:
             mission_key=context.mission_key,
             ticket=context.ticket,
             queue_position=context.queue_position,
+            priority=context.priority,
             state=mission_history_state_for_result(
                 success=success,
                 result_code=result_code,
@@ -982,6 +992,7 @@ class MissionApiRuntime:
             mission_key=mission_key,
             ticket=ticket,
             queue_position=queue_position,
+            priority=goal_spec.priority,
             state=state,
             start_id=goal_spec.start_id,
             goal_id=goal_spec.goal_id,
@@ -1036,6 +1047,8 @@ class MissionApiRuntime:
             active_ticket=state.active_ticket if state.active_ticket >= 0 else None,
             queued_tickets=state.queued_tickets,
             next_ticket=state.next_ticket,
+            ticket_priorities=state.ticket_priorities(),
+            active_priority=state.ticket_priorities().get(state.active_ticket, 0),
         )
 
     def _combined_state_summary(

@@ -21,7 +21,7 @@ simulation-first 的自主导航栈，最终实现：
   hardening 状态和实际 repo root 接手风险。
 - 2026-05-04 迁移前二次封板期间，`tools/verify_phase4_runtime_acceptance.sh` 与
   `tools/verify_go2w_control_chain_regression.sh` 又各自串行复验 PASS。
-- 当前状态：Phase 3A、Phase 3B、Phase 3C、Phase 4 迁移前封板、Phase 4A、Phase 4B-min、Phase 4C-min、Phase 4D-min、Phase 4 总体验收、Phase 5A live route tracking observation gate、opt-in Go2W real model / motion-mode baseline、opt-in real-model same-floor route-following verifier、mission-runtime real-model flat execution gate、Mission API scheduling / operator control / queue replay / task history、Phase 4E real-model stair fixture、Phase 4E mission recovery、稳定 control-chain regression wrapper 和 opt-in real-model regression wrapper 均已有仓库内验收证据。
+- 当前状态：Phase 3A、Phase 3B、Phase 3C、Phase 4 迁移前封板、Phase 4A、Phase 4B-min、Phase 4C-min、Phase 4D-min、Phase 4 总体验收、Phase 5A live route tracking observation gate、opt-in Go2W real model / motion-mode baseline、opt-in real-model same-floor route-following verifier、mission-runtime real-model flat execution gate、Mission API scheduling / priority scheduling / operator control / queue replay / task history、Phase 4E real-model stair fixture、Phase 4E mission recovery、稳定 control-chain regression wrapper 和 opt-in real-model regression wrapper 均已有仓库内验收证据。
 - 更细的阶段完成度审计、权威源映射、已解决 / 未解决 / 风险和最终目标差距分析见 `docs/handoff/project_state_audit.md`。
 - 当前 Phase 4 accepted 范围：manual-connector runtime chain，覆盖楼梯 handoff、mission route segmentation、flat/stair/flat Action 调度、`ComputeAndTrackRoute` feedback observation，以及 pre-handoff、Phase 4A/4B/4C/4D runtime verifiers、构建和测试的聚合验收。
 - 下一步：只能在新的完整任务单或当前自主审批模式下的自批准任务单中推进 post-Phase-4 的最小单主题任务。当前已完成的 Phase 4E 硬化仍不等于真实楼梯动力学、完整 production Mission Orchestrator 或默认 real-model re-baseline。
@@ -65,11 +65,12 @@ Gazebo GPU rendering 不是当前验收合同。RViz 可单独使用 WSLg/NVIDIA
   segment 接入 navigation-owned `NavigateToPose` gate；Phase 4D-min 已新增
   route tracking feedback observer；Phase 5A 已新增 live route tracking probe；
   现已额外提供 opt-in `RunMission` Action skeleton / mission API verifier，用于
-  route segmentation、flat/stair dispatch、bounded FIFO queueing、queue-full /
+  route segmentation、flat/stair dispatch、bounded queueing、queue-full /
   queued-cancel diagnostics 和诊断结果码；当前 mission API 又新增 JSON checkpoint
   持久化、同一 mission goal resume、有限 retry、operator-state snapshot、
   `MissionControl` pause/resume/status/cancel_active/replay_queue/history/archive_history
   控制面、durable queue replay ledger、bounded terminal task-history ledger，以及
+  非抢占式 queued priority scheduling；当前 priority 只影响 waiting queue，不抢占 active mission；
   opt-in real-model flat-only execution gate。
   该 gate 在不启动 `go2w_flat_nav_executor` 的情况下把 mission flat
   segment 送到真实 Nav2 `/navigate_to_pose`，并通过共享 `mission_pose` helper 保留
@@ -120,16 +121,21 @@ Gazebo GPU rendering 不是当前验收合同。RViz 可单独使用 WSLg/NVIDIA
   `mission_queue_full`，queued goal 可在激活前取消返回 `MISSION_CANCELED` /
   `mission_queue_canceled`，避免两个 mission 实例同时竞争单一 JSON state file，
   但也不把队列误写成 persistent backend。
+- Mission API priority scheduling：通过 `tools/verify_mission_api_priority_scheduling.sh`
+  验证 `RunMission` 显式 priority 输入、active mission 非抢占、queued mission 按
+  `priority DESC, ticket ASC` 激活、同 priority 保持 FIFO，并且 queue replay /
+  task history / operator summary 保留 priority 诊断。
 - Mission API durable queue replay：通过 `tools/verify_mission_api_queue_replay.sh`
   验证 outstanding queue records 会写入 JSON replay ledger；重启待 replay 状态下新
   mission 会返回 `MISSION_BUSY` / `mission_queue_replay_pending`；operator 通过
   `MissionControl replay_queue` 显式恢复 scheduler ticket order 后，匹配的同一
-  mission key 可复用持久化 queue record。该能力仍不是 priority scheduling。
+  mission key 可复用持久化 queue record。该能力仍不是 action goal-handle resurrection
+  或完整 production Mission Orchestrator。
 - Mission API long-term task history：通过 `tools/verify_mission_api_task_history.sh`
   验证 terminal `RunMission` records 会写入 bounded JSON task-history ledger，
   `MissionControl history` 可返回 operator-visible summary，`MissionControl archive_history`
-  可按 `retain=<N>` 裁剪旧记录。该能力仍不是 priority scheduling、fleet-level task
-  assignment 或完整 production Mission Orchestrator。
+  可按 `retain=<N>` 裁剪旧记录。该能力仍不是 fleet-level task assignment
+  或完整 production Mission Orchestrator。
 - Phase 4E real-model stair fixture：通过 `tools/verify_phase4e_stair_fixture.sh`
   验证 opt-in real-model fixture 中 `/stair_exec` Action 成功、command gate
   `flat/wheeled -> stair/legged -> flat/wheeled`、阶段化 stair executor 状态、
@@ -157,8 +163,8 @@ Gazebo GPU rendering 不是当前验收合同。RViz 可单独使用 WSLg/NVIDIA
   复现后通过候选选择、goal tolerance 和 stale-process cleanup 收口，并取得 3 次
   clean-domain 连续 PASS。它是 opt-in regression 候选，但还不是 production
   `nav2_route` route tracking，也未自动纳入 stable control-chain wrapper。
-- `go2w_mission` 的 `RunMission` 已有 checkpoint/retry/resume skeleton、bounded FIFO queueing、持久化 operator-state snapshot backend、`MissionControl` pause/resume/status/cancel_active/replay_queue/history/archive_history 控制面、operator-triggered durable queue replay ledger，以及 bounded terminal task-history ledger；mission flat goal 的姿态转换已统一到共享 `mission_pose` helper，但仍不是完整 production Mission Orchestrator。
-- 未实现完整 production Mission Orchestrator 的 priority scheduling、fleet-level task assignment 和 operator workflow policy。
+- `go2w_mission` 的 `RunMission` 已有 checkpoint/retry/resume skeleton、bounded queueing、非抢占式 queued priority scheduling、持久化 operator-state snapshot backend、`MissionControl` pause/resume/status/cancel_active/replay_queue/history/archive_history 控制面、operator-triggered durable queue replay ledger，以及 bounded terminal task-history ledger；mission flat goal 的姿态转换已统一到共享 `mission_pose` helper，但仍不是完整 production Mission Orchestrator。
+- 未实现完整 production Mission Orchestrator 的 fleet-level task assignment 和 operator workflow policy。
 - Phase 4C-min 的 flat executor 仍作为 deterministic verifier skeleton 保留；mission API
   现在已有 opt-in real-model flat-only gate 可绕过该 skeleton 并调用真实 Nav2
   `/navigate_to_pose`。
@@ -173,20 +179,19 @@ Gazebo GPU rendering 不是当前验收合同。RViz 可单独使用 WSLg/NVIDIA
 
 ## 后续项目改进的直接起点
 本轮 production Mission Orchestrator long-term task-history 的窄范围已完成：mission flat
-pose conversion 已集中到共享 `mission_pose` helper，`RunMission` 现在采用 bounded FIFO
-queueing，queue-full 与 queued-cancel 诊断可重复验证，mission real-model flat gate
+pose conversion 已集中到共享 `mission_pose` helper，`RunMission` 现在采用 bounded queueing
+和 non-preemptive queued priority scheduling，queue-full 与 queued-cancel 诊断可重复验证，
+mission real-model flat gate
 已完成 fresh runtime 复验，mission control service / operator-state snapshot 已接入并验证，
 outstanding queue records 现在可通过 operator-triggered replay ledger 持久化与恢复，terminal
 mission records 也可通过 bounded task-history ledger 查询和裁剪。
 
-下一轮项目改进建议改为单主题 production Mission Orchestrator 的剩余子项：
+下一轮项目改进建议改为单主题 production Mission Orchestrator 的剩余子项或 stair control 子项：
 
-- 在现有 `RunMission` checkpoint/retry/resume skeleton、bounded FIFO queueing、
-  operator control service、durable queue replay 和 task-history ledger 基础上，
-  下一步优先补 priority scheduling 的最小闭环，不要一次做全量 production 调度系统。
-- Mission API 现在已有 bounded FIFO queueing、operator control service、operator-triggered
-  durable replay 和 bounded task history；后续如果要 priority scheduling，必须另开完整任务单，
-  不要沿着当前 skeleton 直接扩展成隐式优先级后端。
+- 在现有 `RunMission` checkpoint/retry/resume skeleton、bounded queueing、
+  queued priority scheduling、operator control service、durable queue replay 和 task-history
+  ledger 基础上，后续若继续 mission orchestration，只做另一个明确命名的单主题 gap，
+  不要一次做全量 production 调度系统。
 - 保持 mission flat execution 的双路径：Phase 4C verifier skeleton 用于 deterministic
   诊断，opt-in real-model flat gate 用于真实 Nav2 flat motion 证据。
 - 不允许顺带切换默认仿真基线、重构 perception TF、做 stair dynamics、引入

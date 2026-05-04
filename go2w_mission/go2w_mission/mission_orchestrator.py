@@ -31,6 +31,7 @@ class MissionOrchestratorState:
     last_command: str
     last_message: str
     updated_at: float
+    queued_priorities: tuple[tuple[int, int], ...] = ()
 
     def with_updates(self, **changes: Any) -> "MissionOrchestratorState":
         return replace(self, **changes)
@@ -41,12 +42,16 @@ class MissionOrchestratorState:
 
     def summary(self) -> str:
         queued = ",".join(str(ticket) for ticket in self.queued_tickets) or "-"
+        priorities = ",".join(
+            f"{ticket}:{priority}"
+            for ticket, priority in self.queued_priorities
+        ) or "-"
         active_ticket = self.active_ticket if self.active_ticket >= 0 else "-"
         active_mission = self.active_mission_key or "-"
         pause_reason = self.pause_reason or "-"
         return (
             f"mode={self.mode} active_ticket={active_ticket} "
-            f"active_mission={active_mission} queued=[{queued}] "
+            f"active_mission={active_mission} queued=[{queued}] priorities=[{priorities}] "
             f"capacity={self.queue_capacity} pause_reason={pause_reason} "
             f"last_command={self.last_command} last_message={self.last_message or '-'}"
         )
@@ -59,6 +64,10 @@ class MissionOrchestratorState:
             "active_ticket": self.active_ticket,
             "queue_capacity": self.queue_capacity,
             "queued_tickets": list(self.queued_tickets),
+            "queued_priorities": [
+                {"ticket": ticket, "priority": priority}
+                for ticket, priority in self.queued_priorities
+            ],
             "last_command": self.last_command,
             "last_message": self.last_message,
             "updated_at": self.updated_at,
@@ -74,6 +83,14 @@ class MissionOrchestratorState:
             queue_capacity=max(1, int(data.get("queue_capacity", 1))),
             queued_tickets=tuple(
                 int(ticket) for ticket in data.get("queued_tickets", [])
+            ),
+            queued_priorities=tuple(
+                (
+                    int(item.get("ticket", -1)),
+                    int(item.get("priority", 0)),
+                )
+                for item in data.get("queued_priorities", [])
+                if isinstance(item, dict)
             ),
             last_command=str(data.get("last_command", "BOOT")),
             last_message=str(data.get("last_message", "")),
@@ -92,6 +109,7 @@ def build_initial_orchestrator_state(queue_capacity: int) -> MissionOrchestrator
         last_command="BOOT",
         last_message="orchestrator_ready",
         updated_at=time.time(),
+        queued_priorities=(),
     )
 
 
@@ -105,6 +123,7 @@ def sanitize_orchestrator_state_for_runtime(
         active_ticket=-1,
         queue_capacity=max(1, int(queue_capacity)),
         queued_tickets=(),
+        queued_priorities=(),
     )
 
 

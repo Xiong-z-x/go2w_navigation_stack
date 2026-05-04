@@ -216,7 +216,13 @@ def _build_runtime(monkeypatch, tmp_path: Path, *, fake_finish: bool = True):
     return runtime, graph_file
 
 
-def _make_goal_handle(graph_file: Path, *, start_id: int, goal_id: int) -> _FakeGoalHandle:
+def _make_goal_handle(
+    graph_file: Path,
+    *,
+    start_id: int,
+    goal_id: int,
+    priority: int = 0,
+) -> _FakeGoalHandle:
     request = SimpleNamespace(
         start_id=start_id,
         goal_id=goal_id,
@@ -225,6 +231,7 @@ def _make_goal_handle(graph_file: Path, *, start_id: int, goal_id: int) -> _Fake
         expected_stair_duration_sec=0.3,
         result_timeout_sec=4.0,
         flat_result_timeout_sec=4.0,
+        priority=priority,
     )
     return _FakeGoalHandle(request)
 
@@ -272,6 +279,58 @@ def test_mission_schedule_gate_enforces_fifo_capacity_and_cancellation() -> None
     assert second.ticket not in gate.snapshot().queued_tickets
 
     gate.release(first.ticket)
+
+
+def test_mission_schedule_gate_prioritizes_waiting_goals_without_preemption() -> None:
+    gate = MissionScheduleGate(capacity=3)
+
+    active = gate.reserve(priority=0)
+    assert gate.wait_for_turn(active.ticket, lambda: False, poll_timeout_sec=0.01)
+
+    low = gate.reserve(priority=1)
+    high = gate.reserve(priority=5)
+
+    snapshot = gate.snapshot()
+    assert snapshot.active_ticket == active.ticket
+    assert snapshot.queued_tickets == (high.ticket, low.ticket)
+    assert snapshot.queued_priorities == ((high.ticket, 5), (low.ticket, 1))
+
+    gate.release(active.ticket)
+
+    high_deadline = time.monotonic() + 0.2
+    assert gate.wait_for_turn(
+        high.ticket,
+        lambda: time.monotonic() > high_deadline,
+        poll_timeout_sec=0.01,
+    )
+    assert gate.snapshot().active_ticket == high.ticket
+
+    gate.release(high.ticket)
+
+    low_deadline = time.monotonic() + 0.2
+    assert gate.wait_for_turn(
+        low.ticket,
+        lambda: time.monotonic() > low_deadline,
+        poll_timeout_sec=0.01,
+    )
+    assert gate.snapshot().active_ticket == low.ticket
+
+
+def test_mission_schedule_gate_keeps_fifo_for_equal_priority() -> None:
+    gate = MissionScheduleGate(capacity=3)
+
+    active = gate.reserve(priority=0)
+    assert gate.wait_for_turn(active.ticket, lambda: False, poll_timeout_sec=0.01)
+
+    first_waiting = gate.reserve(priority=3)
+    second_waiting = gate.reserve(priority=3)
+
+    snapshot = gate.snapshot()
+    assert snapshot.queued_tickets == (first_waiting.ticket, second_waiting.ticket)
+    assert snapshot.queued_priorities == (
+        (first_waiting.ticket, 3),
+        (second_waiting.ticket, 3),
+    )
 
 
 def test_mission_api_queues_one_goal_and_rejects_the_third(
@@ -352,6 +411,105 @@ def test_mission_api_queues_one_goal_and_rejects_the_third(
     assert second_result["value"]["result_code"] == "MISSION_SUCCEEDED"
     assert second_goal.feedback_states[1] == "SCHEDULED"
     assert execution_calls["count"] == 2
+
+
+def test_mission_api_prioritizes_high_priority_queued_goal_after_active_releases(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    runtime, graph_file = _build_runtime(monkeypatch, tmp_path)
+    runtime.mission_scheduler = MissionScheduleGate(capacity=3)
+    runtime.queue_replay_state = build_initial_queue_replay_state(3)
+    runtime.orchestrator_state = build_initial_orchestrator_state(3)
+    first_release = threading.Event()
+    first_started = threading.Event()
+    activation_order: list[int] = []
+    execution_lock = threading.Lock()
+
+    def fake_execute_segments(
+        goal_handle,
+        graph,
+        goal_spec,
+        segments,
+        *,
+        mission_key: str,
+        segment_summary: str,
+        start_index: int,
+        route_edge_ids: tuple[int, ...],
+    ):
+        with execution_lock:
+            activation_order.append(int(goal_handle.request.start_id))
+            call_index = len(activation_order) - 1
+        if call_index == 0:
+            first_started.set()
+            assert first_release.wait(timeout=5.0)
+        return {
+            "success": True,
+            "result_code": "MISSION_SUCCEEDED",
+            "message": "mission_succeeded",
+            "current_segment_index": len(segments) - 1 if segments else 0,
+            "current_segment_type": segments[-1].segment_type if segments else "",
+            "active_owner": "flat",
+            "next_segment_index": len(segments),
+            "retry_count": 0,
+        }
+
+    monkeypatch.setattr(runtime, "_execute_segments", fake_execute_segments)
+
+    first_goal = _make_goal_handle(
+        graph_file,
+        start_id=100,
+        goal_id=202,
+        priority=0,
+    )
+    low_goal = _make_goal_handle(
+        graph_file,
+        start_id=101,
+        goal_id=203,
+        priority=1,
+    )
+    high_goal = _make_goal_handle(
+        graph_file,
+        start_id=102,
+        goal_id=204,
+        priority=5,
+    )
+
+    first_result: dict[str, object] = {}
+    low_result: dict[str, object] = {}
+    high_result: dict[str, object] = {}
+
+    def run_first() -> None:
+        first_result["value"] = runtime.execute(first_goal)
+
+    def run_low() -> None:
+        low_result["value"] = runtime.execute(low_goal)
+
+    def run_high() -> None:
+        high_result["value"] = runtime.execute(high_goal)
+
+    first_thread = threading.Thread(target=run_first, daemon=True)
+    first_thread.start()
+    assert first_started.wait(timeout=2.0)
+
+    low_thread = threading.Thread(target=run_low, daemon=True)
+    high_thread = threading.Thread(target=run_high, daemon=True)
+    low_thread.start()
+    assert _wait_until(lambda: "QUEUED" in low_goal.feedback_states)
+    high_thread.start()
+    assert _wait_until(lambda: "QUEUED" in high_goal.feedback_states)
+
+    first_release.set()
+    first_thread.join(timeout=5.0)
+    high_thread.join(timeout=5.0)
+    low_thread.join(timeout=5.0)
+
+    assert first_result["value"]["result_code"] == "MISSION_SUCCEEDED"
+    assert high_result["value"]["result_code"] == "MISSION_SUCCEEDED"
+    assert low_result["value"]["result_code"] == "MISSION_SUCCEEDED"
+    assert activation_order == [100, 102, 101]
+    assert high_goal.feedback_states[1] == "SCHEDULED"
+    assert low_goal.feedback_states[1] == "SCHEDULED"
 
 
 def test_mission_api_cancels_a_queued_goal_before_activation(
@@ -578,7 +736,7 @@ def test_mission_api_operator_cancel_active_goal(
 
     monkeypatch.setattr(runtime, "_execute_segments", fake_execute_segments)
 
-    goal = _make_goal_handle(graph_file, start_id=100, goal_id=202)
+    goal = _make_goal_handle(graph_file, start_id=100, goal_id=202, priority=6)
     result_box: dict[str, object] = {}
 
     def run_goal() -> None:
@@ -610,6 +768,7 @@ def test_queue_replay_store_round_trips_records(tmp_path: Path) -> None:
         mission_key="100->202:map:graph:deadbeef",
         ticket=0,
         queue_position=1,
+        priority=7,
         state=QUEUED_STATE,
         start_id=100,
         goal_id=202,
@@ -639,6 +798,7 @@ def test_queue_replay_store_round_trips_records(tmp_path: Path) -> None:
     assert loaded == state
     assert loaded is not None
     assert loaded.summary().startswith("replay=PENDING")
+    assert "priorities=[0:7]" in loaded.summary()
 
     store.clear()
     assert store.load() is None
@@ -659,6 +819,7 @@ def test_mission_api_replay_queue_restores_pending_record(
         mission_key=mission_key,
         ticket=0,
         queue_position=1,
+        priority=4,
         state=QUEUED_STATE,
         start_id=100,
         goal_id=202,
@@ -728,8 +889,10 @@ def test_mission_api_replay_queue_restores_pending_record(
     assert replay_result["accepted"] is True
     assert replay_result["message"] == "queue_replayed"
     assert "replay=ACKED" in replay_result["state_summary"]
+    assert "priorities=[0:4]" in replay_result["state_summary"]
     assert runtime.queue_replay_state.queue_replay_pending is False
     assert runtime.mission_scheduler.snapshot().queued_tickets == (0,)
+    assert runtime.mission_scheduler.snapshot().queued_priorities == ((0, 4),)
 
     replayed_goal = _make_goal_handle(graph_file, start_id=100, goal_id=202)
     replayed_result = runtime.execute(replayed_goal)
@@ -751,6 +914,7 @@ def test_mission_task_history_store_round_trips_and_archives(
         mission_key="100->202:map:graph:deadbeef",
         ticket=0,
         queue_position=1,
+        priority=2,
         state="SUCCEEDED",
         result_code="MISSION_SUCCEEDED",
         message="mission_succeeded",
@@ -797,6 +961,7 @@ def test_mission_task_history_store_round_trips_and_archives(
     assert loaded == state
     assert loaded is not None
     assert loaded.summary().startswith("history=records=2 retain=2")
+    assert "latest_priority=2" in loaded.summary()
 
     trimmed = loaded.archive_to_limit(1)
     assert trimmed.record_count == 1
@@ -841,7 +1006,7 @@ def test_mission_api_records_terminal_task_history_and_summary(
 
     monkeypatch.setattr(runtime, "_execute_segments", fake_execute_segments)
 
-    goal = _make_goal_handle(graph_file, start_id=100, goal_id=202)
+    goal = _make_goal_handle(graph_file, start_id=100, goal_id=202, priority=6)
     result = runtime.execute(goal)
     mission_key = build_mission_key(
         start_id=100,
@@ -857,12 +1022,14 @@ def test_mission_api_records_terminal_task_history_and_summary(
     assert runtime.task_history_state.latest_record.mission_key == mission_key
     assert runtime.task_history_state.latest_record.result_code == "MISSION_SUCCEEDED"
     assert runtime.task_history_state.latest_record.state == "SUCCEEDED"
+    assert runtime.task_history_state.latest_record.priority == 6
 
     history_result = runtime.handle_orchestrator_command("history", "operator_review")
     assert history_result["accepted"] is True
     assert history_result["message"] == "history_snapshot"
     assert "history=records=1" in history_result["state_summary"]
     assert "latest_result=MISSION_SUCCEEDED" in history_result["state_summary"]
+    assert "latest_priority=6" in history_result["state_summary"]
 
 
 def test_mission_api_archive_history_trims_old_records(
@@ -875,6 +1042,7 @@ def test_mission_api_archive_history_trims_old_records(
         mission_key="100->202:map:graph:deadbeef",
         ticket=0,
         queue_position=1,
+        priority=0,
         state="SUCCEEDED",
         result_code="MISSION_SUCCEEDED",
         message="mission_succeeded",
@@ -896,6 +1064,7 @@ def test_mission_api_archive_history_trims_old_records(
         mission_key="101->203:map:graph:deadbeef",
         ticket=1,
         queue_position=2,
+        priority=3,
         state="FAILED",
         result_code="MISSION_ROUTE_UNAVAILABLE",
         message="route_goal_rejected",
@@ -912,6 +1081,7 @@ def test_mission_api_archive_history_trims_old_records(
         mission_key="102->204:map:graph:deadbeef",
         ticket=2,
         queue_position=3,
+        priority=5,
         state="CANCELED",
         result_code="MISSION_CANCELED",
         message="mission_canceled",

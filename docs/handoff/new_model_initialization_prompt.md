@@ -127,14 +127,15 @@ simulation-first 路线构建 Go2W 跨楼层自主导航巡检系统：
 - Mission-runtime real-model flat execution gate：`RunMission` 的 flat-only segment
   已可在不启动 `go2w_flat_nav_executor` 的情况下调用真实 Nav2 `/navigate_to_pose`，
   保留 route graph 目标 yaw，并保持 perception-owned `odom -> base_link`。
-- Production Mission Orchestrator 当前窄范围：`RunMission` 已有 bounded FIFO queueing、
-  operator-state snapshot、`MissionControl` pause/resume/status/cancel_active/replay_queue/history/archive_history、
+- Production Mission Orchestrator 当前窄范围：`RunMission` 已有 bounded queueing、
+  non-preemptive queued priority scheduling、operator-state snapshot、
+  `MissionControl` pause/resume/status/cancel_active/replay_queue/history/archive_history、
   operator-triggered durable queue replay ledger 和 bounded terminal task-history ledger。
 
 未完成或不能误判为完成：
 
 - Production Mission Orchestrator 尚未完成；当前只是 mission API / recovery skeleton
-  加上 bounded FIFO、operator control、queue replay 和 task history。
+  加上 bounded queueing、queued priority scheduling、operator control、queue replay 和 task history。
 - 真实机器人运动上的 `nav2_route` route tracking 尚未稳定完成。
 - Real-model same-floor route-following 已完成 dedicated hardening：DWB abort 复现后通过
   candidate selection、`xy_goal_tolerance: 0.08` 和 stale-process cleanup 修复，并取得
@@ -150,10 +151,10 @@ simulation-first 路线构建 Go2W 跨楼层自主导航巡检系统：
 - Real Go2W model path 仍是 opt-in，未替换默认 `go2w_sim sim.launch.py` placeholder path。
 - 2026-05-02 最终封板报告已写入 `docs/handoff/pre_migration_final_freeze_report.md`；
   它给出当前最小后续项目改进路线，但不替代架构事实源。2026-05-04 已继续完成
-  mission scheduling / operator control / queue replay / task history 窄范围。
-  当前下一步应进入 production Mission Orchestrator priority scheduling 或另一个明确命名的
-  单主题 orchestration gap，而不是继续把已完成的 mission flat execution / scheduling /
-  queue replay / task history 当成未完成项。
+  mission scheduling / priority scheduling / operator control / queue replay / task history 窄范围。
+  当前下一步应进入另一个明确命名的单主题 orchestration gap，或 dedicated stair trajectory /
+  wheel lock / body-height / gait tuning，而不是继续把已完成的 mission flat execution /
+  scheduling / priority scheduling / queue replay / task history 当成未完成项。
 
 ====================
 五、架构边界
@@ -285,21 +286,23 @@ ros2 launch go2w_sim sim.launch.py use_gpu:=false headless:=true launch_rviz:=fa
 十、后续项目改进的建议起点
 ====================
 
-当前最合理的直接起点是单主题处理：
+当前最合理的直接起点必须重新给出完整 6 项任务单；priority scheduling 已完成，后续候选必须是单主题处理：
 
-Task Goal: production Mission Orchestrator priority scheduling 最小闭环。
+Task Goal: 另一个明确命名的 production Mission Orchestrator remaining slice。
 Current Phase: Phase 4 accepted, post-Phase-4 hardening。
-Allowed Files: `go2w_mission` mission scheduler / mission API / MissionControl 相关文件、
-focused tests、verification 与 handoff 文档；必要时新增只影响 mission priority 的窄接口。
+Allowed Files: 仅限新任务单明确列出的包、focused tests、verification 与 handoff 文档。
 Forbidden Files: perception TF authority、default placeholder launch baseline、stair dynamics、
 real-model Nav2 tuning、AMCL/map_server、elevation/traversability/automatic connector、
 真实楼梯 gait / trajectory tuning、default real-model re-baseline。
 Required Commands: `bash -n`、shellcheck（若可用）、Python 静态解析、focused pytest、
-新增或更新的 mission priority verifier、`./tools/verify_phase4_pre_handoff.sh`，
+新增或更新的任务专用 verifier、`./tools/verify_phase4_pre_handoff.sh`，
 必要时串行运行 stable control-chain regression。
-Definition of Done: priority scheduling 的输入语义、admission 顺序、queue-full/cancel/pause/
-replay/history 交互和诊断可重复验证；不得改变 perception TF authority、默认 placeholder
+Definition of Done: 新任务单命名能力的输入语义、执行顺序、交互诊断和恢复路径可重复验证；
+不得改变 perception TF authority、默认 placeholder
 baseline、stair dynamics 或 map / localization 范围。
+
+若后续要做 dedicated stair trajectory / wheel lock / body-height / gait tuning，必须另起独立任务单，
+重新声明 allowed / forbidden files，不得复用本节任务单。
 
 该任务完成后，再考虑：
 
@@ -308,9 +311,9 @@ baseline、stair dynamics 或 map / localization 范围。
 3. 真实机器人运动上的稳定 `nav2_route` route tracking。
 4. Phase 5 terrain-aware connector discovery、elevation mapping、traversability。
 
-不要跳过 priority scheduling 直接做 stair tuning、default baseline 或 Phase 5。当前 mission
-scheduling / operator control / queue replay / task history 都是窄范围硬化，不等于完整
-production Mission Orchestrator。
+不要把已完成的 priority scheduling 重复当成下一步。当前 mission scheduling / priority /
+operator control / queue replay / task history 都是窄范围硬化，不等于完整 production
+Mission Orchestrator。
 
 ====================
 十一、上下文防失真要求

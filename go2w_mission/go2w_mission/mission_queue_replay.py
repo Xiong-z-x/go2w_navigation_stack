@@ -18,6 +18,7 @@ class MissionQueueRecord:
     mission_key: str
     ticket: int
     queue_position: int
+    priority: int
     state: str
     start_id: int
     goal_id: int
@@ -43,6 +44,7 @@ class MissionQueueRecord:
             "mission_key": self.mission_key,
             "ticket": self.ticket,
             "queue_position": self.queue_position,
+            "priority": self.priority,
             "state": self.state,
             "start_id": self.start_id,
             "goal_id": self.goal_id,
@@ -63,6 +65,7 @@ class MissionQueueRecord:
             mission_key=str(data.get("mission_key", "")),
             ticket=int(data.get("ticket", -1)),
             queue_position=int(data.get("queue_position", 0)),
+            priority=int(data.get("priority", 0)),
             state=str(data.get("state", QUEUED_STATE)),
             start_id=int(data.get("start_id", 0)),
             goal_id=int(data.get("goal_id", 0)),
@@ -108,12 +111,23 @@ class MissionQueueReplayState:
     def queued_tickets(self) -> tuple[int, ...]:
         return tuple(
             record.ticket
-            for record in self.sorted_records()
+            for record in self.sorted_queued_records()
             if record.state == QUEUED_STATE
         )
 
     def sorted_records(self) -> tuple[MissionQueueRecord, ...]:
         return tuple(sorted(self.records, key=lambda record: record.ticket))
+
+    def sorted_queued_records(self) -> tuple[MissionQueueRecord, ...]:
+        return tuple(
+            sorted(
+                (record for record in self.records if record.state == QUEUED_STATE),
+                key=lambda record: (-record.priority, record.ticket),
+            )
+        )
+
+    def ticket_priorities(self) -> dict[int, int]:
+        return {record.ticket: record.priority for record in self.records}
 
     def find_record(self, mission_key: str) -> MissionQueueRecord | None:
         for record in self.records:
@@ -137,11 +151,15 @@ class MissionQueueReplayState:
 
     def summary(self) -> str:
         queued = ",".join(str(ticket) for ticket in self.queued_tickets) or "-"
+        priorities = ",".join(
+            f"{record.ticket}:{record.priority}"
+            for record in self.sorted_queued_records()
+        ) or "-"
         active_ticket = self.active_ticket if self.active_ticket >= 0 else "-"
         replay_status = "PENDING" if self.queue_replay_pending else "ACKED"
         return (
             f"replay={replay_status} records={self.record_count} "
-            f"active_ticket={active_ticket} queued=[{queued}] "
+            f"active_ticket={active_ticket} queued=[{queued}] priorities=[{priorities}] "
             f"capacity={self.queue_capacity} next_ticket={self.next_ticket} "
             f"last_command={self.last_command} last_message={self.last_message or '-'}"
         )

@@ -93,6 +93,7 @@ required_files=(
   "docs/verification/go2w_real_model_route_following.md"
   "docs/verification/go2w_mission_real_flat_execution.md"
   "docs/verification/mission_api_scheduling_policy.md"
+  "docs/verification/mission_api_priority_scheduling.md"
   "docs/verification/mission_api_orchestrator_control.md"
   "docs/verification/mission_api_queue_replay.md"
   "docs/verification/mission_api_task_history.md"
@@ -111,6 +112,7 @@ required_files=(
   "tools/verify_go2w_real_model_route_following.sh"
   "tools/verify_go2w_mission_real_flat_execution.sh"
   "tools/verify_mission_api_scheduling_policy.sh"
+  "tools/verify_mission_api_priority_scheduling.sh"
   "tools/verify_mission_api_orchestrator_control.sh"
   "tools/verify_mission_api_queue_replay.sh"
   "tools/verify_mission_api_task_history.sh"
@@ -138,12 +140,14 @@ require_contains "docs/handoff/pre_migration_final_freeze_report.md" '迁移前�
 require_contains "docs/handoff/pre_migration_final_freeze_report.md" 'mission runtime real robot-motion flat execution' "final_freeze_next_task_mission_flat_execution"
 require_contains "docs/handoff/pre_migration_final_freeze_report.md" 'production Mission Orchestrator (scheduling policy|skeleton hardening)' "final_freeze_next_task_production_mission"
 require_contains "docs/handoff/pre_migration_final_freeze_report.md" 'priority scheduling' "final_freeze_next_task_priority_scheduling"
+require_contains "docs/handoff/pre_migration_final_freeze_report.md" 'priority scheduling 最小闭环已完成' "final_freeze_priority_done"
 require_contains "docs/handoff/pre_migration_final_freeze_report.md" '/home/xiongzx/go2w_ws/src/go2w_navigation_stack' "final_freeze_repo_root"
 require_contains "docs/handoff/pre_migration_final_freeze_report.md" 'task-history ledger' "final_freeze_task_history"
 require_contains "docs/handoff/pre_migration_final_freeze_report.md" 'route graph 保留目标 yaw' "final_freeze_flat_goal_yaw"
 require_contains "docs/handoff/current_project_state.md" '\.go2w_external/workspaces/fast_lio_ros2' "handoff_fastlio_repo_local_ws"
 require_contains "docs/handoff/current_project_state.md" "当前正式阶段：\`Phase 4 accepted\`" "handoff_current_phase4accepted"
 require_contains "docs/handoff/current_project_state.md" '保留 route graph 目标 yaw' "handoff_flat_goal_yaw"
+require_contains "docs/handoff/current_project_state.md" 'Mission API priority scheduling' "handoff_priority_scheduling"
 require_contains "docs/handoff/next_agent_notes.md" "不要把 \`nav2_route\` 当成 3D 地形规划器" "handoff_nav2_route_warning"
 require_contains "docs/handoff/next_agent_notes.md" 'production Mission Orchestrator (scheduling policy|skeleton hardening)' "handoff_next_step_production_mission"
 require_contains "docs/handoff/next_agent_notes.md" 'priority scheduling' "handoff_next_step_priority_scheduling"
@@ -159,6 +163,7 @@ require_contains "docs/verification/phase4d_route_tracking_feedback.md" 'phase4d
 require_contains "docs/verification/phase4_runtime_acceptance.md" 'phase4_runtime_acceptance_result: PASS' "phase4_runtime_acceptance_evidence"
 require_contains "docs/verification/go2w_control_chain_regression.md" 'go2w_control_chain_regression_result: PASS' "control_chain_regression_evidence"
 require_contains "docs/verification/go2w_real_model_route_following.md" 'three consecutive clean-domain PASS' "route_following_hardened_regression_candidate"
+require_contains "docs/verification/mission_api_priority_scheduling.md" 'mission_priority_scheduling_result: PASS' "mission_priority_scheduling_evidence"
 require_contains "docs/verification/mission_api_task_history.md" 'mission_task_history_result: PASS' "mission_task_history_evidence"
 require_contains "docs/verification/go2w_real_model_regression.md" 'not be treated as the stable control-chain migration gate' "real_model_regression_boundary"
 require_contains "docs/handoff/README.md" 'verify_go2w_control_chain_regression.sh' "handoff_readme_control_chain_entry"
@@ -210,6 +215,7 @@ bash -n \
   "${ROOT_DIR}/tools/verify_go2w_control_chain_regression.sh" \
   "${ROOT_DIR}/tools/verify_go2w_mission_real_flat_execution.sh" \
   "${ROOT_DIR}/tools/verify_mission_api_scheduling_policy.sh" \
+  "${ROOT_DIR}/tools/verify_mission_api_priority_scheduling.sh" \
   "${ROOT_DIR}/tools/verify_mission_api_orchestrator_control.sh" \
   "${ROOT_DIR}/tools/verify_mission_api_queue_replay.sh" \
   "${ROOT_DIR}/tools/verify_mission_api_task_history.sh" \

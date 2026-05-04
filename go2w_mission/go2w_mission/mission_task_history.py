@@ -35,6 +35,7 @@ class MissionTaskHistoryRecord:
     mission_key: str
     ticket: int
     queue_position: int
+    priority: int
     state: str
     result_code: str
     message: str
@@ -64,6 +65,7 @@ class MissionTaskHistoryRecord:
             "mission_key": self.mission_key,
             "ticket": self.ticket,
             "queue_position": self.queue_position,
+            "priority": self.priority,
             "state": self.state,
             "result_code": self.result_code,
             "message": self.message,
@@ -88,6 +90,7 @@ class MissionTaskHistoryRecord:
             mission_key=str(data.get("mission_key", "")),
             ticket=int(data.get("ticket", -1)),
             queue_position=int(data.get("queue_position", 0)),
+            priority=int(data.get("priority", 0)),
             state=str(data.get("state", "FAILED")),
             result_code=str(data.get("result_code", "")),
             message=str(data.get("message", "")),
@@ -164,14 +167,17 @@ class MissionTaskHistoryState:
             latest_result = "-"
             latest_mission = "-"
             latest_run_id = "-"
+            latest_priority = "-"
         else:
             latest_state = latest.state
             latest_result = latest.result_code
             latest_mission = latest.mission_key
             latest_run_id = latest.run_id
+            latest_priority = latest.priority
         return (
             f"history=records={self.record_count} retain={self.retention_limit} "
             f"latest_state={latest_state} latest_result={latest_result} "
+            f"latest_priority={latest_priority} "
             f"latest_mission={latest_mission} latest_run={latest_run_id} "
             f"last_command={self.last_command} "
             f"last_message={self.last_message or '-'}"
