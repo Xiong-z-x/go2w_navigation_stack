@@ -22,6 +22,9 @@ cross-floor autonomy.
   body-height transition is represented as diagnostic phase state and motion
   profile metadata. The only leg command outlet in this gate is the conservative
   12-joint leg hold command on `/leg_position_controller/commands`.
+- The phase plan now also reports `wheel_lock_required=...` and supports an
+  opt-in execution body-height target for `body_height_transition_down` and
+  `execute_stairs`.
 
 ## Verification Run
 - Date: `2026-05-02T03:39+08:00`
@@ -40,6 +43,9 @@ cross-floor autonomy.
   `flat/wheeled -> stair/legged -> flat/wheeled`.
 - The stair executor logged the expected phase plan.
 - Every phase in the phase plan was observed in executor state logs.
+- Wheel-lock and body-height phase targets are now checked by the updated
+  verifier; focused policy evidence is recorded in
+  `docs/verification/phase4e_stair_phase_targets.md`.
 - The active stair phase published a profile-limited command velocity
   `cmd_vel_mps=0.025`.
 - Leg hold remained enabled through the active stair phases and was disabled in
@@ -64,8 +70,8 @@ go2w_command_gate_state: owner=stair mode=legged
 go2w_command_gate_state: owner=flat mode=wheeled
 
 go2w_stair_executor_plan: phases=prepare,wheel_lock,body_height_transition_down,execute_stairs,body_height_transition_up,release total_duration_sec=0.80
-go2w_stair_executor_state: phase=execute_stairs owner=stair mode=legged body_height_m=0.32 foot_raise_height_m=0.09 cmd_vel_mps=0.025 publish_leg_hold=true
-go2w_stair_executor_state: phase=release owner=stair mode=legged body_height_m=0.32 foot_raise_height_m=0.09 cmd_vel_mps=0.000 publish_leg_hold=false progress=1.000 complete
+go2w_stair_executor_state: phase=execute_stairs owner=stair mode=legged body_height_m=0.32 foot_raise_height_m=0.09 cmd_vel_mps=0.025 wheel_lock_required=true publish_leg_hold=true
+go2w_stair_executor_state: phase=release owner=stair mode=legged body_height_m=0.32 foot_raise_height_m=0.09 cmd_vel_mps=0.000 wheel_lock_required=false publish_leg_hold=false progress=1.000 complete
 ```
 
 ## Open Validation Items

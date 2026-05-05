@@ -121,6 +121,9 @@ simulation-first 路线构建 Go2W 跨楼层自主导航巡检系统：
 - Phase 4E real-model stair fixture：real-model fixture 中 `/stair_exec` phase-aware Action
   闭环，观察 `prepare,wheel_lock,body_height_transition_down,execute_stairs,
   body_height_transition_up,release`。
+- Phase 4E stair phase targets：`stair_executor` 已报告 `wheel_lock_required`，
+  并支持 opt-in `--stair-execute-body-height-m` 作为 body-height transition /
+  execute phase target。
 - Phase 4E mission recovery：JSON checkpoint、same-goal resume、有限 retry skeleton。
 - Stable control-chain regression wrapper：`tools/verify_go2w_control_chain_regression.sh`
   串联 real-model baseline、Phase 4E stair fixture、mission recovery 和 stair tuning smoke。
@@ -147,7 +150,8 @@ simulation-first 路线构建 Go2W 跨楼层自主导航巡检系统：
 - `tools/verify_go2w_real_model_regression.sh` 包含 route-following smoke，属于更宽但更敏感的
   opt-in wrapper，不是默认封板门禁。
 - 真实楼梯动力学、真实 leg trajectory / gait tuning 尚未完成；当前 stair executor 是
-  phase-aware skeleton、profile-limited velocity、leg hold outlet 和 tuning 参数入口。
+  phase-aware skeleton、profile-limited velocity、leg hold outlet、phase target diagnostics
+  和 tuning 参数入口。
 - 真实跨楼层自主闭环、map_server / AMCL / `map -> odom` 定位链、elevation mapping、
   traversability、automatic stair detection / connector generation 尚未完成。
 - Real Go2W model path 仍是 opt-in，未替换默认 `go2w_sim sim.launch.py` placeholder path。
@@ -257,6 +261,8 @@ ros2 launch go2w_sim sim.launch.py use_gpu:=false headless:=true launch_rviz:=fa
   `nav2_route` route tracking 或默认仿真基线。
 - 不要把 stable control-chain wrapper 当成完整机器人自主导航；它只证明控制链可重复门禁。
 - 不要把 stair tuning override 当成真实楼梯步态已调好。
+- 不要把 `wheel_lock_required` 或 `--stair-execute-body-height-m` 字段存在误判成
+  hardware wheel lock / body-height actuator 已实现。
 - 不要把 `gait_type=3` 字段存在误判成硬件楼梯模式可用。
 - 不要重新打开 `odom -> base_link` TF 冲突。
 - 不要混入 Gazebo Garden/Harmonic 或 Gazebo GPU rendering 主线。

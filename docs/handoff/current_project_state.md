@@ -51,7 +51,8 @@ Gazebo GPU rendering 不是当前验收合同。RViz 可单独使用 WSLg/NVIDIA
   stair executor skeleton；当前 stair executor policy 复用了 legged motion profile、钳制 stair 线速度，在 stair owner 激活时发布 12 关节 leg hold command，并输出
   `prepare -> wheel_lock -> body_height_transition_down -> execute_stairs ->
   body_height_transition_up -> release` 的可诊断阶段状态；当前还暴露了显式 stair tuning
-  覆盖参数，但尚未实现真实楼梯运动控制器。
+  覆盖参数、`wheel_lock_required` 诊断和 opt-in execute/body-height phase target，
+  但尚未实现真实楼梯运动控制器。
   当前 real-model baseline 还把 `go2w_stand_initializer` 显式切到 `--motion-mode legged`，
   并把 profile 摘要和 controller-state 轮询写进验收证据，避免再依赖单条 spawner 日志。
 - `go2w_perception`：FAST-LIO 输入/输出 adapter、perception TF authority、
@@ -159,6 +160,9 @@ Gazebo GPU rendering 不是当前验收合同。RViz 可单独使用 WSLg/NVIDIA
 - Phase 4E stair tuning smoke test：通过 `tools/verify_phase4e_stair_tuning_overrides.sh`
   验证 stair executor 可接受显式 body height / foot raise / gait / speed overrides，
   且默认 baseline 不变时仍能闭环成功。
+- Phase 4E stair phase targets：通过 `tools/verify_phase4e_stair_phase_targets.sh`
+  验证 phase plan 的 `wheel_lock_required` 诊断和 opt-in execute/body-height transition
+  target；该能力仍不是真实 wheel-lock 或 body-height actuator backend。
 - Go2W control-chain regression wrapper：通过
   `tools/verify_go2w_control_chain_regression.sh` 串联 real-model baseline、
   Phase 4E stair fixture、mission recovery 和 stair tuning smoke test；该 wrapper
@@ -184,7 +188,7 @@ Gazebo GPU rendering 不是当前验收合同。RViz 可单独使用 WSLg/NVIDIA
   hardening 证据，但不要把它们当作 production `nav2_route` route tracking。
 - Phase 5A 已接入真实 `nav2_route` route_server feedback，但仍未验证真实机器人运动上的
   route tracking。
-- 未实现真实楼梯运动控制器和控制参数调优；当前 Phase 4E 只把 wheel lock、body height transition、leg hold 和 release 做成可观察阶段骨架。
+- 未实现真实楼梯运动控制器和控制参数调优；当前 Phase 4E 只把 wheel lock、body height transition、leg hold、phase target diagnostics 和 release 做成可观察阶段骨架。
 - 未实现真实跨楼层自主行为。
 - 未实现 `map_server` / AMCL / `map -> odom` 定位链。
 - 未实现 elevation mapping / traversability / automatic stair detection。

@@ -26,6 +26,7 @@ simulation-first 路线推进。
 - `docs/verification/phase4e_stair_fixture.md`
 - `docs/verification/phase4e_mission_recovery.md`
 - `docs/verification/phase4e_stair_tuning_overrides.md`
+- `docs/verification/phase4e_stair_phase_targets.md`
 - `docs/verification/mission_api_scheduling_policy.md`
 - `docs/verification/mission_api_priority_scheduling.md`
 - `docs/verification/mission_api_assignment_policy.md`
@@ -216,9 +217,12 @@ ros2 launch go2w_sim sim_go2w_real.launch.py use_gpu:=false headless:=true launc
   默认 stair 线速度来自 profile 元数据，并在 stair owner 激活时发布 12 关节
   leg hold command，但仍不是真实楼梯控制器
 - `go2w_stair_executor` 现在也暴露显式 stair tuning 覆盖参数
-  (`--stair-body-height-m`、`--stair-foot-raise-height-m`、
+  (`--stair-body-height-m`、`--stair-execute-body-height-m`、`--stair-foot-raise-height-m`、
   `--stair-gait-type`、`--stair-speed-level`、`--stair-max-linear-velocity-mps`)，
   默认仍保持保守 baseline，不会改变当前 accepted 验证链
+- stair phase target focused gate 现在验证 `wheel_lock_required` 诊断和 opt-in
+  execute/body-height transition target，但仍不是真实 wheel-lock 或 body-height
+  actuator backend
 
 同层 real-model route-following verifier 可重复验证短 `NavigateToPose` 目标：
 
@@ -281,6 +285,12 @@ stair tuning smoke test 可在不改变默认 baseline 的前提下复用同一�
 
 ```bash
 ./tools/verify_phase4e_stair_tuning_overrides.sh
+```
+
+stair phase target focused gate 可重复验证 phase plan 诊断：
+
+```bash
+./tools/verify_phase4e_stair_phase_targets.sh
 ```
 
 如需在已启动仿真后检查 Phase 1 topic / TF 验收项：

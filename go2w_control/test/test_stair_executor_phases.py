@@ -23,6 +23,7 @@ def test_phase_plan_uses_legged_profile_metadata() -> None:
 def test_policy_accepts_explicit_stair_tuning_overrides() -> None:
     policy = StairExecutionPolicy(
         body_height_m=0.31,
+        execute_body_height_m=0.29,
         foot_raise_height_m=0.08,
         gait_type=3,
         speed_level=1,
@@ -31,6 +32,7 @@ def test_policy_accepts_explicit_stair_tuning_overrides() -> None:
     )
 
     assert policy.profile.body_height_m == 0.31
+    assert policy.execute_body_height_m == 0.29
     assert policy.profile.foot_raise_height_m == 0.08
     assert policy.profile.gait_type == 3
     assert policy.profile.speed_level == 1

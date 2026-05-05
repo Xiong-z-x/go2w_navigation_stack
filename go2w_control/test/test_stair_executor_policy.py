@@ -90,6 +90,7 @@ def test_state_text_includes_phase_and_profile_metadata() -> None:
     assert "mode=legged" in state_text
     assert "body_height_m=0.32" in state_text
     assert "foot_raise_height_m=0.09" in state_text
+    assert "wheel_lock_required=true" in state_text
     assert "publish_leg_hold=true" in state_text
     assert "progress=0.625" in state_text
 
@@ -110,3 +111,22 @@ def test_phase_plan_keeps_expected_order_and_velocity_profile() -> None:
     assert plan.phases[3].command_velocity_mps == policy.stair_linear_velocity_mps
     assert plan.phases[0].publish_leg_hold is True
     assert plan.phases[-1].publish_leg_hold is False
+
+
+def test_phase_plan_marks_wheel_lock_and_execute_body_height_target() -> None:
+    policy = StairExecutionPolicy(execute_body_height_m=0.29)
+    plan = policy.build_phase_plan(0.5, force_timeout=False)
+    phases = {phase.name: phase for phase in plan.phases}
+
+    assert phases["prepare"].body_height_m == policy.profile.body_height_m
+    assert phases["wheel_lock"].body_height_m == policy.profile.body_height_m
+    assert phases["body_height_transition_down"].body_height_m == 0.29
+    assert phases["execute_stairs"].body_height_m == 0.29
+    assert phases["body_height_transition_up"].body_height_m == policy.profile.body_height_m
+    assert phases["release"].body_height_m == policy.profile.body_height_m
+    assert phases["prepare"].wheel_lock_required is False
+    assert phases["wheel_lock"].wheel_lock_required is True
+    assert phases["body_height_transition_down"].wheel_lock_required is True
+    assert phases["execute_stairs"].wheel_lock_required is True
+    assert phases["body_height_transition_up"].wheel_lock_required is True
+    assert phases["release"].wheel_lock_required is False

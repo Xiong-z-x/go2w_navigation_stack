@@ -104,6 +104,7 @@ required_files=(
   "docs/verification/phase4e_stair_fixture.md"
   "docs/verification/phase4e_mission_recovery.md"
   "docs/verification/phase4e_stair_tuning_overrides.md"
+  "docs/verification/phase4e_stair_phase_targets.md"
   "docs/verification/phase4_runtime_acceptance.md"
   "tools/verify_phase4a_stair_handoff.sh"
   "tools/verify_phase4b_mission_segments.sh"
@@ -126,6 +127,7 @@ required_files=(
   "tools/verify_phase4e_stair_fixture.sh"
   "tools/verify_phase4e_mission_recovery.sh"
   "tools/verify_phase4e_stair_tuning_overrides.sh"
+  "tools/verify_phase4e_stair_phase_targets.sh"
   "tools/verify_phase4_runtime_acceptance.sh"
   "go2w_navigation/graphs/phase3c_hospital_multifloor_route.geojson"
   "go2w_sim/worlds/phase3c_hospital_multifloor_world.sdf"
@@ -177,6 +179,7 @@ require_contains "docs/verification/mission_api_assignment_policy.md" 'mission_a
 require_contains "docs/verification/mission_api_task_history.md" 'mission_task_history_result: PASS' "mission_task_history_evidence"
 require_contains "docs/verification/mission_api_workflow_policy.md" 'mission_workflow_policy_result: PASS' "mission_workflow_policy_evidence"
 require_contains "docs/verification/mission_api_workflow_backend.md" 'mission_workflow_backend_result: PASS' "mission_workflow_backend_evidence"
+require_contains "docs/verification/phase4e_stair_phase_targets.md" 'phase4e_stair_phase_targets_result: PASS' "phase4e_stair_phase_targets_evidence"
 require_contains "docs/verification/go2w_real_model_regression.md" 'not be treated as the stable control-chain migration gate' "real_model_regression_boundary"
 require_contains "docs/handoff/README.md" 'verify_go2w_control_chain_regression.sh' "handoff_readme_control_chain_entry"
 require_contains "docs/handoff/new_model_initialization_prompt.md" 'Real-model same-floor route-following 已完成 dedicated hardening' "new_model_prompt_route_following_hardened"
@@ -184,6 +187,7 @@ require_contains "docs/handoff/new_model_initialization_prompt.md" 'task history
 require_contains "docs/handoff/new_model_initialization_prompt.md" 'workflow policy' "new_model_prompt_workflow_policy"
 require_contains "docs/handoff/new_model_initialization_prompt.md" 'workflow event backend' "new_model_prompt_workflow_backend"
 require_contains "docs/handoff/new_model_initialization_prompt.md" 'assignment policy' "new_model_prompt_assignment_policy"
+require_contains "docs/handoff/new_model_initialization_prompt.md" 'stair phase targets' "new_model_prompt_stair_phase_targets"
 require_contains "README.md" "当前正式阶段：\`Phase 4 accepted\`" "readme_current_phase4accepted"
 require_contains "README.md" 'production Mission Orchestrator (scheduling policy|skeleton hardening)' "readme_next_step_production_mission"
 require_contains "README.md" 'priority scheduling' "readme_next_step_priority_scheduling"
@@ -240,6 +244,7 @@ bash -n \
   "${ROOT_DIR}/tools/verify_mission_api_task_history.sh" \
   "${ROOT_DIR}/tools/verify_mission_api_workflow_policy.sh" \
   "${ROOT_DIR}/tools/verify_mission_api_workflow_backend.sh" \
+  "${ROOT_DIR}/tools/verify_phase4e_stair_phase_targets.sh" \
   "${ROOT_DIR}/tools/verify_go2w_real_model_regression.sh" \
   "${ROOT_DIR}/tools/verify_phase4_runtime_acceptance.sh"
 print_kv "bash_syntax" "PASS"

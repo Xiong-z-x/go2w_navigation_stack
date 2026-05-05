@@ -60,7 +60,8 @@ mission_workflow_backend_result: PASS
 - `source /opt/ros/humble/setup.bash && colcon test --packages-select go2w_mission`
   passed.
 - `source /opt/ros/humble/setup.bash && colcon test-result --verbose`
-  reported `128 tests, 0 errors, 0 failures, 0 skipped`.
+  reported `129 tests, 0 errors, 0 failures, 0 skipped` after the subsequent
+  stair phase-target focused test was added.
 
 ## Key Result Lines
 ```text

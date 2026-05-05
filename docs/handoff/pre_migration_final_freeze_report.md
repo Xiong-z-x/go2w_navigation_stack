@@ -42,6 +42,12 @@
   operator controls 会记录 control events，`MissionControl workflow_events`
   可读取 backend summary。新增 `docs/verification/mission_api_workflow_backend.md`
   与 `tools/verify_mission_api_workflow_backend.sh`。
+- 2026-05-06：stair executor phase target diagnostics 最小闭环已完成。
+  phase plan 现在显式记录 `wheel_lock_required`，并支持 opt-in
+  `--stair-execute-body-height-m` 作为 `body_height_transition_down` /
+  `execute_stairs` 的 body-height target；默认 stair baseline 不变。
+  新增 `docs/verification/phase4e_stair_phase_targets.md` 与
+  `tools/verify_phase4e_stair_phase_targets.sh`。
 - 2026-05-04：迁移前二次封板审计确认实际项目 Git 仓库根是
   `/home/xiongzx/go2w_ws/src/go2w_navigation_stack`。外层
   `/home/xiongzx/go2w_ws` 是工作区，不应用其 `git status` / `git log` 判断项目状态。
@@ -122,7 +128,7 @@
 - Phase 4 accepted：pre-handoff、Phase 4A/B/C/D runtime、build/test、test-result 聚合验收。
 - Phase 5A：受控 TF trajectory fixture 下的 live `nav2_route` route tracking observation。
 - Real-model baseline：opt-in 真实 Go2W 模型、四 foot wheel controller、leg controller、sensor topics、stand initializer。
-- Phase 4E：real-model stair fixture、mission recovery checkpoint/resume、stair tuning smoke。
+- Phase 4E：real-model stair fixture、mission recovery checkpoint/resume、stair tuning smoke、stair phase target diagnostics。
 - Stable control-chain regression：real-model baseline + stair fixture + mission recovery + stair tuning smoke。
 - Real-model same-floor route-following dedicated hardening：candidate selection、goal tolerance 和 stale-process cleanup 已修复，3 次 clean-domain PASS。
 
@@ -134,7 +140,7 @@
   task history、workflow policy snapshot 和 workflow event backend，仍不是完整长生命周期调度器。
 - 真实机器人运动上的稳定 `nav2_route` route tracking：尚未完成。
 - Mission runtime real robot-motion flat execution gate 已完成；当前 flat executor 仍保留 verifier skeleton 作为 deterministic 诊断路径。
-- 真实楼梯动力学、leg trajectory、wheel lock、body-height 控制和 gait tuning：尚未完成。
+- 真实楼梯动力学、leg trajectory、hardware wheel lock、body-height actuator 控制和 gait tuning：尚未完成；当前只新增了 phase target diagnostics。
 - 默认仿真基线切换到 real-model：尚未批准。
 - `map_server` / AMCL / `map -> odom` 定位链：尚未实现。
 - Elevation mapping、traversability、automatic stair detection / connector generation：尚未实现。
@@ -206,13 +212,15 @@ Definition of Done:
 | `git diff --check` | PASS | 无尾随空白或 patch 格式问题 |
 | `./tools/verify_phase4_pre_handoff.sh` | PASS | 已纳入本最终封板报告检查 |
 | `colcon test --packages-select go2w_navigation go2w_control go2w_mission --event-handlers console_direct+` | PASS | 3 个包测试通过 |
-| `colcon test-result --verbose` | PASS | `128 tests, 0 errors, 0 failures, 0 skipped` |
+| `colcon test-result --verbose` | PASS | `129 tests, 0 errors, 0 failures, 0 skipped` |
 | `PYTHONPATH="$PWD/go2w_navigation:$PWD/go2w_mission:$PWD/go2w_control" python3 -m pytest ...` | PASS | focused pytest 8 项通过 |
 | `./tools/verify_go2w_control_chain_regression.sh` | PASS | real-model baseline、stair fixture、mission recovery、stair tuning smoke 全通过 |
 | `./tools/verify_phase4_runtime_acceptance.sh` | PASS | pre-handoff、Phase 4A/B/C/D、build/test/test-result 全通过 |
 | `./tools/verify_mission_api_workflow_policy.sh` | PASS | 2026-05-05 workflow policy snapshot focused verifier 通过 |
 | `./tools/verify_mission_api_assignment_policy.sh` | PASS | 2026-05-06 assignment policy focused verifier 通过 |
 | `./tools/verify_mission_api_workflow_backend.sh` | PASS | 2026-05-06 workflow event backend focused verifier 通过 |
+| `./tools/verify_phase4e_stair_phase_targets.sh` | PASS | 2026-05-06 stair phase target focused verifier 通过 |
+| `./tools/verify_phase4e_stair_tuning_overrides.sh` | PASS | 2026-05-06 opt-in execute-body-height runtime smoke 通过 |
 | `./tools/verify_phase4_pre_handoff.sh` | PASS | 2026-05-04 二次封板起点复验，交接包最低一致性通过 |
 | `./tools/verify_phase4_runtime_acceptance.sh` | PASS | 2026-05-04 串行复验，Phase 4A/B/C/D、build/test/test-result 再次通过 |
 | `./tools/verify_go2w_control_chain_regression.sh` | PASS | 2026-05-04 串行复验，real-model baseline、stair fixture、mission recovery、stair tuning 再次通过 |

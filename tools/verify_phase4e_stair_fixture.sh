@@ -293,6 +293,7 @@ main() {
   export GZ_PARTITION="${PARTITION}"
 
   append_override_arg "${GO2W_STAIR_BODY_HEIGHT_M:-}" "--stair-body-height-m"
+  append_override_arg "${GO2W_STAIR_EXECUTE_BODY_HEIGHT_M:-}" "--stair-execute-body-height-m"
   append_override_arg "${GO2W_STAIR_FOOT_RAISE_HEIGHT_M:-}" "--stair-foot-raise-height-m"
   append_override_arg "${GO2W_STAIR_GAIT_TYPE:-}" "--stair-gait-type"
   append_override_arg "${GO2W_STAIR_SPEED_LEVEL:-}" "--stair-speed-level"
@@ -300,6 +301,8 @@ main() {
   append_override_arg "${GO2W_STAIR_LINEAR_VELOCITY_MPS:-}" "--stair-linear-velocity-mps"
 
   EXPECTED_STAIR_BODY_HEIGHT_M="$(printf '%.2f' "${GO2W_STAIR_BODY_HEIGHT_M:-0.32}")"
+  DEFAULT_STAIR_EXECUTE_BODY_HEIGHT_M="${GO2W_STAIR_BODY_HEIGHT_M:-0.32}"
+  EXPECTED_STAIR_EXECUTE_BODY_HEIGHT_M="$(printf '%.2f' "${GO2W_STAIR_EXECUTE_BODY_HEIGHT_M:-${DEFAULT_STAIR_EXECUTE_BODY_HEIGHT_M}}")"
   EXPECTED_STAIR_FOOT_RAISE_HEIGHT_M="$(printf '%.2f' "${GO2W_STAIR_FOOT_RAISE_HEIGHT_M:-0.09}")"
   EXPECTED_STAIR_GAIT_TYPE="${GO2W_STAIR_GAIT_TYPE:-3}"
   EXPECTED_STAIR_SPEED_LEVEL="${GO2W_STAIR_SPEED_LEVEL:-0}"
@@ -349,7 +352,7 @@ main() {
   wait_for_text_count "go2w_command_gate_state: owner=flat mode=wheeled" "${EVIDENCE_DIR}/command_gate.log" 2 30
   wait_for_text "go2w_command_gate_state: owner=stair mode=legged" "${EVIDENCE_DIR}/command_gate.log" 30
 
-  wait_for_text "go2w_stair_executor_profile: .*mode=legged .*body_height_m=${EXPECTED_STAIR_BODY_HEIGHT_M} .*foot_raise_height_m=${EXPECTED_STAIR_FOOT_RAISE_HEIGHT_M} .*gait_type=${EXPECTED_STAIR_GAIT_TYPE} .*speed_level=${EXPECTED_STAIR_SPEED_LEVEL} .*stair_linear_velocity_mps=${EXPECTED_STAIR_LINEAR_VELOCITY_MPS}" "${EVIDENCE_DIR}/stair_executor.log" 30
+  wait_for_text "go2w_stair_executor_profile: .*mode=legged .*body_height_m=${EXPECTED_STAIR_BODY_HEIGHT_M} .*foot_raise_height_m=${EXPECTED_STAIR_FOOT_RAISE_HEIGHT_M} .*gait_type=${EXPECTED_STAIR_GAIT_TYPE} .*speed_level=${EXPECTED_STAIR_SPEED_LEVEL} .*execute_body_height_m=${EXPECTED_STAIR_EXECUTE_BODY_HEIGHT_M} .*stair_linear_velocity_mps=${EXPECTED_STAIR_LINEAR_VELOCITY_MPS}" "${EVIDENCE_DIR}/stair_executor.log" 30
   wait_for_text "go2w_stair_executor_plan: phases=prepare,wheel_lock,body_height_transition_down,execute_stairs,body_height_transition_up,release" "${EVIDENCE_DIR}/stair_executor.log" 30
   wait_for_text "go2w_stair_executor_state: phase=prepare" "${EVIDENCE_DIR}/stair_executor.log" 30
   wait_for_text "go2w_stair_executor_state: phase=wheel_lock" "${EVIDENCE_DIR}/stair_executor.log" 30
@@ -357,6 +360,11 @@ main() {
   wait_for_text "go2w_stair_executor_state: phase=execute_stairs" "${EVIDENCE_DIR}/stair_executor.log" 30
   wait_for_text "go2w_stair_executor_state: phase=body_height_transition_up" "${EVIDENCE_DIR}/stair_executor.log" 30
   wait_for_text "go2w_stair_executor_state: phase=release" "${EVIDENCE_DIR}/stair_executor.log" 30
+  wait_for_text "go2w_stair_executor_state: phase=wheel_lock .*wheel_lock_required=true" "${EVIDENCE_DIR}/stair_executor.log" 30
+  wait_for_text "go2w_stair_executor_state: phase=body_height_transition_down .*body_height_m=${EXPECTED_STAIR_EXECUTE_BODY_HEIGHT_M} .*wheel_lock_required=true" "${EVIDENCE_DIR}/stair_executor.log" 30
+  wait_for_text "go2w_stair_executor_state: phase=execute_stairs .*body_height_m=${EXPECTED_STAIR_EXECUTE_BODY_HEIGHT_M} .*wheel_lock_required=true" "${EVIDENCE_DIR}/stair_executor.log" 30
+  wait_for_text "go2w_stair_executor_state: phase=body_height_transition_up .*body_height_m=${EXPECTED_STAIR_BODY_HEIGHT_M} .*wheel_lock_required=true" "${EVIDENCE_DIR}/stair_executor.log" 30
+  wait_for_text "go2w_stair_executor_state: phase=release .*wheel_lock_required=false" "${EVIDENCE_DIR}/stair_executor.log" 30
   wait_for_text "go2w_stair_executor_state: phase=release .* complete" "${EVIDENCE_DIR}/stair_executor.log" 30
   wait_for_text "go2w_stair_executor_state: phase=release" "${EVIDENCE_DIR}/stair_executor.log" 30
 

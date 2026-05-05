@@ -101,7 +101,7 @@ active phase 标签，也不等于真实楼梯动力学或完整 production Miss
 - `go2w_perception`：FAST-LIO contract adapters 与 TF authority。
 - `go2w_navigation`：Nav2/costmap/route graph 配置与 launch；Phase 4C-min 和
   Phase 4D-min verifier skeletons。
-- `go2w_control`：Phase 4A 已有 `StairExec` Action、command gate 和最小 stair executor skeleton；Phase 4E 已补充 phase-aware stair execution diagnostics。
+- `go2w_control`：Phase 4A 已有 `StairExec` Action、command gate 和最小 stair executor skeleton；Phase 4E 已补充 phase-aware stair execution diagnostics、wheel-lock diagnostics 和 opt-in execute/body-height phase target。
 - `go2w_mission`：Phase 4A 已有 handoff demo 和最小验证 launch；Phase 4B-min
   已有 one-shot mission segment runtime；Phase 4C/4D 已有 flat gate 与 feedback
   observer；Phase 4E 已有 checkpoint/recovery skeleton；当前还具备 bounded queueing、
@@ -187,6 +187,8 @@ local assignment policy、operator control、queue replay、task history、workf
   传递到 `NavigateToPose` 的姿态语义。
 - 新增 Mission API bounded FIFO scheduling、non-preemptive priority scheduling、
   local assignment policy、operator control、durable queue replay、task-history ledger、workflow policy snapshot 和 workflow event backend 的 focused verifiers 与文档证据。
+- 新增 stair phase target focused verifier，验证 `wheel_lock_required` 和 opt-in
+  execute/body-height transition target，但不声明真实 wheel-lock 或 body-height actuator。
 
 ## 9. 仍然存在但暂不可修复的风险或限制
 - Gazebo GPU rendering 在当前 WSLg/Fortress/Ogre2 路径下仍不稳定。

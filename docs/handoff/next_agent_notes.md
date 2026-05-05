@@ -49,7 +49,7 @@
 - 不要把 Phase 4E real-model stair fixture 当成真实楼梯动力学。它只证明
   `/stair_exec` 在 opt-in real-model fixture 下能完成 phase-aware action 闭环、
   `flat/wheeled -> stair/legged -> flat/wheeled` 控制权交接、profile-limited
-  stair velocity 和 leg hold/release 诊断。
+  stair velocity、wheel-lock/body-height phase target 和 leg hold/release 诊断。
 - 不要把 real-model regression wrapper 当成默认基线切换。它只是把 real-model
   baseline、same-floor route-following 和 Phase 4E stair fixture 串成 opt-in 回归。
 - 不要把 `nav2_route` 当成 3D 地形规划器。它不是自动楼梯识别或 traversability。
@@ -155,6 +155,9 @@ default real-model re-baseline。不要把下一步扩大为真实多楼层
   这只是让 skeleton 和 motion baseline 对齐，不是已经调好的真实楼梯步态。
 - `go2w_control` 的 `stair_executor` 现在还会在 stair owner 激活时发布 12 关节 leg hold command。
   这只是把姿态出口显式化，不代表真实楼梯行走调参完成。
+- `go2w_control` 的 `stair_executor` 现在还会报告 `wheel_lock_required`，并支持 opt-in
+  `--stair-execute-body-height-m`。这只是 phase target diagnostics，不是硬件
+  wheel-lock、body-height actuator 或真实 gait。
 - Mission runtime real-model flat execution gate 的关键 launch 参数是
   `flat_behavior_tree:=__empty__`；不要再尝试传空的 `flat_behavior_tree:=`，ROS 2 launch
   会直接拒绝。

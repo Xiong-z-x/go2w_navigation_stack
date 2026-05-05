@@ -34,6 +34,7 @@ class StairExecutionPhase:
     command_velocity_mps: float
     body_height_m: float
     foot_raise_height_m: float
+    wheel_lock_required: bool
     publish_leg_hold: bool
 
 
@@ -60,6 +61,7 @@ def build_stair_execution_state_text(
         f"body_height_m={phase.body_height_m:.2f} "
         f"foot_raise_height_m={phase.foot_raise_height_m:.2f} "
         f"cmd_vel_mps={phase.command_velocity_mps:.3f} "
+        f"wheel_lock_required={str(phase.wheel_lock_required).lower()} "
         f"publish_leg_hold={str(phase.publish_leg_hold).lower()} "
         f"progress={progress:.3f}"
     )
@@ -72,6 +74,7 @@ class StairExecutionPolicy:
         timeout_duration_sec: float = 5.0,
         profile: MotionModeProfile | None = None,
         body_height_m: float | None = None,
+        execute_body_height_m: float | None = None,
         foot_raise_height_m: float | None = None,
         gait_type: int | None = None,
         speed_level: int | None = None,
@@ -91,6 +94,11 @@ class StairExecutionPolicy:
         )
         self.motion_mode = self.profile.mode
         self.stand_pose_joint_count = len(self.profile.stand_pose)
+        self.execute_body_height_m = (
+            self.profile.body_height_m
+            if execute_body_height_m is None
+            else max(0.0, float(execute_body_height_m))
+        )
         requested_velocity = (
             self.profile.default_stair_linear_velocity_mps
             if stair_linear_velocity_mps is None
@@ -111,24 +119,55 @@ class StairExecutionPolicy:
             requested_sec,
             force_timeout=force_timeout,
         )
+        nominal_body_height_m = self.profile.body_height_m
+        execute_body_height_m = self.execute_body_height_m
         phase_specs = (
-            ("prepare", 0.12, 0.0, True),
-            ("wheel_lock", 0.10, 0.0, True),
-            ("body_height_transition_down", 0.18, 0.0, True),
-            ("execute_stairs", 0.32, self.stair_linear_velocity_mps, True),
-            ("body_height_transition_up", 0.18, 0.0, True),
-            ("release", 0.10, 0.0, False),
+            ("prepare", 0.12, 0.0, nominal_body_height_m, False, True),
+            ("wheel_lock", 0.10, 0.0, nominal_body_height_m, True, True),
+            (
+                "body_height_transition_down",
+                0.18,
+                0.0,
+                execute_body_height_m,
+                True,
+                True,
+            ),
+            (
+                "execute_stairs",
+                0.32,
+                self.stair_linear_velocity_mps,
+                execute_body_height_m,
+                True,
+                True,
+            ),
+            (
+                "body_height_transition_up",
+                0.18,
+                0.0,
+                nominal_body_height_m,
+                True,
+                True,
+            ),
+            ("release", 0.10, 0.0, nominal_body_height_m, False, False),
         )
         phases = []
-        for name, weight, velocity_mps, publish_leg_hold in phase_specs:
+        for (
+            name,
+            weight,
+            velocity_mps,
+            phase_body_height_m,
+            wheel_lock_required,
+            publish_leg_hold,
+        ) in phase_specs:
             duration_sec = max(self.min_duration_sec, total_duration_sec * weight)
             phases.append(
                 StairExecutionPhase(
                     name=name,
                     duration_sec=duration_sec,
                     command_velocity_mps=velocity_mps,
-                    body_height_m=self.profile.body_height_m,
+                    body_height_m=phase_body_height_m,
                     foot_raise_height_m=self.profile.foot_raise_height_m,
+                    wheel_lock_required=wheel_lock_required,
                     publish_leg_hold=publish_leg_hold,
                 )
             )
@@ -196,6 +235,7 @@ def main() -> None:
     parser.add_argument("--min-duration-sec", type=float, default=0.05)
     parser.add_argument("--timeout-duration-sec", type=float, default=5.0)
     parser.add_argument("--stair-body-height-m", type=float, default=None)
+    parser.add_argument("--stair-execute-body-height-m", type=float, default=None)
     parser.add_argument("--stair-foot-raise-height-m", type=float, default=None)
     parser.add_argument("--stair-gait-type", type=int, default=None)
     parser.add_argument("--stair-speed-level", type=int, default=None)
@@ -213,6 +253,7 @@ def main() -> None:
                 min_duration_sec=float(args.min_duration_sec),
                 timeout_duration_sec=float(args.timeout_duration_sec),
                 body_height_m=args.stair_body_height_m,
+                execute_body_height_m=args.stair_execute_body_height_m,
                 foot_raise_height_m=args.stair_foot_raise_height_m,
                 gait_type=args.stair_gait_type,
                 speed_level=args.stair_speed_level,
@@ -251,6 +292,7 @@ def main() -> None:
             self.get_logger().info(
                 "go2w_stair_executor_profile: "
                 f"{describe_motion_profile(self._policy.profile)} "
+                f"execute_body_height_m={self._policy.execute_body_height_m:.2f} "
                 f"stair_linear_velocity_mps={self._policy.stair_linear_velocity_mps:.3f}"
             )
 
