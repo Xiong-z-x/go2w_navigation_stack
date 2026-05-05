@@ -128,7 +128,7 @@ simulation-first 路线构建 Go2W 跨楼层自主导航巡检系统：
   已可在不启动 `go2w_flat_nav_executor` 的情况下调用真实 Nav2 `/navigate_to_pose`，
   保留 route graph 目标 yaw，并保持 perception-owned `odom -> base_link`。
 - Production Mission Orchestrator 当前窄范围：`RunMission` 已有 bounded queueing、
-  non-preemptive queued priority scheduling、operator-state snapshot、
+  non-preemptive queued priority scheduling、local assignment policy、operator-state snapshot、
   `MissionControl` pause/resume/status/cancel_active/replay_queue/history/archive_history/workflow、
   operator-triggered durable queue replay ledger、bounded terminal task-history ledger 和
   workflow policy snapshot。
@@ -136,7 +136,7 @@ simulation-first 路线构建 Go2W 跨楼层自主导航巡检系统：
 未完成或不能误判为完成：
 
 - Production Mission Orchestrator 尚未完成；当前只是 mission API / recovery skeleton
-  加上 bounded queueing、queued priority scheduling、operator control、queue replay、task history
+  加上 bounded queueing、queued priority scheduling、assignment policy、operator control、queue replay、task history
   和 workflow policy snapshot。
 - 真实机器人运动上的 `nav2_route` route tracking 尚未稳定完成。
 - Real-model same-floor route-following 已完成 dedicated hardening：DWB abort 复现后通过
@@ -152,11 +152,11 @@ simulation-first 路线构建 Go2W 跨楼层自主导航巡检系统：
   traversability、automatic stair detection / connector generation 尚未完成。
 - Real Go2W model path 仍是 opt-in，未替换默认 `go2w_sim sim.launch.py` placeholder path。
 - 2026-05-02 最终封板报告已写入 `docs/handoff/pre_migration_final_freeze_report.md`；
-  它给出当前最小后续项目改进路线，但不替代架构事实源。2026-05-04 至 2026-05-05 已继续完成
-  mission scheduling / priority scheduling / operator control / queue replay / task history / workflow policy snapshot 窄范围。
+  它给出当前最小后续项目改进路线，但不替代架构事实源。2026-05-04 至 2026-05-06 已继续完成
+  mission scheduling / priority scheduling / assignment policy / operator control / queue replay / task history / workflow policy snapshot 窄范围。
   当前下一步应进入另一个明确命名的单主题 orchestration gap，或 dedicated stair trajectory /
   wheel lock / body-height / gait tuning，而不是继续把已完成的 mission flat execution /
-  scheduling / priority scheduling / queue replay / task history / workflow policy 当成未完成项。
+  scheduling / priority scheduling / assignment policy / queue replay / task history / workflow policy 当成未完成项。
 
 ====================
 五、架构边界
@@ -288,7 +288,7 @@ ros2 launch go2w_sim sim.launch.py use_gpu:=false headless:=true launch_rviz:=fa
 十、后续项目改进的建议起点
 ====================
 
-当前最合理的直接起点必须重新给出完整 6 项任务单；priority scheduling 和 workflow policy snapshot 已完成，后续候选必须是单主题处理：
+当前最合理的直接起点必须重新给出完整 6 项任务单；priority scheduling、assignment policy 和 workflow policy snapshot 已完成，后续候选必须是单主题处理：
 
 Task Goal: 另一个明确命名的 production Mission Orchestrator remaining slice。
 Current Phase: Phase 4 accepted, post-Phase-4 hardening。
@@ -313,8 +313,8 @@ baseline、stair dynamics 或 map / localization 范围。
 3. 真实机器人运动上的稳定 `nav2_route` route tracking。
 4. Phase 5 terrain-aware connector discovery、elevation mapping、traversability。
 
-不要把已完成的 priority scheduling 或 workflow policy snapshot 重复当成下一步。当前 mission scheduling / priority /
-operator control / queue replay / task history / workflow policy 都是窄范围硬化，不等于完整 production
+不要把已完成的 priority scheduling、assignment policy 或 workflow policy snapshot 重复当成下一步。当前 mission scheduling / priority /
+assignment / operator control / queue replay / task history / workflow policy 都是窄范围硬化，不等于完整 production
 Mission Orchestrator。
 
 ====================

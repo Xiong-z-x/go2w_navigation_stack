@@ -34,6 +34,7 @@
 - `docs/verification/go2w_mission_real_flat_execution.md`：Mission runtime real-model flat execution gate 证据；证明 `RunMission` flat-only segment 可绕过 verifier-only flat executor 并调用真实 Nav2 `/navigate_to_pose`。
 - `docs/verification/mission_api_scheduling_policy.md`：Mission API bounded FIFO scheduling policy 证据；证明 `RunMission` 可重复验证 queue-full reject 与 queued cancel。
 - `docs/verification/mission_api_priority_scheduling.md`：Mission API non-preemptive priority scheduling 证据；证明 queued mission 按 `priority DESC, ticket ASC` 激活且同 priority 保持 FIFO。
+- `docs/verification/mission_api_assignment_policy.md`：Mission API assignment policy 证据；证明 `RunMission` 显式 `assigned_robot_id`、本机 admission gate 和 assignment diagnostics。
 - `docs/verification/mission_api_orchestrator_control.md`：Mission API operator control 证据；证明 pause/resume/status/cancel_active 与 operator-state snapshot backend。
 - `docs/verification/mission_api_queue_replay.md`：Mission API durable queue replay 证据；证明 replay ledger、replay-pending admission gate 与 `MissionControl replay_queue`。
 - `docs/verification/mission_api_task_history.md`：Mission API task-history 证据；证明 terminal mission history ledger、`MissionControl history/archive_history` 和 bounded retention。
@@ -58,7 +59,7 @@
 - `go2w_perception/`：FAST-LIO adapters、TF authority、patch、external lock。
 - `go2w_navigation/`：Nav2 configs、BT、route graph、maps、Phase 4C-min flat navigation executor skeleton、Phase 4D-min route tracking feedback executor skeleton。
 - `go2w_control/`：Phase 4A 起承载 `StairExec` Action、command gate 和最小 stair executor skeleton；Phase 4E 起输出 phase-aware stair execution plan/state。
-- `go2w_mission/`：Phase 4A 起承载 handoff demo；Phase 4B-min 起承载 one-shot mission segment runtime；Phase 4C-min 起通过 `NavigateToPose` gate 调度 flat segments；Phase 4D-min 起承载 route tracking feedback observer；Phase 4E 起提供 mission checkpoint/recovery skeleton；当前已能在 opt-in flat-only gate 中调用真实 Nav2 `/navigate_to_pose`，并且现在还具备 bounded queueing、non-preemptive priority scheduling、operator control、durable queue replay、bounded terminal task history 和 workflow policy snapshot，但尚不是完整 production Mission Orchestrator。
+- `go2w_mission/`：Phase 4A 起承载 handoff demo；Phase 4B-min 起承载 one-shot mission segment runtime；Phase 4C-min 起通过 `NavigateToPose` gate 调度 flat segments；Phase 4D-min 起承载 route tracking feedback observer；Phase 4E 起提供 mission checkpoint/recovery skeleton；当前已能在 opt-in flat-only gate 中调用真实 Nav2 `/navigate_to_pose`，并且现在还具备 bounded queueing、non-preemptive priority scheduling、local assignment policy、operator control、durable queue replay、bounded terminal task history 和 workflow policy snapshot，但尚不是完整 production Mission Orchestrator。
 
 ## 关键工具
 - `tools/prepare_phase2d_fastlio_external.sh`：准备 pinned FAST-LIO external cache。
@@ -83,6 +84,7 @@
 - `tools/verify_go2w_mission_real_flat_execution.sh`：Mission runtime real-model flat execution gate；验证 `RunMission` flat-only segment 调用真实 Nav2 `/navigate_to_pose`，且不启动 `go2w_flat_nav_executor`。
 - `tools/verify_mission_api_scheduling_policy.sh`：Mission API bounded FIFO scheduling policy gate；验证 `RunMission` queue-full reject 与 queued cancel。
 - `tools/verify_mission_api_priority_scheduling.sh`：Mission API priority scheduling gate；验证 `RunMission` 显式 priority、queued priority order 和同 priority FIFO。
+- `tools/verify_mission_api_assignment_policy.sh`：Mission API assignment policy gate；验证 `RunMission` 显式 assigned robot、本机 admission gate 和 assignment diagnostics。
 - `tools/verify_mission_api_orchestrator_control.sh`：Mission API operator control gate；验证 operator-state snapshot、pause/resume/status/cancel_active。
 - `tools/verify_mission_api_queue_replay.sh`：Mission API durable queue replay gate；验证 replay ledger 和 `MissionControl replay_queue`。
 - `tools/verify_mission_api_task_history.sh`：Mission API task-history gate；验证 terminal history ledger、`MissionControl history/archive_history` 和 bounded retention。

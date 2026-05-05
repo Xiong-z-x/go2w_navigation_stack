@@ -6,6 +6,7 @@ float32 expected_stair_duration_sec
 float32 result_timeout_sec
 float32 flat_result_timeout_sec
 int32 priority
+string assigned_robot_id
 ---
 bool success
 string result_code

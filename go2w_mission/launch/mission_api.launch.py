@@ -35,6 +35,7 @@ def generate_launch_description():
     mission_recovery_enabled = LaunchConfiguration("mission_recovery_enabled")
     flat_behavior_tree = LaunchConfiguration("flat_behavior_tree")
     mission_queue_capacity = LaunchConfiguration("mission_queue_capacity")
+    mission_robot_id = LaunchConfiguration("mission_robot_id")
     mission_control_service_name = LaunchConfiguration("mission_control_service_name")
 
     default_route_params_file = PathJoinSubstitution([
@@ -149,6 +150,11 @@ def generate_launch_description():
             description="Bounded outstanding mission capacity for RunMission.",
         ),
         DeclareLaunchArgument(
+            "mission_robot_id",
+            default_value="go2w_local",
+            description="Local robot id accepted by RunMission assignment policy.",
+        ),
+        DeclareLaunchArgument(
             "mission_control_service_name",
             default_value="/go2w/mission/control",
             description="Mission control service name for pause/resume/status.",
@@ -242,6 +248,8 @@ def generate_launch_description():
                 flat_behavior_tree,
                 "--mission-queue-capacity",
                 mission_queue_capacity,
+                "--mission-robot-id",
+                mission_robot_id,
                 "--mission-control-service-name",
                 mission_control_service_name,
                 "--action-name",

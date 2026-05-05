@@ -51,6 +51,7 @@ class MissionTaskHistoryRecord:
     last_command: str
     last_message: str
     updated_at: float
+    assigned_robot_id: str = ""
 
     def with_updates(self, **changes: Any) -> "MissionTaskHistoryRecord":
         return replace(self, **changes)
@@ -66,6 +67,7 @@ class MissionTaskHistoryRecord:
             "ticket": self.ticket,
             "queue_position": self.queue_position,
             "priority": self.priority,
+            "assigned_robot_id": self.assigned_robot_id,
             "state": self.state,
             "result_code": self.result_code,
             "message": self.message,
@@ -91,6 +93,7 @@ class MissionTaskHistoryRecord:
             ticket=int(data.get("ticket", -1)),
             queue_position=int(data.get("queue_position", 0)),
             priority=int(data.get("priority", 0)),
+            assigned_robot_id=str(data.get("assigned_robot_id", "")),
             state=str(data.get("state", "FAILED")),
             result_code=str(data.get("result_code", "")),
             message=str(data.get("message", "")),
@@ -168,16 +171,18 @@ class MissionTaskHistoryState:
             latest_mission = "-"
             latest_run_id = "-"
             latest_priority = "-"
+            latest_robot = "-"
         else:
             latest_state = latest.state
             latest_result = latest.result_code
             latest_mission = latest.mission_key
             latest_run_id = latest.run_id
             latest_priority = latest.priority
+            latest_robot = latest.assigned_robot_id or "-"
         return (
             f"history=records={self.record_count} retain={self.retention_limit} "
             f"latest_state={latest_state} latest_result={latest_result} "
-            f"latest_priority={latest_priority} "
+            f"latest_priority={latest_priority} latest_robot={latest_robot} "
             f"latest_mission={latest_mission} latest_run={latest_run_id} "
             f"last_command={self.last_command} "
             f"last_message={self.last_message or '-'}"

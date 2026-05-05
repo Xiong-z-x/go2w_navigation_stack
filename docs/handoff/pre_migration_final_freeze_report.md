@@ -1,7 +1,7 @@
 # 迁移前最终封板与后续路线交接报告
 
 ## 用途
-本文记录 2026-05-02 的迁移前最终封板审计结果，并在 2026-05-04 至 2026-05-05 做了迁移前二次
+本文记录 2026-05-02 的迁移前最终封板审计结果，并在 2026-05-04 至 2026-05-06 做了迁移前二次
 封板与 mission hardening 刷新。它面向下一个新对话模型，
 用于快速判断当前项目真实状态、剩余风险、后续项目改进顺序和不可误判边界。
 
@@ -30,6 +30,12 @@
   暴露 mode、mission activity、queue state、history state 和 available operator
   commands。新增 `docs/verification/mission_api_workflow_policy.md` 与
   `tools/verify_mission_api_workflow_policy.sh`。
+- 2026-05-06：production Mission Orchestrator assignment policy 最小闭环已完成。
+  `RunMission` 现在有显式 `assigned_robot_id` 字段；mission API 将空 assignment
+  归一为本机 `mission_robot_id`，接受本机任务，并在入队前拒绝非本机任务。
+  queue replay、task history 和 status summary 已同步 assignment 诊断。
+  新增 `docs/verification/mission_api_assignment_policy.md` 与
+  `tools/verify_mission_api_assignment_policy.sh`。
 - 2026-05-04：迁移前二次封板审计确认实际项目 Git 仓库根是
   `/home/xiongzx/go2w_ws/src/go2w_navigation_stack`。外层
   `/home/xiongzx/go2w_ws` 是工作区，不应用其 `git status` / `git log` 判断项目状态。
@@ -41,8 +47,8 @@
   `./tools/verify_go2w_control_chain_regression.sh`，两者均 PASS。
   其中 `phase4_runtime_acceptance` 记录了 `112 tests, 0 errors, 0 failures, 0 skipped`
   的最新总测试摘要；`go2w_control_chain_regression` 也在 fresh evidence 下再次 PASS。
-- 本文下方的“下一任务建议自批准任务单”保留为历史执行入口。priority scheduling
-  和 workflow policy snapshot 单主题闭环已完成；后续新的最小任务应转向另一个明确命名的 orchestration gap，
+- 本文下方的“下一任务建议自批准任务单”保留为历史执行入口。priority scheduling、
+  assignment policy 和 workflow policy snapshot 单主题闭环已完成；后续新的最小任务应转向另一个明确命名的 orchestration gap，
   或转向 dedicated stair trajectory / wheel lock / body-height / gait tuning。
 
 ## 总自检结论
@@ -57,8 +63,8 @@
 - 2026-05-02 后续执行已完成第一项项目改进：real-model same-floor Nav2
   route-following 的 DWB abort 风险已复现、修复并通过 3 次 clean-domain 连续验证。
   mission runtime real robot-motion flat execution gate 也已完成并接入真实 Nav2。
-  2026-05-04 至 2026-05-05 又完成了当前窄范围的 production Mission Orchestrator scheduling policy、
-  priority scheduling、operator control、queue replay、task history 和 workflow policy snapshot；
+  2026-05-04 至 2026-05-06 又完成了当前窄范围的 production Mission Orchestrator scheduling policy、
+  priority scheduling、assignment policy、operator control、queue replay、task history 和 workflow policy snapshot；
   后续最大项目改进入口转为另一个明确命名的 Mission Orchestrator remaining slice
   或 dedicated stair control slice，
   仍然必须保持单主题、小步推进。
@@ -88,7 +94,7 @@
 - 继续硬化 mission API bounded FIFO scheduling policy、operator control service、
   durable queue replay 和 task history，避免并发 `RunMission` goal 竞争单一 JSON 状态文件；
   当前已经有 one-active-plus-one-queued、operator control、replay ledger 和 terminal
-  history ledger；随后又补齐 non-preemptive queued priority scheduling。
+  history ledger；随后又补齐 non-preemptive queued priority scheduling 和 local assignment policy。
 - 将本地规划文件加入 `.gitignore`，避免把会话工作记忆误提交为正式项目事实源。
 - 扩展 `tools/verify_phase4_pre_handoff.sh`，把最终封板报告纳入交接一致性 gate。
 - 二次封板刷新 `phase4_migration_handoff_report.md`，补齐 mission real-flat gate、
@@ -117,6 +123,7 @@
 ## 当前未完成能力
 - Production Mission Orchestrator：当前只是 mission API / checkpoint / retry / resume
   skeleton 加上 bounded queueing、non-preemptive queued priority scheduling、
+  local assignment admission policy、
   operator control service、operator-triggered durable queue replay、bounded terminal
   task history 和 workflow policy snapshot，仍不是完整长生命周期调度器。
 - 真实机器人运动上的稳定 `nav2_route` route tracking：尚未完成。
@@ -127,7 +134,7 @@
 - Elevation mapping、traversability、automatic stair detection / connector generation：尚未实现。
 
 ## 后续项目改进推荐顺序
-1. 若继续 Mission Orchestrator，只做另一个明确命名的 remaining slice，例如 fleet-level task assignment 或超出当前只读 snapshot 的 workflow backend。
+1. 若继续 Mission Orchestrator，只做另一个明确命名的 remaining slice，例如多机器人调度优化、cross-robot goal transfer 或超出当前只读 snapshot 的 workflow backend。
 2. 做 dedicated stair trajectory / wheel lock / body-height / gait tuning；不得把当前 phase-aware skeleton 当成真实控制器。
 3. 再评估 real-model path 是否可以扩大为默认 baseline。
 4. 最后进入 Phase 5 terrain-aware connector discovery、elevation mapping、traversability 和 automatic connector generation。
@@ -166,8 +173,8 @@ Definition of Done:
 - 现有 Phase 4C verifier skeleton 不被无证据移除；必须保留 deterministic 诊断路径。
 - 不改变 perception TF authority、默认 placeholder launch baseline、stair dynamics 或 map / localization 范围。
 
-执行状态：当前窄范围已完成；priority scheduling 和 workflow policy snapshot 也已作为后续单主题任务完成。
-后续如要继续进入 fleet-level task assignment 或完整 workflow backend，必须另开新的完整任务单。
+执行状态：当前窄范围已完成；priority scheduling、assignment policy 和 workflow policy snapshot 也已作为后续单主题任务完成。
+后续如要继续进入多机器人调度优化、cross-robot goal transfer 或完整 workflow backend，必须另开新的完整任务单。
 
 ## 最终封板验证入口
 迁移前新模型接手前至少运行：
@@ -193,11 +200,12 @@ Definition of Done:
 | `git diff --check` | PASS | 无尾随空白或 patch 格式问题 |
 | `./tools/verify_phase4_pre_handoff.sh` | PASS | 已纳入本最终封板报告检查 |
 | `colcon test --packages-select go2w_navigation go2w_control go2w_mission --event-handlers console_direct+` | PASS | 3 个包测试通过 |
-| `colcon test-result --verbose` | PASS | `115 tests, 0 errors, 0 failures, 0 skipped` |
+| `colcon test-result --verbose` | PASS | `124 tests, 0 errors, 0 failures, 0 skipped` |
 | `PYTHONPATH="$PWD/go2w_navigation:$PWD/go2w_mission:$PWD/go2w_control" python3 -m pytest ...` | PASS | focused pytest 8 项通过 |
 | `./tools/verify_go2w_control_chain_regression.sh` | PASS | real-model baseline、stair fixture、mission recovery、stair tuning smoke 全通过 |
 | `./tools/verify_phase4_runtime_acceptance.sh` | PASS | pre-handoff、Phase 4A/B/C/D、build/test/test-result 全通过 |
 | `./tools/verify_mission_api_workflow_policy.sh` | PASS | 2026-05-05 workflow policy snapshot focused verifier 通过 |
+| `./tools/verify_mission_api_assignment_policy.sh` | PASS | 2026-05-06 assignment policy focused verifier 通过 |
 | `./tools/verify_phase4_pre_handoff.sh` | PASS | 2026-05-04 二次封板起点复验，交接包最低一致性通过 |
 | `./tools/verify_phase4_runtime_acceptance.sh` | PASS | 2026-05-04 串行复验，Phase 4A/B/C/D、build/test/test-result 再次通过 |
 | `./tools/verify_go2w_control_chain_regression.sh` | PASS | 2026-05-04 串行复验，real-model baseline、stair fixture、mission recovery、stair tuning 再次通过 |

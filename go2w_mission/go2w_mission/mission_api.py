@@ -15,6 +15,10 @@ from go2w_mission.phase4b_mission_segments import (
     build_mission_segments,
 )
 from go2w_mission.mission_pose import pose_stamped_from_xy_yaw
+from go2w_mission.mission_assignment import (
+    evaluate_mission_assignment,
+    normalize_robot_id,
+)
 from go2w_mission.mission_orchestrator import (
     MissionOrchestratorState,
     MissionOrchestratorStateStore,
@@ -67,6 +71,7 @@ class MissionGoalSpec:
     result_timeout_sec: float
     flat_result_timeout_sec: float
     priority: int = 0
+    assigned_robot_id: str = ""
 
 
 @dataclass(frozen=True)
@@ -76,6 +81,7 @@ class MissionTaskHistoryContext:
     ticket: int
     queue_position: int
     priority: int
+    assigned_robot_id: str
     start_id: int
     goal_id: int
     graph_file: str
@@ -113,6 +119,7 @@ def validate_mission_goal(spec: MissionGoalSpec) -> MissionGoalSpec:
         result_timeout_sec=spec.result_timeout_sec,
         flat_result_timeout_sec=spec.flat_result_timeout_sec,
         priority=int(spec.priority),
+        assigned_robot_id=str(spec.assigned_robot_id).strip(),
     )
 
 
@@ -165,6 +172,7 @@ class MissionApiRuntime:
         mission_recovery_enabled: bool,
         flat_behavior_tree: str,
         mission_queue_capacity: int,
+        mission_robot_id: str,
     ) -> None:
         from nav2_msgs.action import ComputeRoute, NavigateToPose
         from rclpy.action import ActionClient
@@ -188,6 +196,7 @@ class MissionApiRuntime:
         self.mission_retry_backoff_sec = max(0.0, float(mission_retry_backoff_sec))
         self.mission_recovery_enabled = bool(mission_recovery_enabled)
         self.flat_behavior_tree = str(flat_behavior_tree)
+        self.mission_robot_id = normalize_robot_id(mission_robot_id)
         self.mission_scheduler = MissionScheduleGate(
             capacity=mission_queue_capacity,
         )
@@ -315,6 +324,7 @@ class MissionApiRuntime:
                     result_timeout_sec=float(request.result_timeout_sec),
                     flat_result_timeout_sec=float(request.flat_result_timeout_sec),
                     priority=int(getattr(request, "priority", 0)),
+                    assigned_robot_id=str(getattr(request, "assigned_robot_id", "")),
                 )
             )
         except ValueError as exc:
@@ -326,6 +336,28 @@ class MissionApiRuntime:
                 segment_count=0,
                 segment_summary="",
             )
+
+        assignment = evaluate_mission_assignment(
+            local_robot_id=getattr(self, "mission_robot_id", ""),
+            requested_robot_id=goal_spec.assigned_robot_id,
+        )
+        if not assignment.accepted:
+            self.node.get_logger().info(
+                "mission_assignment_rejected: "
+                f"{assignment.summary()}"
+            )
+            return self._finish(
+                goal_handle,
+                success=False,
+                result_code="MISSION_ASSIGNMENT_REJECTED",
+                message=assignment.message,
+                segment_count=0,
+                segment_summary="",
+            )
+        goal_spec = replace(
+            goal_spec,
+            assigned_robot_id=assignment.assigned_robot_id,
+        )
 
         mission_key = build_mission_key(
             start_id=goal_spec.start_id,
@@ -899,6 +931,7 @@ class MissionApiRuntime:
             ticket=record.ticket,
             queue_position=record.queue_position,
             priority=record.priority,
+            assigned_robot_id=record.assigned_robot_id,
             start_id=record.start_id,
             goal_id=record.goal_id,
             graph_file=record.graph_file,
@@ -927,6 +960,7 @@ class MissionApiRuntime:
             ticket=context.ticket,
             queue_position=context.queue_position,
             priority=context.priority,
+            assigned_robot_id=context.assigned_robot_id,
             state=mission_history_state_for_result(
                 success=success,
                 result_code=result_code,
@@ -994,6 +1028,7 @@ class MissionApiRuntime:
             ticket=ticket,
             queue_position=queue_position,
             priority=goal_spec.priority,
+            assigned_robot_id=goal_spec.assigned_robot_id,
             state=state,
             start_id=goal_spec.start_id,
             goal_id=goal_spec.goal_id,
@@ -1060,10 +1095,17 @@ class MissionApiRuntime:
         queue_state = self._queue_replay_state_snapshot()
         task_history_state = self._task_history_state_snapshot()
         return (
+            f"{self._assignment_summary()} "
             f"{self._workflow_summary(current_state, queue_state, task_history_state)} "
             f"{current_state.summary()} "
             f"queue_replay={queue_state.summary()} "
             f"task_history={task_history_state.summary()}"
+        )
+
+    def _assignment_summary(self) -> str:
+        return (
+            "assignment=local_robot="
+            f"{normalize_robot_id(getattr(self, 'mission_robot_id', ''))}"
         )
 
     def _workflow_summary(
@@ -1857,6 +1899,7 @@ def parse_args(argv: list[str]) -> tuple[argparse.Namespace, list[str]]:
     parser.add_argument("--mission-recovery-enabled", type=_parse_bool, default=True)
     parser.add_argument("--flat-behavior-tree", default="success")
     parser.add_argument("--mission-queue-capacity", type=int, default=2)
+    parser.add_argument("--mission-robot-id", default="go2w_local")
     parser.add_argument("--action-name", default="/go2w/mission/run")
     parser.add_argument(
         "--mission-control-service-name",
@@ -1897,6 +1940,7 @@ def main(argv: list[str] | None = None) -> int:
                 mission_recovery_enabled=args.mission_recovery_enabled,
                 flat_behavior_tree=args.flat_behavior_tree,
                 mission_queue_capacity=args.mission_queue_capacity,
+                mission_robot_id=args.mission_robot_id,
             )
             self._callback_group = ReentrantCallbackGroup()
             self._server = ActionServer(

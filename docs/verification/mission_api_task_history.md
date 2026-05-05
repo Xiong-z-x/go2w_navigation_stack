@@ -15,8 +15,8 @@ backend:
 - `MissionControl archive_history` trims old records to a bounded retention
   limit.
 
-This verifier itself is still not priority scheduling, fleet-level mission
-management, or a complete production Mission Orchestrator.
+This verifier itself is still not priority scheduling, assignment policy,
+fleet-level mission management, or a complete production Mission Orchestrator.
 
 ## Implemented Runtime Surface
 - `go2w_mission.mission_task_history.MissionTaskHistoryStateStore` persists
@@ -73,9 +73,10 @@ mission_task_history_result: PASS
 
 ## Open Validation Items
 - This verifies terminal history persistence and bounded archive behavior, not
-  priority scheduling.
+  priority scheduling or assignment policy.
 - This does not resurrect ROS action goal handles after process restart.
-- This does not add fleet-level task assignment or a full workflow backend.
+- This does not add multi-robot dispatch optimization, cross-robot goal transfer,
+  or a full workflow backend.
   The read-only operator workflow-policy snapshot is covered separately in
   `docs/verification/mission_api_workflow_policy.md`.
 - It does not change perception TF authority, default launch baseline, stair

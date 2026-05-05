@@ -14,8 +14,9 @@ It verifies a narrow production-style policy view:
 - The snapshot reports mode, mission activity, queue state, history state, and
   available operator commands.
 
-This is not fleet-level task assignment, active preemption, a persistent
-workflow engine, or a complete production Mission Orchestrator.
+This is not multi-robot dispatch optimization, cross-robot goal transfer,
+active preemption, a persistent workflow engine, or a complete production
+Mission Orchestrator.
 
 ## Implemented Runtime Surface
 - `go2w_mission.mission_workflow_policy.MissionWorkflowSnapshot` reports:
@@ -69,7 +70,8 @@ mission_workflow_policy_result: PASS
 ```
 
 ## Open Validation Items
-- This does not add fleet-level multi-robot assignment.
+- This does not add multi-robot dispatch optimization or cross-robot goal
+  transfer.
 - This does not change scheduler admission, priority ordering, queue replay, or
   task-history persistence semantics.
 - This keeps the `MissionControl.srv` schema unchanged.

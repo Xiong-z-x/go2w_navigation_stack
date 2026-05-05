@@ -11,7 +11,7 @@
 
 ## 有效范围
 - 初始迁移快照日期：2026-04-30
-- 当前补充状态日期：2026-05-05
+- 当前补充状态日期：2026-05-06
 - 当前阶段：已验收 `Phase 4 accepted`
 - 当前主线：ROS 2 Humble + Gazebo Fortress-only + FAST-LIO external cache
 - 当前最终封板：`docs/handoff/pre_migration_final_freeze_report.md`
@@ -54,16 +54,17 @@
 21. `docs/verification/go2w_mission_real_flat_execution.md`
 22. `docs/verification/mission_api_scheduling_policy.md`
 23. `docs/verification/mission_api_priority_scheduling.md`
-24. `docs/verification/mission_api_orchestrator_control.md`
-25. `docs/verification/mission_api_queue_replay.md`
-26. `docs/verification/mission_api_task_history.md`
-27. `docs/verification/mission_api_workflow_policy.md`
-28. `docs/verification/phase4e_stair_fixture.md`
-29. `docs/verification/phase4e_mission_recovery.md`
-30. `docs/verification/go2w_real_model_regression.md`
-31. `docs/verification/phase4e_stair_tuning_overrides.md`
-32. `docs/verification/phase4_runtime_acceptance.md`
-33. `docs/handoff/new_model_initialization_prompt.md`
+24. `docs/verification/mission_api_assignment_policy.md`
+25. `docs/verification/mission_api_orchestrator_control.md`
+26. `docs/verification/mission_api_queue_replay.md`
+27. `docs/verification/mission_api_task_history.md`
+28. `docs/verification/mission_api_workflow_policy.md`
+29. `docs/verification/phase4e_stair_fixture.md`
+30. `docs/verification/phase4e_mission_recovery.md`
+31. `docs/verification/go2w_real_model_regression.md`
+32. `docs/verification/phase4e_stair_tuning_overrides.md`
+33. `docs/verification/phase4_runtime_acceptance.md`
+34. `docs/handoff/new_model_initialization_prompt.md`
 
 ## 本目录文件职责
 - `current_project_state.md`：当前真实状态总览。
@@ -156,7 +157,7 @@ Mission API bounded FIFO scheduling policy 可用以下命令复现：
 
 该 verifier 证明 `RunMission` 在 one-active-plus-one-queued 模式下可重复验证
 queue-full reject 与 queued cancel；它仍不是完整 production Mission Orchestrator
-或 fleet-level task assignment。
+或 assignment policy。
 
 Mission API non-preemptive priority scheduling 可用以下命令复现：
 
@@ -168,6 +169,17 @@ Mission API non-preemptive priority scheduling 可用以下命令复现：
 queued mission 按 `priority DESC, ticket ASC` 激活，以及 queue replay /
 task history / operator summary 的 priority 诊断；它仍不是 fleet-level task
 assignment 或完整 production Mission Orchestrator。
+
+Mission API assignment policy 可用以下命令复现：
+
+```bash
+./tools/verify_mission_api_assignment_policy.sh
+```
+
+该 verifier 证明 `RunMission` 显式 `assigned_robot_id` 字段、本地
+`mission_robot_id` admission gate、非本机任务在入队前拒绝，以及 queue replay /
+task history / status summary 的 assignment 诊断；它仍不是多机器人调度优化、
+cross-robot goal transfer 或完整 production Mission Orchestrator。
 
 Mission API operator control 可用以下命令复现：
 
@@ -196,7 +208,7 @@ Mission API bounded task history 可用以下命令复现：
 
 该 verifier 证明 terminal `RunMission` history 会持久化到 bounded JSON ledger，
 `MissionControl history` 可查询摘要，`MissionControl archive_history` 可裁剪旧记录；
-它仍不是 fleet-level task assignment 或完整 production Mission Orchestrator。
+它仍不是多机器人调度优化、cross-robot goal transfer 或完整 production Mission Orchestrator。
 
 Mission API workflow policy 可用以下命令复现：
 
@@ -206,8 +218,8 @@ Mission API workflow policy 可用以下命令复现：
 
 该 verifier 证明 `MissionControl workflow` 可返回只读 workflow snapshot，并且
 control `state_summary` 暴露 mode、mission activity、queue state、history state
-和 available operator commands；它仍不是 fleet-level task assignment、active
-preemption 或完整 production Mission Orchestrator。
+和 available operator commands；它仍不是多机器人调度优化、cross-robot goal
+transfer、active preemption 或完整 production Mission Orchestrator。
 
 Phase 4E real-model stair fixture 验收可用以下命令复现：
 

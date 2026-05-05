@@ -85,8 +85,8 @@ mission_state_next_segment_index: 3
 ## Open Validation Items
 - This is a production-style recovery skeleton, not a complete production
   Mission Orchestrator.
-- It does not provide fleet-level scheduling or a complete long-lived task
-  manager. Concurrent admission, priority scheduling, operator control, queue
+- It does not provide multi-robot dispatch optimization or a complete long-lived task
+  manager. Concurrent admission, priority scheduling, assignment policy, operator control, queue
   replay, task history, and workflow policy are covered by separate focused
   gates.
 - It still depends on current route, flat navigation, and stair executor

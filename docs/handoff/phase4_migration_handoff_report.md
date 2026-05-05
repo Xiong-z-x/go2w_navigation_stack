@@ -3,9 +3,9 @@
 本报告最初记录 2026-04-30 的 Phase 4 迁移前快照。Phase 4A、Phase 4B-min、
 Phase 4C-min、Phase 4D-min 和 Phase 4 accepted 已在 2026-05-01 补充验收；Phase 5A、
 real-model baseline / route-following、Phase 4E stair fixture / mission recovery 和
-real-model regression wrapper 已在 2026-05-02 前后补充验收。2026-05-04 至 2026-05-05 又补充了
-Mission API scheduling / control / replay / history / workflow 的窄范围 hardening：bounded FIFO
-scheduling、queued priority scheduling、operator control service、operator-triggered
+real-model regression wrapper 已在 2026-05-02 前后补充验收。2026-05-04 至 2026-05-06 又补充了
+Mission API scheduling / assignment / control / replay / history / workflow 的窄范围 hardening：bounded FIFO
+scheduling、queued priority scheduling、local assignment policy、operator control service、operator-triggered
 durable queue replay、bounded terminal task history 和 workflow policy snapshot。最新状态以
 `docs/architecture/architecture_state.md`、
 `docs/verification/phase4a_stair_handoff_acceptance.md` 和
@@ -22,6 +22,7 @@ durable queue replay、bounded terminal task history 和 workflow policy snapsho
 `docs/verification/go2w_real_model_regression.md`、
 `docs/verification/mission_api_scheduling_policy.md`、
 `docs/verification/mission_api_priority_scheduling.md`、
+`docs/verification/mission_api_assignment_policy.md`、
 `docs/verification/mission_api_orchestrator_control.md`、
 `docs/verification/mission_api_queue_replay.md`、
 `docs/verification/mission_api_task_history.md` 和
@@ -79,7 +80,7 @@ active phase 标签，也不等于真实楼梯动力学或完整 production Miss
   `ComputeAndTrackRoute` feedback verifier skeleton。
 - mission 负责目标语义、楼层语义、分段调度和 mission recovery；当前已有 Phase 4A
   handoff demo、Phase 4B-min one-shot mission segment runtime、Phase 4D-min feedback
-  observer、RunMission skeleton、bounded queueing、queued priority scheduling、operator control service、
+  observer、RunMission skeleton、bounded queueing、queued priority scheduling、local assignment policy、operator control service、
   operator-triggered durable queue replay、bounded terminal task history、workflow policy snapshot 和 Phase 4E
   checkpoint/resume/retry skeleton。
 - control 负责最终 locomotion mode 与 stair execution；当前已有 Phase 4A
@@ -103,7 +104,7 @@ active phase 标签，也不等于真实楼梯动力学或完整 production Miss
 - `go2w_mission`：Phase 4A 已有 handoff demo 和最小验证 launch；Phase 4B-min
   已有 one-shot mission segment runtime；Phase 4C/4D 已有 flat gate 与 feedback
   observer；Phase 4E 已有 checkpoint/recovery skeleton；当前还具备 bounded queueing、
-  non-preemptive queued priority scheduling、operator control service、durable queue replay、bounded terminal
+  non-preemptive queued priority scheduling、local assignment policy、operator control service、durable queue replay、bounded terminal
   task history 和 workflow policy snapshot。它仍尚不是完整 production orchestrator。
 
 ## 6. 到目前为止已完成的内容
@@ -141,9 +142,9 @@ active phase 标签，也不等于真实楼梯动力学或完整 production Miss
 - Mission runtime real-model flat execution gate：`RunMission` flat-only segment 可在
   不启动 `go2w_flat_nav_executor` 时调用真实 Nav2 `/navigate_to_pose`，并通过共享
   `mission_pose` helper 保留 route graph 目标 yaw。
-- Mission API scheduling / priority / control / replay / history / workflow：bounded queueing、
+- Mission API scheduling / priority / assignment / control / replay / history / workflow：bounded queueing、
   explicit `RunMission` priority、non-preemptive queued priority order、
-  `MissionControl` pause/resume/status/cancel_active/replay_queue/history/archive_history/workflow、
+  explicit `RunMission` assigned robot admission、`MissionControl` pause/resume/status/cancel_active/replay_queue/history/archive_history/workflow、
   operator-triggered durable queue replay ledger 和 bounded terminal task-history
   ledger、workflow policy snapshot 已有 focused verifier 证据。
 - Opt-in real-model regression wrapper：串联 real-model baseline、same-floor
@@ -156,8 +157,8 @@ mission segment runtime、Phase 4C-min flat/stair/flat execution gate、Phase 4D
 route tracking feedback observation gate、Phase 4 accepted 总验收 gate，以及 Phase 4E
 stair fixture / mission recovery / real-model regression 后续硬化。mission 层当前还
 具备 bounded FIFO scheduling、non-preemptive queued priority scheduling、
-operator control、queue replay、task history 和 workflow policy snapshot 的窄范围生产化骨架。但它还不是完整
-跨楼层自主系统：完整 production Mission Orchestrator 的 fleet-level task assignment / workflow backend，真实 Nav2 route tracking against robot motion、真实楼梯控制、
+local assignment policy、operator control、queue replay、task history 和 workflow policy snapshot 的窄范围生产化骨架。但它还不是完整
+跨楼层自主系统：完整 production Mission Orchestrator 的多机器人调度优化 / cross-robot goal transfer / workflow backend，真实 Nav2 route tracking against robot motion、真实楼梯控制、
 自动连接器均未实现。
 
 ## 8. 本次已清理/已修复的问题
@@ -184,16 +185,16 @@ operator control、queue replay、task history 和 workflow policy snapshot 的�
 - 新增 mission runtime real-model flat execution gate，并修复 route graph 目标 yaw
   传递到 `NavigateToPose` 的姿态语义。
 - 新增 Mission API bounded FIFO scheduling、non-preemptive priority scheduling、
-  operator control、durable queue replay、task-history ledger 和 workflow policy snapshot 的 focused verifiers 与文档证据。
+  local assignment policy、operator control、durable queue replay、task-history ledger 和 workflow policy snapshot 的 focused verifiers 与文档证据。
 
 ## 9. 仍然存在但暂不可修复的风险或限制
 - Gazebo GPU rendering 在当前 WSLg/Fortress/Ogre2 路径下仍不稳定。
 - Unitree Go2W 真实模型已作为 opt-in 路径导入并验证，但尚未替换默认 placeholder launch。
 - Phase 3C route graph 是手工 floor atlas，不是自动地图生成。
 - 没有完整 production Mission Orchestrator；当前已有 RunMission skeleton、JSON checkpoint、
-  同一 goal resume、bounded queueing、non-preemptive queued priority scheduling、
+  同一 goal resume、bounded queueing、non-preemptive queued priority scheduling、local assignment policy、
   operator control service、operator-triggered durable queue replay、bounded terminal task
-  history、workflow policy snapshot 和有限 retry，但还没有完整 fleet-level task assignment 或 workflow backend。
+  history、workflow policy snapshot 和有限 retry，但还没有完整多机器人调度优化、cross-robot goal transfer 或 workflow backend。
 - Phase 4C-min flat executor 是 verifier skeleton，不执行真实 Nav2 route tracking against robot motion。
 - Phase 4D-min feedback executor 是 verifier skeleton，不执行真实 `nav2_route`
   tracking against robot motion，也不执行真实 route operation plugin。

@@ -31,6 +31,7 @@ class MissionQueueRecord:
     last_message: str
     admitted_at: float
     updated_at: float
+    assigned_robot_id: str = ""
 
     def with_updates(self, **changes: Any) -> "MissionQueueRecord":
         return replace(self, **changes)
@@ -45,6 +46,7 @@ class MissionQueueRecord:
             "ticket": self.ticket,
             "queue_position": self.queue_position,
             "priority": self.priority,
+            "assigned_robot_id": self.assigned_robot_id,
             "state": self.state,
             "start_id": self.start_id,
             "goal_id": self.goal_id,
@@ -66,6 +68,7 @@ class MissionQueueRecord:
             ticket=int(data.get("ticket", -1)),
             queue_position=int(data.get("queue_position", 0)),
             priority=int(data.get("priority", 0)),
+            assigned_robot_id=str(data.get("assigned_robot_id", "")),
             state=str(data.get("state", QUEUED_STATE)),
             start_id=int(data.get("start_id", 0)),
             goal_id=int(data.get("goal_id", 0)),
@@ -155,11 +158,21 @@ class MissionQueueReplayState:
             f"{record.ticket}:{record.priority}"
             for record in self.sorted_queued_records()
         ) or "-"
+        queued_robots = ",".join(
+            f"{record.ticket}:{record.assigned_robot_id or '-'}"
+            for record in self.sorted_queued_records()
+        ) or "-"
+        active_robot = "-"
+        for record in self.sorted_records():
+            if record.state == ACTIVE_STATE:
+                active_robot = record.assigned_robot_id or "-"
+                break
         active_ticket = self.active_ticket if self.active_ticket >= 0 else "-"
         replay_status = "PENDING" if self.queue_replay_pending else "ACKED"
         return (
             f"replay={replay_status} records={self.record_count} "
             f"active_ticket={active_ticket} queued=[{queued}] priorities=[{priorities}] "
+            f"active_robot={active_robot} queued_robots=[{queued_robots}] "
             f"capacity={self.queue_capacity} next_ticket={self.next_ticket} "
             f"last_command={self.last_command} last_message={self.last_message or '-'}"
         )

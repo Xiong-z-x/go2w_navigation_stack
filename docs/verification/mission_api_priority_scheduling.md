@@ -13,8 +13,9 @@ The current policy is intentionally narrow:
 - queue replay, task history, and operator-state summaries preserve priority
   diagnostics.
 
-This is still not a complete production Mission Orchestrator, fleet-level task
-assignment, or active-mission preemption.
+This is still not a complete production Mission Orchestrator,
+multi-robot dispatch optimization, cross-robot goal transfer, or active-mission
+preemption.
 
 ## Implemented Runtime Surface
 - `go2w_mission/action/RunMission.action` exposes `int32 priority`.
@@ -62,6 +63,7 @@ mission_priority_scheduling_result: PASS
 
 ## Open Validation Items
 - This does not preempt the active mission.
-- This does not add fleet-level assignment or an operator workflow backend.
+- This does not add multi-robot dispatch optimization, cross-robot goal
+  transfer, or an operator workflow backend.
 - This does not change perception TF authority, default launch baseline, stair
   dynamics, AMCL / `map_server`, or terrain-aware connector generation.
