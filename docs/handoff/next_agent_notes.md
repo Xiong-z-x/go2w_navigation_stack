@@ -37,8 +37,8 @@
   FIFO queueing；并发 goal 可能 queue、`MISSION_BUSY` / `mission_queue_full` 或
   queued cancel，且现在还多了 operator-state snapshot、`MissionControl` 控制面和
   operator-triggered durable queue replay ledger、bounded terminal task-history ledger；
-  现在还补齐了 non-preemptive queued priority scheduling、local assignment policy
-  和只读 workflow policy snapshot。
+  现在还补齐了 non-preemptive queued priority scheduling、local assignment policy、
+  只读 workflow policy snapshot 和 workflow event backend。
   这仍不是 active preemption、多机器人调度优化、cross-robot goal transfer 或完整生产调度器。
 - 不要把 mission runtime real-model flat execution gate 当成 production Mission
   Orchestrator。它已经把 flat segment 接到真实 Nav2 `/navigate_to_pose`，但仍只是
@@ -118,7 +118,7 @@ Go2W real model / motion-mode baseline 已补上 opt-in 真实模型、四 foot 
 controller profile、`flat -> wheeled` / `stair -> legged` 状态和启动站立验证；
 Phase 4 accepted 已完成总验收；`RunMission` skeleton 也已完成并验证；Phase 4E
 又补上 real-model stair fixture、mission recovery checkpoint/resume、operator control
-service、operator-triggered durable queue replay、bounded terminal task history、queued priority scheduling、assignment policy、workflow policy snapshot 和
+service、operator-triggered durable queue replay、bounded terminal task history、queued priority scheduling、assignment policy、workflow policy snapshot、workflow event backend 和
 opt-in real-model regression wrapper。后续最小任务必须另有完整任务单或当前
 自主审批模式下的自批准任务单；后续如继续 mission orchestration，只做另一个明确命名的
 remaining slice，或转向
@@ -200,12 +200,15 @@ default real-model re-baseline。不要把下一步扩大为真实多楼层
   `verify_go2w_mission_real_flat_execution.sh` 不要并行跑；它们都是重型
   ROS/Gazebo verifier，并发时会放大资源争用，出现假 timeout / 假 NO_PARAM。
   先串行复验，除非明确要测并发鲁棒性。
+- `verify_phase4_pre_handoff.sh` 不要和 focused pytest/verifier 并行跑。该脚本会清理
+  并检查源码树 `__pycache__`，并行 pytest 可能在清理后重新生成缓存，导致
+  `source_pycache_present` 假失败。遇到这种情况先清理缓存，再串行复跑 pre-handoff。
 
 ## 后续项目改进起步顺序
 1. 当前窄范围 production Mission Orchestrator scheduling policy、queued priority scheduling、
-   assignment policy、operator control、durable queue replay、bounded terminal task history 和 workflow policy snapshot 已完成。下一步进入
+   assignment policy、operator control、durable queue replay、bounded terminal task history、workflow policy snapshot 和 workflow event backend 已完成。下一步进入
    production Mission Orchestrator remaining slice 时，只做另一个明确命名的单主题
-   orchestration gap，例如多机器人调度优化、cross-robot goal transfer 或超出当前只读 snapshot 的 workflow backend。
+   orchestration gap，例如多机器人调度优化或 cross-robot goal transfer。
 2. 再做 dedicated stair trajectory / wheel lock / body-height / gait tuning。
 3. 最后再进入 real-model default baseline 评估、Phase 5 elevation/traversability/
    automatic connector generation。

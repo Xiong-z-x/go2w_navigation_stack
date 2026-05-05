@@ -38,7 +38,7 @@ class MissionWorkflowSnapshot:
 
     @property
     def available_commands(self) -> tuple[str, ...]:
-        commands = ["status", "workflow", "history"]
+        commands = ["status", "workflow", "workflow_events", "history"]
         if self.mode == PAUSED_MODE:
             commands.append("resume")
         else:

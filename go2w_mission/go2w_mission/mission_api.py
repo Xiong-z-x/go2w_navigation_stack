@@ -45,6 +45,13 @@ from go2w_mission.mission_task_history import (
     mission_history_state_for_result,
     sanitize_task_history_state_for_runtime,
 )
+from go2w_mission.mission_workflow_backend import (
+    MissionWorkflowEvent,
+    MissionWorkflowEventState,
+    MissionWorkflowEventStateStore,
+    build_initial_workflow_event_state,
+    sanitize_workflow_event_state_for_runtime,
+)
 from go2w_mission.mission_workflow_policy import build_mission_workflow_snapshot
 from go2w_mission.mission_recovery import (
     MissionCheckpoint,
@@ -167,6 +174,8 @@ class MissionApiRuntime:
         mission_queue_replay_state_file: str,
         mission_task_history_file: str,
         mission_task_history_retention_limit: int,
+        mission_workflow_events_file: str,
+        mission_workflow_event_retention_limit: int,
         mission_retry_limit: int,
         mission_retry_backoff_sec: float,
         mission_recovery_enabled: bool,
@@ -281,6 +290,26 @@ class MissionApiRuntime:
                 updated_at=time.time(),
             )
         )
+        workflow_event_state_path = (
+            Path(mission_workflow_events_file).expanduser()
+            if mission_workflow_events_file.strip()
+            else MissionWorkflowEventStateStore.default_path()
+        )
+        self.workflow_event_state_store = MissionWorkflowEventStateStore(
+            workflow_event_state_path
+        )
+        loaded_workflow_event_state = self.workflow_event_state_store.load()
+        if loaded_workflow_event_state is None:
+            self.workflow_event_state = build_initial_workflow_event_state(
+                mission_workflow_event_retention_limit
+            )
+        else:
+            self.workflow_event_state = sanitize_workflow_event_state_for_runtime(
+                loaded_workflow_event_state,
+                retention_limit=mission_workflow_event_retention_limit,
+            )
+        self._workflow_event_lock = threading.Lock()
+        self._save_workflow_event_state(self.workflow_event_state)
         self._mission_lock = threading.Lock()
         loaded = self.state_store.load()
         if loaded is not None:
@@ -301,6 +330,10 @@ class MissionApiRuntime:
         self.node.get_logger().info(
             "mission_task_history_loaded: "
             f"{self.task_history_state.summary()}"
+        )
+        self.node.get_logger().info(
+            "mission_workflow_events_loaded: "
+            f"{self.workflow_event_state.summary()}"
         )
 
     def _admit_mission_slot(self) -> bool:
@@ -456,6 +489,12 @@ class MissionApiRuntime:
             self._set_task_history_context(
                 self._task_history_context_for_queue_record(queue_record)
             )
+            self._append_workflow_event(
+                "ADMIT",
+                f"ticket={admission.ticket} queued={admission.queued}",
+                mission_key=mission_key,
+                ticket=admission.ticket,
+            )
             if admission.queued:
                 self.node.get_logger().info(
                     "mission_queued: "
@@ -510,6 +549,12 @@ class MissionApiRuntime:
                 ticket=admission.ticket,
                 last_command="ACTIVE",
                 last_message="mission_active",
+            )
+            self._append_workflow_event(
+                "ACTIVE",
+                "mission_active",
+                mission_key=mission_key,
+                ticket=admission.ticket,
             )
             active_mission_registered = True
             self._touch_task_history_context(activated_at=time.time())
@@ -916,6 +961,50 @@ class MissionApiRuntime:
             self.task_history_state_store.save(state)
             return state
 
+    def _workflow_event_state_snapshot(self) -> MissionWorkflowEventState:
+        if not hasattr(self, "workflow_event_state"):
+            return build_initial_workflow_event_state(1)
+        with self._workflow_event_lock:
+            return self.workflow_event_state
+
+    def _save_workflow_event_state(
+        self,
+        state: MissionWorkflowEventState,
+    ) -> MissionWorkflowEventState:
+        with self._workflow_event_lock:
+            self.workflow_event_state = state
+            self.workflow_event_state_store.save(state)
+            return state
+
+    def _append_workflow_event(
+        self,
+        event_type: str,
+        message: str,
+        *,
+        mission_key: str = "",
+        ticket: int = -1,
+    ) -> MissionWorkflowEventState | None:
+        if not hasattr(self, "workflow_event_state"):
+            return None
+        mode = self._orchestrator_state_snapshot().mode
+        with self._workflow_event_lock:
+            event = MissionWorkflowEvent(
+                event_id=self.workflow_event_state.next_event_id,
+                event_type=event_type,
+                mission_key=mission_key,
+                ticket=ticket,
+                mode=mode,
+                message=message,
+                created_at=time.time(),
+            )
+            updated_state = self.workflow_event_state.append_event(event)
+            self.workflow_event_state = updated_state
+            self.workflow_event_state_store.save(updated_state)
+            return updated_state
+
+    def _workflow_events_summary(self) -> str:
+        return self._workflow_event_state_snapshot().summary()
+
     def _task_history_context_for_queue_record(
         self,
         record: MissionQueueRecord,
@@ -988,6 +1077,12 @@ class MissionApiRuntime:
             updated_at=now,
         )
         self._save_task_history_state(updated_state)
+        self._append_workflow_event(
+            last_command,
+            message,
+            mission_key=context.mission_key,
+            ticket=context.ticket,
+        )
 
     def _archive_task_history(
         self,
@@ -1097,6 +1192,7 @@ class MissionApiRuntime:
         return (
             f"{self._assignment_summary()} "
             f"{self._workflow_summary(current_state, queue_state, task_history_state)} "
+            f"{self._workflow_events_summary()} "
             f"{current_state.summary()} "
             f"queue_replay={queue_state.summary()} "
             f"task_history={task_history_state.summary()}"
@@ -1182,6 +1278,14 @@ class MissionApiRuntime:
                 "state_summary": self._combined_state_summary(current_state),
             }
 
+        if normalized_command == "workflow_events":
+            return {
+                "accepted": True,
+                "mode": current_state.mode,
+                "message": "workflow_events_snapshot",
+                "state_summary": self._combined_state_summary(current_state),
+            }
+
         if normalized_command == "pause":
             updated_state = self._save_orchestrator_state(
                 current_state.with_updates(
@@ -1193,6 +1297,7 @@ class MissionApiRuntime:
                 ),
                 queue_snapshot=self.mission_scheduler.snapshot(),
             )
+            self._append_workflow_event("CONTROL", "mission_paused")
             return {
                 "accepted": True,
                 "mode": updated_state.mode,
@@ -1211,6 +1316,7 @@ class MissionApiRuntime:
                 ),
                 queue_snapshot=self.mission_scheduler.snapshot(),
             )
+            self._append_workflow_event("CONTROL", "mission_resumed")
             return {
                 "accepted": True,
                 "mode": updated_state.mode,
@@ -1234,6 +1340,12 @@ class MissionApiRuntime:
                     updated_at=time.time(),
                 ),
                 queue_snapshot=self.mission_scheduler.snapshot(),
+            )
+            self._append_workflow_event(
+                "CONTROL",
+                "operator_cancel_active_requested",
+                mission_key=current_state.active_mission_key,
+                ticket=current_state.active_ticket,
             )
             return {
                 "accepted": True,
@@ -1275,6 +1387,7 @@ class MissionApiRuntime:
                 ),
                 queue_snapshot=self.mission_scheduler.snapshot(),
             )
+            self._append_workflow_event("CONTROL", "queue_replayed")
             return {
                 "accepted": True,
                 "mode": updated_state.mode,
@@ -1315,6 +1428,7 @@ class MissionApiRuntime:
                 ),
                 queue_snapshot=self.mission_scheduler.snapshot(),
             )
+            self._append_workflow_event("CONTROL", "history_archived")
             return {
                 "accepted": True,
                 "mode": updated_state.mode,
@@ -1889,10 +2003,16 @@ def parse_args(argv: list[str]) -> tuple[argparse.Namespace, list[str]]:
     parser.add_argument("--mission-orchestrator-state-file", default="")
     parser.add_argument("--mission-queue-replay-state-file", default="")
     parser.add_argument("--mission-task-history-file", default="")
+    parser.add_argument("--mission-workflow-events-file", default="")
     parser.add_argument(
         "--mission-task-history-retention-limit",
         type=int,
         default=50,
+    )
+    parser.add_argument(
+        "--mission-workflow-event-retention-limit",
+        type=int,
+        default=100,
     )
     parser.add_argument("--mission-retry-limit", type=int, default=2)
     parser.add_argument("--mission-retry-backoff-sec", type=float, default=0.5)
@@ -1934,6 +2054,10 @@ def main(argv: list[str] | None = None) -> int:
                 mission_task_history_file=args.mission_task_history_file,
                 mission_task_history_retention_limit=(
                     args.mission_task_history_retention_limit
+                ),
+                mission_workflow_events_file=args.mission_workflow_events_file,
+                mission_workflow_event_retention_limit=(
+                    args.mission_workflow_event_retention_limit
                 ),
                 mission_retry_limit=args.mission_retry_limit,
                 mission_retry_backoff_sec=args.mission_retry_backoff_sec,

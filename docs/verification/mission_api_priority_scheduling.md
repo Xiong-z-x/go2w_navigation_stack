@@ -63,7 +63,8 @@ mission_priority_scheduling_result: PASS
 
 ## Open Validation Items
 - This does not preempt the active mission.
-- This does not add multi-robot dispatch optimization, cross-robot goal
-  transfer, or an operator workflow backend.
+- This does not add multi-robot dispatch optimization or cross-robot goal
+  transfer. The operator workflow backend is covered separately in
+  `docs/verification/mission_api_workflow_backend.md`.
 - This does not change perception TF authority, default launch baseline, stair
   dynamics, AMCL / `map_server`, or terrain-aware connector generation.

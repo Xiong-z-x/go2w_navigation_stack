@@ -30,6 +30,10 @@ def generate_launch_description():
     mission_task_history_retention_limit = LaunchConfiguration(
         "mission_task_history_retention_limit"
     )
+    mission_workflow_events_file = LaunchConfiguration("mission_workflow_events_file")
+    mission_workflow_event_retention_limit = LaunchConfiguration(
+        "mission_workflow_event_retention_limit"
+    )
     mission_retry_limit = LaunchConfiguration("mission_retry_limit")
     mission_retry_backoff_sec = LaunchConfiguration("mission_retry_backoff_sec")
     mission_recovery_enabled = LaunchConfiguration("mission_recovery_enabled")
@@ -119,6 +123,16 @@ def generate_launch_description():
             "mission_task_history_retention_limit",
             default_value="50",
             description="Retention limit for terminal mission history records.",
+        ),
+        DeclareLaunchArgument(
+            "mission_workflow_events_file",
+            default_value="",
+            description="Optional persistent mission workflow event state file path.",
+        ),
+        DeclareLaunchArgument(
+            "mission_workflow_event_retention_limit",
+            default_value="100",
+            description="Retention limit for workflow event backend records.",
         ),
         DeclareLaunchArgument(
             "mission_retry_limit",
@@ -238,6 +252,10 @@ def generate_launch_description():
                 mission_task_history_file,
                 "--mission-task-history-retention-limit",
                 mission_task_history_retention_limit,
+                "--mission-workflow-events-file",
+                mission_workflow_events_file,
+                "--mission-workflow-event-retention-limit",
+                mission_workflow_event_retention_limit,
                 "--mission-retry-limit",
                 mission_retry_limit,
                 "--mission-retry-backoff-sec",

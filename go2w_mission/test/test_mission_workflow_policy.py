@@ -95,6 +95,7 @@ def test_workflow_snapshot_reports_open_idle_policy() -> None:
     assert snapshot.available_commands == (
         "status",
         "workflow",
+        "workflow_events",
         "history",
         "pause",
     )
@@ -141,6 +142,7 @@ def test_workflow_snapshot_reports_paused_active_replay_history_policy() -> None
     assert snapshot.available_commands == (
         "status",
         "workflow",
+        "workflow_events",
         "history",
         "resume",
         "cancel_active",
@@ -163,6 +165,9 @@ def test_mission_control_workflow_command_returns_policy_summary() -> None:
         "workflow=mode=OPEN mission=IDLE queue=EMPTY history=EMPTY"
         in result["state_summary"]
     )
-    assert "available=[status,workflow,history,pause]" in result["state_summary"]
+    assert (
+        "available=[status,workflow,workflow_events,history,pause]"
+        in result["state_summary"]
+    )
     assert "queue_replay=" in result["state_summary"]
     assert "task_history=" in result["state_summary"]

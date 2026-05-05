@@ -59,12 +59,13 @@
 26. `docs/verification/mission_api_queue_replay.md`
 27. `docs/verification/mission_api_task_history.md`
 28. `docs/verification/mission_api_workflow_policy.md`
-29. `docs/verification/phase4e_stair_fixture.md`
-30. `docs/verification/phase4e_mission_recovery.md`
-31. `docs/verification/go2w_real_model_regression.md`
-32. `docs/verification/phase4e_stair_tuning_overrides.md`
-33. `docs/verification/phase4_runtime_acceptance.md`
-34. `docs/handoff/new_model_initialization_prompt.md`
+29. `docs/verification/mission_api_workflow_backend.md`
+30. `docs/verification/phase4e_stair_fixture.md`
+31. `docs/verification/phase4e_mission_recovery.md`
+32. `docs/verification/go2w_real_model_regression.md`
+33. `docs/verification/phase4e_stair_tuning_overrides.md`
+34. `docs/verification/phase4_runtime_acceptance.md`
+35. `docs/handoff/new_model_initialization_prompt.md`
 
 ## 本目录文件职责
 - `current_project_state.md`：当前真实状态总览。
@@ -220,6 +221,17 @@ Mission API workflow policy 可用以下命令复现：
 control `state_summary` 暴露 mode、mission activity、queue state、history state
 和 available operator commands；它仍不是多机器人调度优化、cross-robot goal
 transfer、active preemption 或完整 production Mission Orchestrator。
+
+Mission API workflow backend 可用以下命令复现：
+
+```bash
+./tools/verify_mission_api_workflow_backend.sh
+```
+
+该 verifier 证明 bounded JSON workflow event ledger、mission lifecycle
+`ADMIT` / `ACTIVE` / `COMPLETE` events，以及 `MissionControl workflow_events`
+只读查询；它仍不是 fleet-level workflow engine、active preemption 或完整
+production Mission Orchestrator。
 
 Phase 4E real-model stair fixture 验收可用以下命令复现：
 

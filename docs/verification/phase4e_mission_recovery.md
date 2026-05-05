@@ -87,7 +87,7 @@ mission_state_next_segment_index: 3
   Mission Orchestrator.
 - It does not provide multi-robot dispatch optimization or a complete long-lived task
   manager. Concurrent admission, priority scheduling, assignment policy, operator control, queue
-  replay, task history, and workflow policy are covered by separate focused
+  replay, task history, workflow policy, and workflow backend are covered by separate focused
   gates.
 - It still depends on current route, flat navigation, and stair executor
   skeletons.

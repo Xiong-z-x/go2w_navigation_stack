@@ -13,7 +13,7 @@ The current policy is intentionally small:
 
 This verifier itself is still not a complete production Mission Orchestrator and not priority scheduling or assignment policy.
 Operator pause/resume/status/cancel_active control is covered by a separate control gate.
-Priority scheduling, assignment policy, durable queue replay, bounded task history, and workflow policy are covered by separate gates.
+Priority scheduling, assignment policy, durable queue replay, bounded task history, workflow policy, and workflow backend are covered by separate gates.
 
 ## Implemented Runtime Surface
 - `go2w_mission.mission_scheduler.MissionScheduleGate` provides bounded FIFO admission.
@@ -71,7 +71,7 @@ Summary: 112 tests, 0 errors, 0 failures, 0 skipped
 
 ## Open Validation Items
 - This verifies bounded queueing, not a complete production Mission Orchestrator.
-- Priority scheduling, assignment policy, durable queue replay, bounded task history, and workflow
+- Priority scheduling, assignment policy, durable queue replay, bounded task history, workflow policy, and workflow backend
   policy are covered separately in dedicated verification documents.
 - The bounded queue remains an in-memory scheduling policy layered on top of the existing
   mission execution path.

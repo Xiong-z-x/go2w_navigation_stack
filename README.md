@@ -33,6 +33,7 @@ simulation-first 路线推进。
 - `docs/verification/mission_api_queue_replay.md`
 - `docs/verification/mission_api_task_history.md`
 - `docs/verification/mission_api_workflow_policy.md`
+- `docs/verification/mission_api_workflow_backend.md`
 - `docs/verification/phase4_runtime_acceptance.md`
 - `docs/verification/phase4c_flat_segment_gate.md`
 - `docs/verification/phase4b_mission_segment_runtime.md`
@@ -76,14 +77,14 @@ simulation-first 路线推进。
   verifier，能诊断 route segmentation、flat/stair dispatch、invalid goal、
   cancel、timeout、route unavailable、flat action unavailable、bounded queueing 和
   相关诊断；当前已新增 JSON checkpoint、同一 mission goal resume、有限 retry、operator-state
-  snapshot backend、`MissionControl` pause/resume/status/cancel_active/replay_queue/history/archive_history/workflow
+  snapshot backend、`MissionControl` pause/resume/status/cancel_active/replay_queue/history/archive_history/workflow/workflow_events
   控制面、operator-triggered durable queue replay ledger 和 bounded terminal task-history
   ledger、non-preemptive queued priority scheduling、local assignment policy、
-  operator workflow-policy snapshot，但仍不是完整
+  operator workflow-policy snapshot 和 workflow event backend，但仍不是完整
   production Mission Orchestrator。mission runtime real-model flat execution gate 也已经接通真实
   Nav2 `/navigate_to_pose`，并通过共享 `mission_pose` helper 保留了目标 yaw；
   production Mission Orchestrator scheduling policy、priority scheduling、assignment policy、
-  控制面、queue replay、task history 和 workflow policy snapshot
+  控制面、queue replay、task history、workflow policy snapshot 和 workflow event backend
   窄范围已经完成，后续应转向另一个明确命名的 orchestration gap 或 stair control 单主题任务。
 
 不要把 Phase 4 accepted 误判成 production mission orchestration、真实 Nav2

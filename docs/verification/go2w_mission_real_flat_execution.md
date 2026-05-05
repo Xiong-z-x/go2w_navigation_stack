@@ -253,7 +253,7 @@ go2w_mission_real_flat_execution_result: PASS
   `sim.launch.py` placeholder baseline.
 - Stair traversal and real stair dynamics remain open.
 - Production Mission Orchestrator remains incomplete. Scheduling, priority,
-  assignment policy, queue replay, bounded task history, and workflow policy are covered separately
+  assignment policy, queue replay, bounded task history, workflow policy, and workflow backend are covered separately
   in the mission API verification documents.
 - Do not run this verifier in parallel with
   `verify_go2w_control_chain_regression.sh`; the shared ROS/Gazebo runtime can

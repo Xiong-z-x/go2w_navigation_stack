@@ -39,6 +39,7 @@
 - `docs/verification/mission_api_queue_replay.md`：Mission API durable queue replay 证据；证明 replay ledger、replay-pending admission gate 与 `MissionControl replay_queue`。
 - `docs/verification/mission_api_task_history.md`：Mission API task-history 证据；证明 terminal mission history ledger、`MissionControl history/archive_history` 和 bounded retention。
 - `docs/verification/mission_api_workflow_policy.md`：Mission API workflow policy 证据；证明 `MissionControl workflow` 只读查询和 workflow snapshot 摘要。
+- `docs/verification/mission_api_workflow_backend.md`：Mission API workflow backend 证据；证明 bounded workflow event ledger 和 `MissionControl workflow_events` 查询。
 - `docs/verification/go2w_real_model_regression.md`：Go2W real-model opt-in regression wrapper 验收；包含 route-following smoke，因此比 control-chain wrapper 更 route-state-sensitive。
 - `docs/verification/phase4e_stair_tuning_overrides.md`：Phase 4E stair tuning smoke test 验收。
 - `docs/verification/phase4_runtime_acceptance.md`：Phase 4 总体验收。
@@ -59,7 +60,7 @@
 - `go2w_perception/`：FAST-LIO adapters、TF authority、patch、external lock。
 - `go2w_navigation/`：Nav2 configs、BT、route graph、maps、Phase 4C-min flat navigation executor skeleton、Phase 4D-min route tracking feedback executor skeleton。
 - `go2w_control/`：Phase 4A 起承载 `StairExec` Action、command gate 和最小 stair executor skeleton；Phase 4E 起输出 phase-aware stair execution plan/state。
-- `go2w_mission/`：Phase 4A 起承载 handoff demo；Phase 4B-min 起承载 one-shot mission segment runtime；Phase 4C-min 起通过 `NavigateToPose` gate 调度 flat segments；Phase 4D-min 起承载 route tracking feedback observer；Phase 4E 起提供 mission checkpoint/recovery skeleton；当前已能在 opt-in flat-only gate 中调用真实 Nav2 `/navigate_to_pose`，并且现在还具备 bounded queueing、non-preemptive priority scheduling、local assignment policy、operator control、durable queue replay、bounded terminal task history 和 workflow policy snapshot，但尚不是完整 production Mission Orchestrator。
+- `go2w_mission/`：Phase 4A 起承载 handoff demo；Phase 4B-min 起承载 one-shot mission segment runtime；Phase 4C-min 起通过 `NavigateToPose` gate 调度 flat segments；Phase 4D-min 起承载 route tracking feedback observer；Phase 4E 起提供 mission checkpoint/recovery skeleton；当前已能在 opt-in flat-only gate 中调用真实 Nav2 `/navigate_to_pose`，并且现在还具备 bounded queueing、non-preemptive priority scheduling、local assignment policy、operator control、durable queue replay、bounded terminal task history、workflow policy snapshot 和 workflow event backend，但尚不是完整 production Mission Orchestrator。
 
 ## 关键工具
 - `tools/prepare_phase2d_fastlio_external.sh`：准备 pinned FAST-LIO external cache。
@@ -89,6 +90,7 @@
 - `tools/verify_mission_api_queue_replay.sh`：Mission API durable queue replay gate；验证 replay ledger 和 `MissionControl replay_queue`。
 - `tools/verify_mission_api_task_history.sh`：Mission API task-history gate；验证 terminal history ledger、`MissionControl history/archive_history` 和 bounded retention。
 - `tools/verify_mission_api_workflow_policy.sh`：Mission API workflow policy gate；验证 workflow snapshot 和 `MissionControl workflow`。
+- `tools/verify_mission_api_workflow_backend.sh`：Mission API workflow backend gate；验证 workflow event ledger 和 `MissionControl workflow_events`。
 - `tools/verify_go2w_real_model_regression.sh`：Go2W real-model opt-in regression gate。
 - `tools/verify_phase4e_stair_tuning_overrides.sh`：Phase 4E stair tuning smoke test gate。
 - `tools/verify_phase4_runtime_acceptance.sh`：Phase 4 总体验收 gate。

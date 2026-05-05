@@ -56,9 +56,9 @@ mission_workflow_policy_result: PASS
 - Paused / active / replay-pending / history-ready state reports `PAUSED`,
   `ACTIVE`, `REPLAY_PENDING`, and `READY`.
 - Available command diagnostics are deterministic:
-  `status`, `workflow`, `history`, `pause` / `resume`, `cancel_active`,
-  `replay_queue`, and `archive_history` appear only when the current state makes
-  them meaningful.
+  `status`, `workflow`, `workflow_events`, `history`, `pause` / `resume`,
+  `cancel_active`, `replay_queue`, and `archive_history` appear only when the
+  current state makes them meaningful.
 - `MissionControl(command="workflow")` returns `accepted=true`,
   `message=workflow_snapshot`, and a state summary containing the workflow
   snapshot plus existing queue replay and task-history summaries.
@@ -74,4 +74,6 @@ mission_workflow_policy_result: PASS
   transfer.
 - This does not change scheduler admission, priority ordering, queue replay, or
   task-history persistence semantics.
+- The bounded workflow event backend is covered separately in
+  `docs/verification/mission_api_workflow_backend.md`.
 - This keeps the `MissionControl.srv` schema unchanged.

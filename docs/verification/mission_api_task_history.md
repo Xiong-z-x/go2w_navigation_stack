@@ -75,9 +75,10 @@ mission_task_history_result: PASS
 - This verifies terminal history persistence and bounded archive behavior, not
   priority scheduling or assignment policy.
 - This does not resurrect ROS action goal handles after process restart.
-- This does not add multi-robot dispatch optimization, cross-robot goal transfer,
-  or a full workflow backend.
-  The read-only operator workflow-policy snapshot is covered separately in
-  `docs/verification/mission_api_workflow_policy.md`.
+- This does not add multi-robot dispatch optimization or cross-robot goal
+  transfer. The read-only operator workflow-policy snapshot and workflow event
+  backend are covered separately in
+  `docs/verification/mission_api_workflow_policy.md` and
+  `docs/verification/mission_api_workflow_backend.md`.
 - It does not change perception TF authority, default launch baseline, stair
   dynamics, AMCL / `map_server`, or terrain-aware connector generation.

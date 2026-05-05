@@ -4,9 +4,9 @@
 Phase 4C-min、Phase 4D-min 和 Phase 4 accepted 已在 2026-05-01 补充验收；Phase 5A、
 real-model baseline / route-following、Phase 4E stair fixture / mission recovery 和
 real-model regression wrapper 已在 2026-05-02 前后补充验收。2026-05-04 至 2026-05-06 又补充了
-Mission API scheduling / assignment / control / replay / history / workflow 的窄范围 hardening：bounded FIFO
+Mission API scheduling / assignment / control / replay / history / workflow / workflow backend 的窄范围 hardening：bounded FIFO
 scheduling、queued priority scheduling、local assignment policy、operator control service、operator-triggered
-durable queue replay、bounded terminal task history 和 workflow policy snapshot。最新状态以
+durable queue replay、bounded terminal task history、workflow policy snapshot 和 workflow event backend。最新状态以
 `docs/architecture/architecture_state.md`、
 `docs/verification/phase4a_stair_handoff_acceptance.md` 和
 `docs/verification/phase4b_mission_segment_runtime.md`、
@@ -25,8 +25,9 @@ durable queue replay、bounded terminal task history 和 workflow policy snapsho
 `docs/verification/mission_api_assignment_policy.md`、
 `docs/verification/mission_api_orchestrator_control.md`、
 `docs/verification/mission_api_queue_replay.md`、
-`docs/verification/mission_api_task_history.md` 和
-`docs/verification/mission_api_workflow_policy.md` 为准。
+`docs/verification/mission_api_task_history.md`、
+`docs/verification/mission_api_workflow_policy.md` 和
+`docs/verification/mission_api_workflow_backend.md` 为准。
 
 2026-05-02 迁移前最终封板补充：real-model same-floor route-following 已完成
 dedicated hardening，三次 clean-domain 复跑均 PASS。它现在是 opt-in regression
@@ -81,7 +82,7 @@ active phase 标签，也不等于真实楼梯动力学或完整 production Miss
 - mission 负责目标语义、楼层语义、分段调度和 mission recovery；当前已有 Phase 4A
   handoff demo、Phase 4B-min one-shot mission segment runtime、Phase 4D-min feedback
   observer、RunMission skeleton、bounded queueing、queued priority scheduling、local assignment policy、operator control service、
-  operator-triggered durable queue replay、bounded terminal task history、workflow policy snapshot 和 Phase 4E
+  operator-triggered durable queue replay、bounded terminal task history、workflow policy snapshot、workflow event backend 和 Phase 4E
   checkpoint/resume/retry skeleton。
 - control 负责最终 locomotion mode 与 stair execution；当前已有 Phase 4A
   command gate、stair executor skeleton、motion profiles、leg hold outlet 和 Phase 4E
@@ -105,7 +106,7 @@ active phase 标签，也不等于真实楼梯动力学或完整 production Miss
   已有 one-shot mission segment runtime；Phase 4C/4D 已有 flat gate 与 feedback
   observer；Phase 4E 已有 checkpoint/recovery skeleton；当前还具备 bounded queueing、
   non-preemptive queued priority scheduling、local assignment policy、operator control service、durable queue replay、bounded terminal
-  task history 和 workflow policy snapshot。它仍尚不是完整 production orchestrator。
+  task history、workflow policy snapshot 和 workflow event backend。它仍尚不是完整 production orchestrator。
 
 ## 6. 到目前为止已完成的内容
 - Phase 1 仿真底盘控制闭环。
@@ -142,11 +143,11 @@ active phase 标签，也不等于真实楼梯动力学或完整 production Miss
 - Mission runtime real-model flat execution gate：`RunMission` flat-only segment 可在
   不启动 `go2w_flat_nav_executor` 时调用真实 Nav2 `/navigate_to_pose`，并通过共享
   `mission_pose` helper 保留 route graph 目标 yaw。
-- Mission API scheduling / priority / assignment / control / replay / history / workflow：bounded queueing、
+- Mission API scheduling / priority / assignment / control / replay / history / workflow / workflow backend：bounded queueing、
   explicit `RunMission` priority、non-preemptive queued priority order、
-  explicit `RunMission` assigned robot admission、`MissionControl` pause/resume/status/cancel_active/replay_queue/history/archive_history/workflow、
+  explicit `RunMission` assigned robot admission、`MissionControl` pause/resume/status/cancel_active/replay_queue/history/archive_history/workflow/workflow_events、
   operator-triggered durable queue replay ledger 和 bounded terminal task-history
-  ledger、workflow policy snapshot 已有 focused verifier 证据。
+  ledger、workflow policy snapshot 和 workflow event backend 已有 focused verifier 证据。
 - Opt-in real-model regression wrapper：串联 real-model baseline、same-floor
   route-following 和 Phase 4E stair fixture，不切换默认 placeholder launch。
 
@@ -157,8 +158,8 @@ mission segment runtime、Phase 4C-min flat/stair/flat execution gate、Phase 4D
 route tracking feedback observation gate、Phase 4 accepted 总验收 gate，以及 Phase 4E
 stair fixture / mission recovery / real-model regression 后续硬化。mission 层当前还
 具备 bounded FIFO scheduling、non-preemptive queued priority scheduling、
-local assignment policy、operator control、queue replay、task history 和 workflow policy snapshot 的窄范围生产化骨架。但它还不是完整
-跨楼层自主系统：完整 production Mission Orchestrator 的多机器人调度优化 / cross-robot goal transfer / workflow backend，真实 Nav2 route tracking against robot motion、真实楼梯控制、
+local assignment policy、operator control、queue replay、task history、workflow policy snapshot 和 workflow event backend 的窄范围生产化骨架。但它还不是完整
+跨楼层自主系统：完整 production Mission Orchestrator 的多机器人调度优化 / cross-robot goal transfer，真实 Nav2 route tracking against robot motion、真实楼梯控制、
 自动连接器均未实现。
 
 ## 8. 本次已清理/已修复的问题
@@ -185,7 +186,7 @@ local assignment policy、operator control、queue replay、task history 和 wor
 - 新增 mission runtime real-model flat execution gate，并修复 route graph 目标 yaw
   传递到 `NavigateToPose` 的姿态语义。
 - 新增 Mission API bounded FIFO scheduling、non-preemptive priority scheduling、
-  local assignment policy、operator control、durable queue replay、task-history ledger 和 workflow policy snapshot 的 focused verifiers 与文档证据。
+  local assignment policy、operator control、durable queue replay、task-history ledger、workflow policy snapshot 和 workflow event backend 的 focused verifiers 与文档证据。
 
 ## 9. 仍然存在但暂不可修复的风险或限制
 - Gazebo GPU rendering 在当前 WSLg/Fortress/Ogre2 路径下仍不稳定。
@@ -194,7 +195,7 @@ local assignment policy、operator control、queue replay、task history 和 wor
 - 没有完整 production Mission Orchestrator；当前已有 RunMission skeleton、JSON checkpoint、
   同一 goal resume、bounded queueing、non-preemptive queued priority scheduling、local assignment policy、
   operator control service、operator-triggered durable queue replay、bounded terminal task
-  history、workflow policy snapshot 和有限 retry，但还没有完整多机器人调度优化、cross-robot goal transfer 或 workflow backend。
+  history、workflow policy snapshot、workflow event backend 和有限 retry，但还没有完整多机器人调度优化或 cross-robot goal transfer。
 - Phase 4C-min flat executor 是 verifier skeleton，不执行真实 Nav2 route tracking against robot motion。
 - Phase 4D-min feedback executor 是 verifier skeleton，不执行真实 `nav2_route`
   tracking against robot motion，也不执行真实 route operation plugin。

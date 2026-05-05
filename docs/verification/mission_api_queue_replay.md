@@ -18,12 +18,13 @@ outstanding mission admissions:
 
 This verifier itself is still not priority scheduling, assignment policy,
 fleet-level mission management, or a complete production Mission Orchestrator.
-Priority scheduling, assignment policy, bounded task history, and workflow
-policy are covered separately in
+Priority scheduling, assignment policy, bounded task history, workflow policy,
+and workflow backend are covered separately in
 `docs/verification/mission_api_priority_scheduling.md`,
 `docs/verification/mission_api_assignment_policy.md`,
 `docs/verification/mission_api_task_history.md`, and
-`docs/verification/mission_api_workflow_policy.md`.
+`docs/verification/mission_api_workflow_policy.md`, and
+`docs/verification/mission_api_workflow_backend.md`.
 
 ## Implemented Runtime Surface
 - `go2w_mission.mission_queue_replay.MissionQueueReplayStateStore` persists
@@ -73,7 +74,8 @@ mission_queue_replay_result: PASS
 ## Open Validation Items
 - This verifies operator-triggered replay of mission queue records, not automatic
   ROS action goal-handle resurrection after a process restart.
-- This does not add multi-robot dispatch optimization, cross-robot goal transfer,
-  or a workflow backend.
+- This does not add multi-robot dispatch optimization or cross-robot goal
+  transfer. The workflow event backend is covered separately in
+  `docs/verification/mission_api_workflow_backend.md`.
 - It does not change perception TF authority, default launch baseline, stair
   dynamics, AMCL / `map_server`, or terrain-aware connector generation.
