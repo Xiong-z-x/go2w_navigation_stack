@@ -31,6 +31,7 @@ simulation-first 路线推进。
 - `docs/verification/mission_api_orchestrator_control.md`
 - `docs/verification/mission_api_queue_replay.md`
 - `docs/verification/mission_api_task_history.md`
+- `docs/verification/mission_api_workflow_policy.md`
 - `docs/verification/phase4_runtime_acceptance.md`
 - `docs/verification/phase4c_flat_segment_gate.md`
 - `docs/verification/phase4b_mission_segment_runtime.md`
@@ -45,7 +46,7 @@ simulation-first 路线推进。
 - 当前正式阶段：`Phase 4 accepted`
 - 当前迁移前最终封板：`docs/handoff/pre_migration_final_freeze_report.md`
   已记录 2026-05-02 总自检、风险清理、剩余限制和后续项目改进顺序，并在
-  2026-05-04 刷新了 mission hardening、实际 repo root 接手风险，
+  2026-05-04 至 2026-05-05 刷新了 mission hardening、实际 repo root 接手风险，
   并复验了 Phase 4 runtime acceptance 与 stable control-chain regression。
 - `Phase 1` 状态：仿真可控闭环已完成并进入可审计验收状态
 - `Phase 2` 状态：FAST-LIO2 输入/输出、感知侧 `odom -> base_link`
@@ -74,12 +75,12 @@ simulation-first 路线推进。
   verifier，能诊断 route segmentation、flat/stair dispatch、invalid goal、
   cancel、timeout、route unavailable、flat action unavailable、bounded queueing 和
   相关诊断；当前已新增 JSON checkpoint、同一 mission goal resume、有限 retry、operator-state
-  snapshot backend、`MissionControl` pause/resume/status/cancel_active/replay_queue/history/archive_history
+  snapshot backend、`MissionControl` pause/resume/status/cancel_active/replay_queue/history/archive_history/workflow
   控制面、operator-triggered durable queue replay ledger 和 bounded terminal task-history
-  ledger、non-preemptive queued priority scheduling，但仍不是完整
+  ledger、non-preemptive queued priority scheduling、operator workflow-policy snapshot，但仍不是完整
   production Mission Orchestrator。mission runtime real-model flat execution gate 也已经接通真实
   Nav2 `/navigate_to_pose`，并通过共享 `mission_pose` helper 保留了目标 yaw；
-  production Mission Orchestrator scheduling policy、priority scheduling、控制面、queue replay 和 task history
+  production Mission Orchestrator scheduling policy、priority scheduling、控制面、queue replay、task history 和 workflow policy snapshot
   窄范围已经完成，后续应转向另一个明确命名的 orchestration gap 或 stair control 单主题任务。
 
 不要把 Phase 4 accepted 误判成 production mission orchestration、真实 Nav2

@@ -85,10 +85,10 @@ mission_state_next_segment_index: 3
 ## Open Validation Items
 - This is a production-style recovery skeleton, not a complete production
   Mission Orchestrator.
-- It does not yet provide mission priority management or fleet-level scheduling.
-  Concurrent admission is now bounded by FIFO queueing, operator control, and a
-  separate durable queue replay ledger, but that is still not a complete
-  long-lived task manager.
+- It does not provide fleet-level scheduling or a complete long-lived task
+  manager. Concurrent admission, priority scheduling, operator control, queue
+  replay, task history, and workflow policy are covered by separate focused
+  gates.
 - It still depends on current route, flat navigation, and stair executor
   skeletons.
 - It does not replace real robot-motion route tracking or stair dynamics.

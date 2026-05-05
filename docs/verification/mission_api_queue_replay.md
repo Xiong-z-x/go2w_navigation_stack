@@ -16,9 +16,12 @@ outstanding mission admissions:
 - queued cancellation / queue-full behavior remains covered by the existing
   scheduling policy tests.
 
-This is still not priority scheduling, fleet-level mission management, or a
-complete production Mission Orchestrator. Bounded task history is covered
-separately in `docs/verification/mission_api_task_history.md`.
+This verifier itself is still not priority scheduling, fleet-level mission
+management, or a complete production Mission Orchestrator. Priority scheduling,
+bounded task history, and workflow policy are covered separately in
+`docs/verification/mission_api_priority_scheduling.md`,
+`docs/verification/mission_api_task_history.md`, and
+`docs/verification/mission_api_workflow_policy.md`.
 
 ## Implemented Runtime Surface
 - `go2w_mission.mission_queue_replay.MissionQueueReplayStateStore` persists
@@ -68,7 +71,6 @@ mission_queue_replay_result: PASS
 ## Open Validation Items
 - This verifies operator-triggered replay of mission queue records, not automatic
   ROS action goal-handle resurrection after a process restart.
-- This does not add priority scheduling.
-- This does not add fleet-level task assignment or priority scheduling.
+- This does not add fleet-level task assignment or a workflow backend.
 - It does not change perception TF authority, default launch baseline, stair
   dynamics, AMCL / `map_server`, or terrain-aware connector generation.

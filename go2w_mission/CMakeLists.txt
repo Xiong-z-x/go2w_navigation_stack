@@ -53,6 +53,9 @@ if(BUILD_TESTING)
   ament_add_pytest_test(test_mission_scheduling_policy test/test_mission_scheduling_policy.py
     APPEND_ENV PYTHONPATH=${CMAKE_CURRENT_SOURCE_DIR}
   )
+  ament_add_pytest_test(test_mission_workflow_policy test/test_mission_workflow_policy.py
+    APPEND_ENV PYTHONPATH=${CMAKE_CURRENT_SOURCE_DIR}
+  )
   ament_add_pytest_test(test_mission_recovery test/test_mission_recovery.py
     APPEND_ENV PYTHONPATH=${CMAKE_CURRENT_SOURCE_DIR}
   )

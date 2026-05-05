@@ -41,6 +41,7 @@ from go2w_mission.mission_task_history import (
     mission_history_state_for_result,
     sanitize_task_history_state_for_runtime,
 )
+from go2w_mission.mission_workflow_policy import build_mission_workflow_snapshot
 from go2w_mission.mission_recovery import (
     MissionCheckpoint,
     MissionStateStore,
@@ -1056,11 +1057,27 @@ class MissionApiRuntime:
         state: MissionOrchestratorState | None = None,
     ) -> str:
         current_state = state or self._orchestrator_state_snapshot()
+        queue_state = self._queue_replay_state_snapshot()
+        task_history_state = self._task_history_state_snapshot()
         return (
+            f"{self._workflow_summary(current_state, queue_state, task_history_state)} "
             f"{current_state.summary()} "
-            f"queue_replay={self._queue_replay_summary()} "
-            f"task_history={self._task_history_summary()}"
+            f"queue_replay={queue_state.summary()} "
+            f"task_history={task_history_state.summary()}"
         )
+
+    def _workflow_summary(
+        self,
+        state: MissionOrchestratorState | None = None,
+        queue_state: MissionQueueReplayState | None = None,
+        task_history_state: MissionTaskHistoryState | None = None,
+    ) -> str:
+        snapshot = build_mission_workflow_snapshot(
+            state or self._orchestrator_state_snapshot(),
+            queue_state or self._queue_replay_state_snapshot(),
+            task_history_state or self._task_history_state_snapshot(),
+        )
+        return snapshot.summary()
 
     def _register_active_mission(
         self,
@@ -1112,6 +1129,14 @@ class MissionApiRuntime:
                 "accepted": True,
                 "mode": current_state.mode,
                 "message": "snapshot",
+                "state_summary": self._combined_state_summary(current_state),
+            }
+
+        if normalized_command == "workflow":
+            return {
+                "accepted": True,
+                "mode": current_state.mode,
+                "message": "workflow_snapshot",
                 "state_summary": self._combined_state_summary(current_state),
             }
 
@@ -1212,11 +1237,7 @@ class MissionApiRuntime:
                 "accepted": True,
                 "mode": updated_state.mode,
                 "message": "queue_replayed",
-                "state_summary": (
-                    f"{updated_state.summary()} "
-                    f"queue_replay={updated_queue_state.summary()} "
-                    f"task_history={self._task_history_summary()}"
-                ),
+                "state_summary": self._combined_state_summary(updated_state),
             }
 
         if normalized_command == "history":
@@ -1256,11 +1277,7 @@ class MissionApiRuntime:
                 "accepted": True,
                 "mode": updated_state.mode,
                 "message": "history_archived",
-                "state_summary": (
-                    f"{updated_state.summary()} "
-                    f"queue_replay={self._queue_replay_summary()} "
-                    f"task_history={updated_history_state.summary()}"
-                ),
+                "state_summary": self._combined_state_summary(updated_state),
             }
 
         return {

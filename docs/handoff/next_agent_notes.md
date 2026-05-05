@@ -37,8 +37,8 @@
   FIFO queueing；并发 goal 可能 queue、`MISSION_BUSY` / `mission_queue_full` 或
   queued cancel，且现在还多了 operator-state snapshot、`MissionControl` 控制面和
   operator-triggered durable queue replay ledger、bounded terminal task-history ledger；
-  现在还补齐了 non-preemptive queued priority scheduling。这仍不是 active preemption、
-  fleet-level task assignment 或完整生产调度器。
+  现在还补齐了 non-preemptive queued priority scheduling 和只读 workflow policy snapshot。
+  这仍不是 active preemption、fleet-level task assignment 或完整生产调度器。
 - 不要把 mission runtime real-model flat execution gate 当成 production Mission
   Orchestrator。它已经把 flat segment 接到真实 Nav2 `/navigate_to_pose`，但仍只是
   opt-in flat-only gate，和完整生产调度器不是一回事。
@@ -117,7 +117,7 @@ Go2W real model / motion-mode baseline 已补上 opt-in 真实模型、四 foot 
 controller profile、`flat -> wheeled` / `stair -> legged` 状态和启动站立验证；
 Phase 4 accepted 已完成总验收；`RunMission` skeleton 也已完成并验证；Phase 4E
 又补上 real-model stair fixture、mission recovery checkpoint/resume、operator control
-service、operator-triggered durable queue replay、bounded terminal task history、queued priority scheduling 和
+service、operator-triggered durable queue replay、bounded terminal task history、queued priority scheduling、workflow policy snapshot 和
 opt-in real-model regression wrapper。后续最小任务必须另有完整任务单或当前
 自主审批模式下的自批准任务单；后续如继续 mission orchestration，只做另一个明确命名的
 remaining slice，或转向
@@ -202,9 +202,9 @@ default real-model re-baseline。不要把下一步扩大为真实多楼层
 
 ## 后续项目改进起步顺序
 1. 当前窄范围 production Mission Orchestrator scheduling policy、queued priority scheduling、
-   operator control、durable queue replay 和 bounded terminal task history 已完成。下一步进入
+   operator control、durable queue replay、bounded terminal task history 和 workflow policy snapshot 已完成。下一步进入
    production Mission Orchestrator remaining slice 时，只做另一个明确命名的单主题
-   orchestration gap，例如 fleet-level task assignment 或更完整 operator workflow policy。
+   orchestration gap，例如 fleet-level task assignment 或超出当前只读 snapshot 的 workflow backend。
 2. 再做 dedicated stair trajectory / wheel lock / body-height / gait tuning。
 3. 最后再进入 real-model default baseline 评估、Phase 5 elevation/traversability/
    automatic connector generation。
