@@ -195,6 +195,7 @@ class MissionApiRuntime:
     ) -> None:
         from nav2_msgs.action import ComputeAndTrackRoute, ComputeRoute, NavigateToPose
         from rclpy.action import ActionClient
+        from rclpy.callback_groups import ReentrantCallbackGroup
 
         from go2w_control.action import StairExec
 
@@ -203,14 +204,35 @@ class MissionApiRuntime:
         self.compute_and_track_route_type = ComputeAndTrackRoute
         self.navigate_to_pose_type = NavigateToPose
         self.stair_exec_type = StairExec
-        self.compute_route_client = ActionClient(node, ComputeRoute, compute_route_action)
+        self.action_client_callback_group = ReentrantCallbackGroup()
+        self.compute_route_client = ActionClient(
+            node,
+            ComputeRoute,
+            compute_route_action,
+            callback_group=self.action_client_callback_group,
+        )
         self.route_tracking_client = (
-            ActionClient(node, ComputeAndTrackRoute, route_tracking_action)
+            ActionClient(
+                node,
+                ComputeAndTrackRoute,
+                route_tracking_action,
+                callback_group=self.action_client_callback_group,
+            )
             if route_tracking_action.strip()
             else None
         )
-        self.navigate_to_pose_client = ActionClient(node, NavigateToPose, flat_nav_action)
-        self.stair_exec_client = ActionClient(node, StairExec, stair_exec_action)
+        self.navigate_to_pose_client = ActionClient(
+            node,
+            NavigateToPose,
+            flat_nav_action,
+            callback_group=self.action_client_callback_group,
+        )
+        self.stair_exec_client = ActionClient(
+            node,
+            StairExec,
+            stair_exec_action,
+            callback_group=self.action_client_callback_group,
+        )
         state_path = (
             Path(mission_state_file).expanduser()
             if mission_state_file.strip()
@@ -2267,11 +2289,17 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def _spin_until(node, future, timeout_sec: float) -> bool:
+    import rclpy
     import time
 
     deadline = time.monotonic() + timeout_sec
-    while future is not None and not future.done() and time.monotonic() < deadline:
-        time.sleep(0.05)
+    while (
+        rclpy.ok()
+        and future is not None
+        and not future.done()
+        and time.monotonic() < deadline
+    ):
+        rclpy.spin_once(node, timeout_sec=0.05)
     return future.done()
 
 
@@ -2282,13 +2310,19 @@ def _spin_until_or_cancel(
     *,
     cancel_requested=None,
 ) -> str:
+    import rclpy
     import time
 
     deadline = time.monotonic() + timeout_sec
-    while future is not None and not future.done() and time.monotonic() < deadline:
+    while (
+        rclpy.ok()
+        and future is not None
+        and not future.done()
+        and time.monotonic() < deadline
+    ):
         if cancel_requested is not None and cancel_requested():
             return "CANCELED"
-        time.sleep(0.05)
+        rclpy.spin_once(node, timeout_sec=0.05)
     if cancel_requested is not None and cancel_requested():
         return "CANCELED"
     if future.done():

@@ -72,7 +72,9 @@ simulation-first 路线推进。
   real-model route-following verifier 也已通过短 `NavigateToPose` 目标验证；real-model
   `nav2_route` robot-motion route-tracking verifier 也已通过短 odom route graph +
   `ComputeAndTrackRoute` feedback + `NavigateToPose` 真实运动验证；Mission runtime
-  flat-only gate 现在也可 opt-in 观察 `ComputeAndTrackRoute` feedback；Phase 4E
+  flat-only gate 现在也可 opt-in 观察 `ComputeAndTrackRoute` feedback；Mission runtime
+  flat/stair/flat gate 现在也可在同一 `RunMission` 中用真实 Nav2 执行 flat
+  edges `10` / `20`，用 `/stair_exec` skeleton 执行 handoff edge `500`；Phase 4E
   real-model stair fixture、稳定 control-chain regression wrapper 和 opt-in real-model
   regression wrapper 也已通过；mission-runtime real-model flat execution gate 现在也已
   验证 `RunMission` flat-only segment 可在不启动 `go2w_flat_nav_executor` 的情况下调用真实
@@ -270,6 +272,22 @@ edge `10`。它证明 mission flat segment 可接入真实 robot-motion flat exe
 surface 和 route-tracking observation；它仍不是 production Mission Orchestrator、
 production cross-floor route tracking、真实 stair route operation plugin、跨楼层真实闭环
 或楼梯动力学。
+
+Mission runtime real-model flat/stair/flat integration gate 可重复验证同一
+`RunMission` 中的真实 flat motion、stair handoff skeleton 和第二段真实 flat motion：
+
+```bash
+./tools/verify_go2w_mission_real_flat_stair_flat.sh
+```
+
+该脚本启动 opt-in real model、perception、FAST-LIO、real-model Nav2 和 mission API，
+动态生成 odom-frame `flat:10;stair:500:stair_a:F1->F2;flat:20` route graph，
+reload `/route_server/set_route_graph`，再发送 `RunMission` goal。它验证 flat
+segments 调用真实 `/navigate_to_pose`，stair segment 调用 dedicated `/stair_exec`
+skeleton，并观察 mission-side route feedback edges `10` / `20`、stair phase
+sequence、command gate owner/mode 切换、非零 `/cmd_vel`、perception/diff-drive
+odom motion 和 TF 边界。它仍不是 production Mission Orchestrator、真实 stair route
+operation plugin、真实楼梯动力学、production cross-floor route tracking 或跨楼层真实闭环。
 
 稳定的 real-model control-chain 回归门禁可使用：
 
@@ -700,6 +718,9 @@ production Mission Orchestrator。
 `launch_flat_nav_executor:=false` 时绕过该 verifier skeleton，并把 flat-only mission
 segment 送到真实 Nav2 `/navigate_to_pose`。该新 gate 不删除 Phase 4C skeleton；
 Phase 4C skeleton 仍用于 deterministic flat failure/cancel/timeout/unavailable 诊断。
+后续 mission-runtime real-model flat/stair/flat integration gate 又证明同一
+`RunMission` 可把两个 flat segments 送到真实 Nav2，并把 stair handoff segment
+送到 `/stair_exec` skeleton；这仍不是真实 stair route operation plugin 或真实楼梯动力学。
 
 ## 当前 Phase 4D-min 边界
 

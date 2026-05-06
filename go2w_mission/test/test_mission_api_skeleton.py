@@ -91,6 +91,21 @@ def test_mission_api_route_tracking_action_is_opt_in() -> None:
     assert args.route_tracking_action == "/compute_and_track_route"
 
 
+def test_mission_api_uses_reentrant_downstream_action_callback_group() -> None:
+    source = Path(mission_api_module.__file__).read_text(encoding="utf-8")
+
+    assert "ReentrantCallbackGroup" in source
+    assert "self.action_client_callback_group = ReentrantCallbackGroup()" in source
+    assert "callback_group=self.action_client_callback_group" in source
+
+
+def test_mission_api_spin_helpers_service_action_client_responses() -> None:
+    source = Path(mission_api_module.__file__).read_text(encoding="utf-8")
+
+    assert "rclpy.spin_once(node, timeout_sec=0.05)" in source
+    assert "time.sleep(0.05)" not in source
+
+
 def test_flat_route_tracking_node_ids_use_segment_boundaries() -> None:
     graph = Phase4ARouteGraph(
         nodes={

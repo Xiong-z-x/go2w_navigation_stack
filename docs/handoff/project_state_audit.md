@@ -58,6 +58,7 @@
 | Post-Phase-4 real-model route-following | 短 `NavigateToPose` 同层 smoke + dedicated hardening | 已完成 | `docs/verification/go2w_real_model_route_following.md`、`tools/verify_go2w_real_model_route_following.sh` | 这是 opt-in regression candidate，不是 production route tracking。 |
 | Post-Phase-4 real-model route tracking | 短 odom route graph + 真实 `route_server` + `ComputeAndTrackRoute` + `NavigateToPose` 实运动反馈 | 已完成 | `docs/verification/go2w_real_model_route_tracking.md`、`tools/verify_go2w_real_model_route_tracking.sh` | 这是 opt-in robot-motion verification gate，不是跨楼层生产 route tracking 或 stair operation plugin。 |
 | Post-Phase-4 mission flat execution | `RunMission` flat-only segment 接真实 Nav2 `/navigate_to_pose` | 已完成 | `docs/verification/go2w_mission_real_flat_execution.md`、`tools/verify_go2w_mission_real_flat_execution.sh` | 证明 mission flat gate 可绕过 verifier-only flat executor。 |
+| Post-Phase-4 mission flat/stair/flat integration | `RunMission` flat/stair/flat opt-in real-model runtime | 已完成 | `docs/verification/go2w_mission_real_flat_stair_flat.md`、`tools/verify_go2w_mission_real_flat_stair_flat.sh` | flat segments 走真实 Nav2，stair handoff 走 `/stair_exec` skeleton；不是真实楼梯动力学或 production route operation plugin。 |
 | Post-Phase-4 mission scheduling policy | `RunMission` bounded FIFO queueing、queue-full reject、queued cancel | 已完成 | `docs/verification/mission_api_scheduling_policy.md`、`tools/verify_mission_api_scheduling_policy.sh` | 是基础 bounded queue，不是完整生产调度器。 |
 | Post-Phase-4 mission priority scheduling | `RunMission` explicit priority、queued priority order、同 priority FIFO | 已完成 | `docs/verification/mission_api_priority_scheduling.md`、`tools/verify_mission_api_priority_scheduling.sh` | 非抢占式，只影响 waiting queue。 |
 | Post-Phase-4 mission assignment policy | `RunMission` explicit `assigned_robot_id`、本机 `mission_robot_id` admission gate、assignment diagnostics | 已完成 | `docs/verification/mission_api_assignment_policy.md`、`tools/verify_mission_api_assignment_policy.sh` | 是本机 assignment admission，不是多机器人调度优化或 cross-robot goal transfer。 |
@@ -76,7 +77,7 @@
 - FAST-LIO 默认路径漂移到 `.go2w_external/`，不再依赖旧 `/tmp` 默认。
 - Phase 4 迁移前交接包已集中化，新的接手入口不再散落在历史计划里。
 - Phase 4A / 4B / 4C / 4D / 4 runtime gates 都已经形成可重复验证链。
-- 真实 Go2W 模型、motion-mode baseline、route-following smoke、real-model `nav2_route` robot-motion route-tracking gate、mission real flat gate、Phase 4E stair fixture 和 mission recovery 都已经补齐。
+- 真实 Go2W 模型、motion-mode baseline、route-following smoke、real-model `nav2_route` robot-motion route-tracking gate、mission real flat gate、mission real flat/stair/flat integration gate、Phase 4E stair fixture 和 mission recovery 都已经补齐。
 - Mission API 并发 goal 的 bounded scheduling policy 已经接入，one-active-plus-one-queued 时可返回 `MISSION_BUSY` / `mission_queue_full` 或 `MISSION_CANCELED` / `mission_queue_canceled`；priority scheduling 已补齐，queued missions 按 `priority DESC, ticket ASC` 激活且 active mission 不抢占；assignment policy 已补齐，非本机 `assigned_robot_id` 会在入队前拒绝；控制面还额外提供 `MissionControl` pause/resume/status/cancel_active/replay_queue/history/archive_history/workflow/workflow_events，避免两个 `RunMission` 同时竞争同一个 JSON state file，并新增 operator-triggered durable queue replay ledger、bounded terminal task-history ledger、workflow policy snapshot 和 bounded workflow event backend。
 - Mission flat goal 的姿态转换已统一到共享 `mission_pose` helper，mission API 和 Phase 4B runtime 不再在 yaw 处理上分叉。
 - Mission real flat gate 之前的 yaw 丢失问题已经修复，并回写到 `docs/verification/go2w_mission_real_flat_execution.md`。
@@ -84,7 +85,7 @@
 
 ## 未解决事项
 - 生产级 Mission Orchestrator 仍未完成，但 bounded queueing、non-preemptive queued priority scheduling、local assignment policy、operator control service、operator-triggered durable queue replay、bounded terminal task history、workflow policy snapshot 和 workflow event backend 已经落地。
-- 最小 real-model `nav2_route` robot-motion route-tracking gate 已完成；production cross-floor route tracking、真实 stair route operation plugin 和 Mission runtime route tracking integration 仍未完成。
+- 最小 real-model `nav2_route` robot-motion route-tracking gate、mission flat-only route tracking integration 和 mission real-model flat/stair/flat integration gate 已完成；production cross-floor route tracking、真实 stair route operation plugin、真实楼梯动力学和完整 production flat/stair/flat autonomy 仍未完成。
 - 真实楼梯动力学、gait tuning、wheel lock/body-height 的物理控制仍未完成。
 - 默认仿真基线切换到 real-model 仍未批准。
 - `map_server` / AMCL / `map -> odom` 定位链仍未实现。
@@ -106,25 +107,25 @@
 现有基础：
 - 仿真可控闭环已经存在。
 - FAST-LIO、perception TF authority、Nav2、route graph、楼梯 handoff、mission segmentation 和 mission recovery skeleton 都已经在仓库内闭环。
-- 真实 Go2W 模型、real-model baseline、route-following smoke、real-model `nav2_route` robot-motion route-tracking gate、mission real flat gate 和 Phase 4E stair fixture 都已经补齐。
+- 真实 Go2W 模型、real-model baseline、route-following smoke、real-model `nav2_route` robot-motion route-tracking gate、mission real flat gate、mission real flat/stair/flat integration gate 和 Phase 4E stair fixture 都已经补齐。
 
 仍缺的关键能力：
 - production Mission Orchestrator。
-- Production cross-floor route tracking、真实 stair route operation plugin 和 Mission runtime route tracking integration。
+- Production cross-floor route tracking、真实 stair route operation plugin、真实楼梯动力学和完整 production flat/stair/flat autonomy。
 - 实际楼梯动力学 / gait tuning。
 - 真实 `map_server` / AMCL / `map -> odom` 定位链。
 - elevation / traversability / automatic connector generation。
 
 缺口分类：
 - 实现缺口：production Mission Orchestrator、真实楼梯控制、定位链、Phase 5 terrain-aware 自动连接器。
-- 验证缺口：production cross-floor route tracking、真实 stair route operation plugin、Mission runtime route tracking integration、真实楼梯动力学。
+- 验证缺口：production cross-floor route tracking、真实 stair route operation plugin、真实楼梯动力学和完整 production flat/stair/flat autonomy。
 - 文档 / 认知缺口：如果把 opt-in gate、verifier skeleton、observation gate 误当成 production，就会继续漂移。
 - 环境 / 依赖缺口：real-model 仍是 opt-in，Gazebo GPU 也仍不是接受合同。
 
 最值得优先推进的 3 个问题：
 1. Production Mission Orchestrator remaining slice：只补另一个明确命名的最小闭环，例如多机器人调度优化或 cross-robot goal transfer。
 2. 真实楼梯控制和 gait / body-height / wheel-lock 调参，但必须单独成题，不和 mission 调度混在一起。
-3. Mission integration of real `nav2_route` robot-motion route tracking，但必须保持为独立任务，不与 stair dynamics、AMCL/map_server 或 Phase 5 connector generation 混合。
+3. Production cross-floor route-operation integration，但必须保持为独立任务，不与 stair dynamics、AMCL/map_server 或 Phase 5 connector generation 混合。
 
 如果这三个问题不先收口，后续继续扩功能只会放大误判。
 

@@ -53,21 +53,22 @@
 20. `docs/verification/go2w_real_model_route_following.md`
 21. `docs/verification/go2w_real_model_route_tracking.md`
 22. `docs/verification/go2w_mission_real_flat_execution.md`
-23. `docs/verification/mission_api_scheduling_policy.md`
-24. `docs/verification/mission_api_priority_scheduling.md`
-25. `docs/verification/mission_api_assignment_policy.md`
-26. `docs/verification/mission_api_orchestrator_control.md`
-27. `docs/verification/mission_api_queue_replay.md`
-28. `docs/verification/mission_api_task_history.md`
-29. `docs/verification/mission_api_workflow_policy.md`
-30. `docs/verification/mission_api_workflow_backend.md`
-31. `docs/verification/phase4e_stair_fixture.md`
-32. `docs/verification/phase4e_mission_recovery.md`
-33. `docs/verification/go2w_real_model_regression.md`
-34. `docs/verification/phase4e_stair_tuning_overrides.md`
-35. `docs/verification/phase4e_stair_phase_targets.md`
-36. `docs/verification/phase4_runtime_acceptance.md`
-37. `docs/handoff/new_model_initialization_prompt.md`
+23. `docs/verification/go2w_mission_real_flat_stair_flat.md`
+24. `docs/verification/mission_api_scheduling_policy.md`
+25. `docs/verification/mission_api_priority_scheduling.md`
+26. `docs/verification/mission_api_assignment_policy.md`
+27. `docs/verification/mission_api_orchestrator_control.md`
+28. `docs/verification/mission_api_queue_replay.md`
+29. `docs/verification/mission_api_task_history.md`
+30. `docs/verification/mission_api_workflow_policy.md`
+31. `docs/verification/mission_api_workflow_backend.md`
+32. `docs/verification/phase4e_stair_fixture.md`
+33. `docs/verification/phase4e_mission_recovery.md`
+34. `docs/verification/go2w_real_model_regression.md`
+35. `docs/verification/phase4e_stair_tuning_overrides.md`
+36. `docs/verification/phase4e_stair_phase_targets.md`
+37. `docs/verification/phase4_runtime_acceptance.md`
+38. `docs/handoff/new_model_initialization_prompt.md`
 
 ## 本目录文件职责
 - `current_project_state.md`：当前真实状态总览。
@@ -165,6 +166,21 @@ Mission runtime real-model flat execution + route-tracking observation gate 可�
 `route_tracking_action:=/compute_and_track_route` 下观察 mission-side route feedback
 edge `10`。它仍不是 production Mission Orchestrator、真实 stair route operation
 plugin、production cross-floor route tracking 或跨楼层真实闭环。
+
+Mission runtime real-model flat/stair/flat integration gate 可用以下命令复现：
+
+```bash
+./tools/verify_go2w_mission_real_flat_stair_flat.sh
+```
+
+该 verifier 启动 real-model、perception、FAST-LIO、real-model Nav2 和 mission API，
+并在 `launch_flat_nav_executor:=false` 下验证 `RunMission`
+`flat:10;stair:500:stair_a:F1->F2;flat:20`。flat segments 调用真实
+`/navigate_to_pose`，stair segment 调用 dedicated `/stair_exec` skeleton，同时观察
+mission-side route feedback edges `10` / `20`、stair phase sequence、command gate
+owner/mode 切换、Nav2 motion 和 TF 边界。它仍不是 production Mission
+Orchestrator、真实 stair route operation plugin、真实楼梯动力学、production
+cross-floor route tracking 或跨楼层真实闭环。
 
 Mission API bounded FIFO scheduling policy 可用以下命令复现：
 

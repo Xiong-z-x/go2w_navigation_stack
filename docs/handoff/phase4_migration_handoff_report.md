@@ -17,6 +17,9 @@ durable queue replay、bounded terminal task history、workflow policy snapshot 
 `docs/verification/go2w_real_model_motion_mode_baseline.md`、
 `docs/verification/go2w_control_chain_regression.md`、
 `docs/verification/go2w_real_model_route_following.md`、
+`docs/verification/go2w_real_model_route_tracking.md`、
+`docs/verification/go2w_mission_real_flat_execution.md`、
+`docs/verification/go2w_mission_real_flat_stair_flat.md`、
 `docs/verification/phase4e_stair_fixture.md`、
 `docs/verification/phase4e_mission_recovery.md` 和
 `docs/verification/go2w_real_model_regression.md`、
@@ -49,7 +52,8 @@ mission-side route segmentation / stair dispatch runtime、flat/stair/flat execu
 route tracking feedback observation gate，以及 Phase 4 总体验收 gate 均已通过仓库内 runtime verifier。
 之后又补充了 Phase 5A live route tracking observation gate、opt-in 真实 Go2W 模型与
 motion-mode baseline、real-model same-floor route-following、mission-runtime real-model
-flat execution gate（已保留 route graph 目标 yaw）、Phase 4E real-model stair fixture、
+flat execution gate（已保留 route graph 目标 yaw）、mission-runtime real-model
+flat/stair/flat integration gate、Phase 4E real-model stair fixture、
 Phase 4E mission recovery，以及 opt-in real-model regression wrapper。这些后续证据不改变
 active phase 标签，也不等于真实楼梯动力学或完整 production Mission Orchestrator。
 
@@ -143,6 +147,10 @@ active phase 标签，也不等于真实楼梯动力学或完整 production Miss
 - Mission runtime real-model flat execution gate：`RunMission` flat-only segment 可在
   不启动 `go2w_flat_nav_executor` 时调用真实 Nav2 `/navigate_to_pose`，并通过共享
   `mission_pose` helper 保留 route graph 目标 yaw。
+- Mission runtime real-model flat/stair/flat integration gate：`RunMission`
+  `flat:10;stair:500:stair_a:F1->F2;flat:20` 可在 opt-in real-model runtime 中完成；
+  flat segments 走真实 Nav2，stair handoff 走 `/stair_exec` skeleton，并观察 route
+  feedback edges `10` / `20`、stair phase sequence 和 TF 边界。
 - Mission API scheduling / priority / assignment / control / replay / history / workflow / workflow backend：bounded queueing、
   explicit `RunMission` priority、non-preemptive queued priority order、
   explicit `RunMission` assigned robot admission、`MissionControl` pause/resume/status/cancel_active/replay_queue/history/archive_history/workflow/workflow_events、
@@ -158,8 +166,10 @@ mission segment runtime、Phase 4C-min flat/stair/flat execution gate、Phase 4D
 route tracking feedback observation gate、Phase 4 accepted 总验收 gate，以及 Phase 4E
 stair fixture / mission recovery / real-model regression 后续硬化。mission 层当前还
 具备 bounded FIFO scheduling、non-preemptive queued priority scheduling、
-local assignment policy、operator control、queue replay、task history、workflow policy snapshot 和 workflow event backend 的窄范围生产化骨架。但它还不是完整
-跨楼层自主系统：完整 production Mission Orchestrator 的多机器人调度优化 / cross-robot goal transfer，真实 Nav2 route tracking against robot motion、真实楼梯控制、
+local assignment policy、operator control、queue replay、task history、workflow policy snapshot 和 workflow event backend 的窄范围生产化骨架。mission runtime real-model
+flat/stair/flat integration gate 也已验证真实 Nav2 flat segments、`/stair_exec`
+handoff skeleton、route feedback 和 TF 边界可在同一 `RunMission` 中闭环。但它还不是完整
+跨楼层自主系统：完整 production Mission Orchestrator 的多机器人调度优化 / cross-robot goal transfer，production cross-floor route operation、真实楼梯控制、
 自动连接器均未实现。
 
 ## 8. 本次已清理/已修复的问题
@@ -185,6 +195,9 @@ local assignment policy、operator control、queue replay、task history、workf
   Phase 4E stair fixture、Phase 4E mission recovery 和 real-model regression wrapper。
 - 新增 mission runtime real-model flat execution gate，并修复 route graph 目标 yaw
   传递到 `NavigateToPose` 的姿态语义。
+- 新增 mission runtime real-model flat/stair/flat integration gate，验证真实 Nav2
+  flat motion、`/stair_exec` skeleton handoff、route feedback 和 command gate
+  transitions 可以在同一 `RunMission` 中闭环；这不声明真实楼梯动力学。
 - 新增 Mission API bounded FIFO scheduling、non-preemptive priority scheduling、
   local assignment policy、operator control、durable queue replay、task-history ledger、workflow policy snapshot 和 workflow event backend 的 focused verifiers 与文档证据。
 - 新增 stair phase target focused verifier，验证 `wheel_lock_required` 和 opt-in
@@ -201,6 +214,9 @@ local assignment policy、operator control、queue replay、task history、workf
 - Phase 4C-min flat executor 是 verifier skeleton，不执行真实 Nav2 route tracking against robot motion。
 - Phase 4D-min feedback executor 是 verifier skeleton，不执行真实 `nav2_route`
   tracking against robot motion，也不执行真实 route operation plugin。
+- Mission runtime real-model flat/stair/flat integration gate 已完成 opt-in 验证，
+  但 stair connector 仍是短手工 handoff edge，不是真实 stair route operation plugin
+  或真实楼梯动力学。
 - 没有真实 Stair Executor 运动控制器；当前只有 dedicated Action skeleton、profile-aware
   phase plan 和 conservative leg hold outlet。
 - 没有 `map_server` / AMCL / `map -> odom` 闭环。

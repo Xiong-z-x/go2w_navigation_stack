@@ -40,13 +40,18 @@ nav2_route / Mission / Stair Control 项目的专业执行者、架构一致性�
 - docs/verification/go2w_real_model_route_tracking.md
 - docs/verification/go2w_real_model_regression.md
 - docs/verification/go2w_mission_real_flat_execution.md
+- docs/verification/go2w_mission_real_flat_stair_flat.md
 - docs/verification/phase4e_stair_fixture.md
 - docs/verification/phase4e_mission_recovery.md
 - docs/verification/phase4e_stair_tuning_overrides.md
 - docs/verification/mission_api_scheduling_policy.md
+- docs/verification/mission_api_priority_scheduling.md
+- docs/verification/mission_api_assignment_policy.md
 - docs/verification/mission_api_orchestrator_control.md
 - docs/verification/mission_api_queue_replay.md
 - docs/verification/mission_api_task_history.md
+- docs/verification/mission_api_workflow_policy.md
+- docs/verification/mission_api_workflow_backend.md
 - tools/verify_phase4_pre_handoff.sh
 - tools/verify_phase4_runtime_acceptance.sh
 - tools/verify_go2w_control_chain_regression.sh
@@ -138,6 +143,11 @@ simulation-first 路线构建 Go2W 跨楼层自主导航巡检系统：
   保留 route graph 目标 yaw，并保持 perception-owned `odom -> base_link`；当前还可
   通过显式 `route_tracking_action:=/compute_and_track_route` 观察 flat edge `10`
   的 mission-side `ComputeAndTrackRoute` feedback。
+- Mission-runtime real-model flat/stair/flat integration gate：`RunMission` 已可在
+  opt-in real-model runtime 中执行 `flat:10;stair:500:stair_a:F1->F2;flat:20`；
+  flat segments 走真实 Nav2 `/navigate_to_pose`，stair segment 走 dedicated
+  `/stair_exec` skeleton，并观察 route feedback edges `10` / `20`、stair phase
+  sequence、command gate transitions、Nav2 motion 和 TF 边界。
 - Production Mission Orchestrator 当前窄范围：`RunMission` 已有 bounded queueing、
   non-preemptive queued priority scheduling、local assignment policy、operator-state snapshot、
   `MissionControl` pause/resume/status/cancel_active/replay_queue/history/archive_history/workflow/workflow_events、
@@ -150,9 +160,10 @@ simulation-first 路线构建 Go2W 跨楼层自主导航巡检系统：
   加上 bounded queueing、queued priority scheduling、assignment policy、operator control、queue replay、task history、
   workflow policy snapshot 和 workflow event backend。
 - 最小 real-model `nav2_route` robot-motion route-tracking gate 已完成，且 Mission runtime
-  flat-only gate 已可 opt-in 观察 `ComputeAndTrackRoute` feedback；但它们仍只是短程
-  opt-in verification gates，不是 production cross-floor route tracking、真实 stair route
-  operation plugin、flat/stair/flat production integration 或完整生产路线跟踪。
+  flat-only gate 与 flat/stair/flat integration gate 已可 opt-in 观察
+  `ComputeAndTrackRoute` feedback；但它们仍只是短程 opt-in verification gates，
+  不是 production cross-floor route tracking、真实 stair route operation plugin、
+  真实楼梯动力学或完整 production flat/stair/flat autonomy。
 - Real-model same-floor route-following 已完成 dedicated hardening：DWB abort 复现后通过
   candidate selection、`xy_goal_tolerance: 0.08` 和 stale-process cleanup 修复，并取得
   3 次 clean-domain 连续 PASS。它是 opt-in regression 候选，不是 production route tracking。
@@ -273,6 +284,10 @@ ros2 launch go2w_sim sim.launch.py use_gpu:=false headless:=true launch_rviz:=fa
   connector generation。
 - 不要把 Mission runtime flat-only route-tracking observation gate 当成跨楼层 production
   route tracking、真实 stair route operation plugin 或完整 production Mission Orchestrator。
+- 不要把 Mission runtime flat/stair/flat integration gate 当成真实楼梯动力学、
+  真实 stair route operation plugin、production cross-floor route tracking 或完整
+  production Mission Orchestrator。它仍使用短手工 handoff connector 和 `/stair_exec`
+  skeleton。
 - 不要把 real-model same-floor route-following regression candidate 当成 production
   `nav2_route` route tracking 或默认仿真基线。
 - 不要把 stable control-chain wrapper 当成完整机器人自主导航；它只证明控制链可重复门禁。
@@ -332,7 +347,7 @@ baseline、stair dynamics 或 map / localization 范围。
 
 1. dedicated stair trajectory / wheel lock / body-height / gait tuning 的真实控制器任务。
 2. 判断 real-model path 是否能扩展为默认 baseline。
-3. 跨楼层 production route tracking 或 flat/stair/flat mission integration，但必须另起独立任务单。
+3. production cross-floor route operation integration，但必须另起独立任务单。
 4. Phase 5 terrain-aware connector discovery、elevation mapping、traversability。
 
 不要把已完成的 priority scheduling、assignment policy、workflow policy snapshot 或 workflow event backend 重复当成下一步。当前 mission scheduling / priority /

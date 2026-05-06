@@ -31,8 +31,8 @@
   opt-in 短 `NavigateToPose` 运动链验证；稳定 control-chain regression 仍刻意把它拆出。
 - 不要把 real-model `nav2_route` robot-motion route-tracking gate 当成跨楼层自主或真实
   stair route operation plugin。它证明真实运动能触发短 odom route graph 的
-  `ComputeAndTrackRoute` feedback，但仍不包含楼梯段、mission flat/stair/flat 集成或
-  Phase 5 自动连接器。
+  `ComputeAndTrackRoute` feedback，但仍不包含楼梯段或 Phase 5 自动连接器；mission
+  flat/stair/flat integration 已由独立 opt-in verifier 处理，仍不是 production 能力。
 - 不要把 `go2w_mission` 的 `RunMission` skeleton 当成 production Mission
   Orchestrator。它只是把 route compute、flat/stair dispatch 和诊断结果码串起来，
   当前虽已新增 JSON checkpoint、同一 goal resume 和有限 retry，仍依赖现有
@@ -47,6 +47,10 @@
 - 不要把 mission runtime real-model flat execution gate 当成 production Mission
   Orchestrator。它已经把 flat segment 接到真实 Nav2 `/navigate_to_pose`，但仍只是
   opt-in flat-only gate，和完整生产调度器不是一回事。
+- 不要把 mission runtime real-model flat/stair/flat integration gate 当成真实楼梯动力学
+  或 production cross-floor route tracking。它证明 `RunMission` 可把 flat segments 接到
+  真实 Nav2、把 handoff connector 接到 `/stair_exec` skeleton，并观察 route feedback
+  edges `10` / `20`；它仍不是真实 stair route operation plugin 或完整生产调度器。
 - 不要让 `go2w_mission` 的 flat goal pose conversion 在 `mission_api` 和
   `phase4b_mission_runtime` 之间再次分叉；当前 canonical helper 是
   `go2w_mission.mission_pose.pose_stamped_from_xy_yaw()`。
@@ -213,8 +217,9 @@ default real-model re-baseline。不要把下一步扩大为真实多楼层
   搜索结果失真。安全做法是拆分关键词、用单引号包裹 pattern，或逐个转义反引号。
 - `task_plan.md`、`findings.md`、`progress.md` 是本地 agent 工作记忆，已被 `.gitignore`
   忽略。正式交接事实必须写入 `docs/handoff/*`、`docs/architecture/*` 或 `docs/verification/*`。
-- `verify_go2w_control_chain_regression.sh` 与
-  `verify_go2w_mission_real_flat_execution.sh` 不要并行跑；它们都是重型
+- `verify_go2w_control_chain_regression.sh`、
+  `verify_go2w_mission_real_flat_execution.sh` 与
+  `verify_go2w_mission_real_flat_stair_flat.sh` 不要并行跑；它们都是重型
   ROS/Gazebo verifier，并发时会放大资源争用，出现假 timeout / 假 NO_PARAM。
   先串行复验，除非明确要测并发鲁棒性。
 - `verify_phase4_pre_handoff.sh` 不要和 focused pytest/verifier 并行跑。该脚本会清理

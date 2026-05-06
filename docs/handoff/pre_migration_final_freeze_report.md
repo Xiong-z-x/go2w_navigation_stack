@@ -62,6 +62,16 @@
   `route_tracking_action:=/compute_and_track_route` 观察 flat edge `10` feedback。
   它仍不是 production cross-floor route tracking、真实 stair route operation plugin
   或完整 production Mission Orchestrator。
+- 2026-05-06：Mission runtime real-model flat/stair/flat integration gate 已完成。
+  新 verifier 在不启动 `go2w_flat_nav_executor` 的情况下执行
+  `flat:10;stair:500:stair_a:F1->F2;flat:20`，flat segments 调用真实 Nav2
+  `/navigate_to_pose`，stair segment 调用 dedicated `/stair_exec` skeleton，
+  并观察 route feedback edges `10` / `20`、stair phase sequence、command gate
+  owner/mode 切换、Nav2 motion 和 TF 边界。证据见
+  `docs/verification/go2w_mission_real_flat_stair_flat.md` 和
+  `/tmp/go2w_mission_real_flat_stair_flat_48188`。它仍不是真实楼梯动力学、
+  真实 stair route operation plugin、production cross-floor route tracking 或完整
+  production Mission Orchestrator。
 - 2026-05-04：迁移前二次封板审计确认实际项目 Git 仓库根是
   `/home/xiongzx/go2w_ws/src/go2w_navigation_stack`。外层
   `/home/xiongzx/go2w_ws` 是工作区，不应用其 `git status` / `git log` 判断项目状态。
@@ -88,7 +98,8 @@
   Harmonic/Garden/Gazebo GPU rendering 仍不属于验收合同。
 - 2026-05-02 后续执行已完成第一项项目改进：real-model same-floor Nav2
   route-following 的 DWB abort 风险已复现、修复并通过 3 次 clean-domain 连续验证。
-  mission runtime real robot-motion flat execution gate 也已完成并接入真实 Nav2。
+  mission runtime real robot-motion flat execution gate 也已完成并接入真实 Nav2；
+  mission runtime real-model flat/stair/flat integration gate 也已完成 opt-in 验证。
   2026-05-04 至 2026-05-06 又完成了当前窄范围的 production Mission Orchestrator scheduling policy、
   priority scheduling、assignment policy、operator control、queue replay、task history、workflow policy snapshot 和 workflow event backend；
   后续最大项目改进入口转为另一个明确命名的 Mission Orchestrator remaining slice
@@ -148,6 +159,10 @@
 - Real-model `nav2_route` robot-motion route tracking gate：动态 odom route graph、
   route_server reload、`ComputeAndTrackRoute` feedback edge `10`、真实 Nav2
   `NavigateToPose` 运动、perception/diff-drive odom motion 和 TF 边界均已验证。
+- Mission runtime real-model flat/stair/flat integration gate：`RunMission`
+  `flat:10;stair:500:stair_a:F1->F2;flat:20` 在 opt-in real-model runtime 中通过；
+  flat segments 走真实 Nav2，stair segment 走 `/stair_exec` skeleton，route feedback
+  edges `10` / `20`、stair phase sequence、command gate transitions 和 TF 边界均已验证。
 
 ## 当前未完成能力
 - Production Mission Orchestrator：当前只是 mission API / checkpoint / retry / resume
@@ -155,9 +170,10 @@
   local assignment admission policy、
   operator control service、operator-triggered durable queue replay、bounded terminal
   task history、workflow policy snapshot 和 workflow event backend，仍不是完整长生命周期调度器。
-- 真实机器人运动上的最小 `nav2_route` route tracking gate 和 mission flat-only integration
-  已完成；production cross-floor route tracking、真实 stair route operation plugin 和
-  flat/stair/flat production integration 仍未完成。
+- 真实机器人运动上的最小 `nav2_route` route tracking gate、mission flat-only integration
+  和 mission real-model flat/stair/flat integration gate 已完成；production cross-floor
+  route tracking、真实 stair route operation plugin、真实楼梯动力学和完整 production
+  flat/stair/flat autonomy 仍未完成。
 - Mission runtime real robot-motion flat execution gate 已完成，并可 opt-in 观察
   `ComputeAndTrackRoute` feedback；当前 flat executor 仍保留 verifier skeleton 作为
   deterministic 诊断路径。
@@ -244,6 +260,7 @@ Definition of Done:
 | `./tools/verify_phase4e_stair_tuning_overrides.sh` | PASS | 2026-05-06 opt-in execute-body-height runtime smoke 通过 |
 | `./tools/verify_go2w_real_model_route_tracking.sh` | PASS | 2026-05-06 real-model `nav2_route` robot-motion route-tracking gate 通过 |
 | `./tools/verify_go2w_mission_real_flat_execution.sh` | PASS | 2026-05-06 Mission runtime real-model flat execution + route-tracking observation gate 通过 |
+| `./tools/verify_go2w_mission_real_flat_stair_flat.sh` | PASS | 2026-05-06 Mission runtime real-model flat/stair/flat integration gate 通过，证据目录 `/tmp/go2w_mission_real_flat_stair_flat_48188` |
 | `./tools/verify_phase4_pre_handoff.sh` | PASS | 2026-05-04 二次封板起点复验，交接包最低一致性通过 |
 | `./tools/verify_phase4_runtime_acceptance.sh` | PASS | 2026-05-04 串行复验，Phase 4A/B/C/D、build/test/test-result 再次通过 |
 | `./tools/verify_go2w_control_chain_regression.sh` | PASS | 2026-05-04 串行复验，real-model baseline、stair fixture、mission recovery、stair tuning 再次通过 |
