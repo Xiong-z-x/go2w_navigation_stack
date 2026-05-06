@@ -5,6 +5,7 @@ find_package(ament_cmake REQUIRED)
 find_package(ament_cmake_python REQUIRED)
 find_package(builtin_interfaces REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
+find_package(trajectory_msgs REQUIRED)
 
 ament_python_install_package(go2w_control_runtime)
 
@@ -38,5 +39,6 @@ if(BUILD_TESTING)
 endif()
 
 ament_export_dependencies(rosidl_default_runtime)
+ament_export_dependencies(trajectory_msgs)
 
 ament_package()

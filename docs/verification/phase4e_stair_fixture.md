@@ -20,8 +20,10 @@ cross-floor autonomy.
   `prepare,wheel_lock,body_height_transition_down,execute_stairs,body_height_transition_up,release`.
 - The current repository has no dedicated body-height hardware interface, so
   body-height transition is represented as diagnostic phase state and motion
-  profile metadata. The only leg command outlet in this gate is the conservative
-  12-joint leg hold command on `/leg_position_controller/commands`.
+  profile metadata. The leg command outlets in this gate are the current
+  12-joint position command on `/leg_position_controller/commands` and the
+  standard `JointTrajectory` diagnostic/future-integration surface on
+  `/go2w/control/stair_leg_trajectory`.
 - The phase plan now also reports `wheel_lock_required=...` and supports an
   opt-in execution body-height target for `body_height_transition_down` and
   `execute_stairs`.
@@ -46,6 +48,9 @@ cross-floor autonomy.
 - Wheel-lock and body-height phase targets are now checked by the updated
   verifier; focused policy evidence is recorded in
   `docs/verification/phase4e_stair_phase_targets.md`.
+- Trajectory outlet diagnostics are now checked by the updated verifier;
+  focused policy evidence is recorded in
+  `docs/verification/phase4e_stair_trajectory_outlet.md`.
 - The active stair phase published a profile-limited command velocity
   `cmd_vel_mps=0.025`.
 - Leg hold remained enabled through the active stair phases and was disabled in
@@ -70,14 +75,15 @@ go2w_command_gate_state: owner=stair mode=legged
 go2w_command_gate_state: owner=flat mode=wheeled
 
 go2w_stair_executor_plan: phases=prepare,wheel_lock,body_height_transition_down,execute_stairs,body_height_transition_up,release total_duration_sec=0.80
-go2w_stair_executor_state: phase=execute_stairs owner=stair mode=legged body_height_m=0.32 foot_raise_height_m=0.09 cmd_vel_mps=0.025 wheel_lock_required=true publish_leg_hold=true
-go2w_stair_executor_state: phase=release owner=stair mode=legged body_height_m=0.32 foot_raise_height_m=0.09 cmd_vel_mps=0.000 wheel_lock_required=false publish_leg_hold=false progress=1.000 complete
+go2w_stair_executor_trajectory: phase=execute_stairs trajectory_joint_count=12 trajectory_checksum=...
+go2w_stair_executor_state: phase=execute_stairs owner=stair mode=legged body_height_m=0.32 foot_raise_height_m=0.09 cmd_vel_mps=0.025 wheel_lock_required=true publish_leg_hold=true trajectory_joint_count=12 trajectory_checksum=...
+go2w_stair_executor_state: phase=release owner=stair mode=legged body_height_m=0.32 foot_raise_height_m=0.09 cmd_vel_mps=0.000 wheel_lock_required=false publish_leg_hold=false trajectory_joint_count=12 trajectory_checksum=... progress=1.000 complete
 ```
 
 ## Open Validation Items
 - This is still a stair execution skeleton, not real stair locomotion.
-- The current leg command is a conservative hold command, not a tuned stair
-  trajectory.
+- The current leg command is a conservative phase target outlet, not a tuned
+  stair gait.
 - Wheel lock and body-height transition are observable control phases, not yet
   dedicated low-level hardware-control interfaces.
 - No Unitree SDK2 hardware controller is included in this repository path.

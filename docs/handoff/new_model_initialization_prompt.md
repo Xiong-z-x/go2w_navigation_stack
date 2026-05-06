@@ -44,6 +44,7 @@ nav2_route / Mission / Stair Control 项目的专业执行者、架构一致性�
 - docs/verification/phase4e_stair_fixture.md
 - docs/verification/phase4e_mission_recovery.md
 - docs/verification/phase4e_stair_tuning_overrides.md
+- docs/verification/phase4e_stair_trajectory_outlet.md
 - docs/verification/mission_api_scheduling_policy.md
 - docs/verification/mission_api_priority_scheduling.md
 - docs/verification/mission_api_assignment_policy.md
@@ -135,6 +136,9 @@ simulation-first 路线构建 Go2W 跨楼层自主导航巡检系统：
 - Phase 4E stair phase targets：`stair_executor` 已报告 `wheel_lock_required`，
   并支持 opt-in `--stair-execute-body-height-m` 作为 body-height transition /
   execute phase target。
+- Phase 4E stair trajectory outlet：`stair_executor` 已为每个 phase 生成 deterministic
+  12 关节目标，继续发布到 `/leg_position_controller/commands`，并暴露标准
+  `trajectory_msgs/msg/JointTrajectory` 诊断面 `/go2w/control/stair_leg_trajectory`。
 - Phase 4E mission recovery：JSON checkpoint、same-goal resume、有限 retry skeleton。
 - Stable control-chain regression wrapper：`tools/verify_go2w_control_chain_regression.sh`
   串联 real-model baseline、Phase 4E stair fixture、mission recovery 和 stair tuning smoke。
@@ -171,9 +175,9 @@ simulation-first 路线构建 Go2W 跨楼层自主导航巡检系统：
   Nav2 `/navigate_to_pose`，但仍不是完整生产调度器。
 - `tools/verify_go2w_real_model_regression.sh` 包含 route-following smoke，属于更宽但更敏感的
   opt-in wrapper，不是默认封板门禁。
-- 真实楼梯动力学、真实 leg trajectory / gait tuning 尚未完成；当前 stair executor 是
-  phase-aware skeleton、profile-limited velocity、leg hold outlet、phase target diagnostics
-  和 tuning 参数入口。
+- 真实楼梯动力学、真实 gait tuning、hardware wheel lock 和 body-height actuator 尚未完成；
+  当前 stair executor 是 phase-aware skeleton、profile-limited velocity、leg hold outlet、
+  phase target diagnostics、trajectory command outlet skeleton 和 tuning 参数入口。
 - 真实跨楼层自主闭环、map_server / AMCL / `map -> odom` 定位链、elevation mapping、
   traversability、automatic stair detection / connector generation 尚未完成。
 - Real Go2W model path 仍是 opt-in，未替换默认 `go2w_sim sim.launch.py` placeholder path。
@@ -340,7 +344,7 @@ Definition of Done: 新任务单命名能力的输入语义、执行顺序、交
 不得改变 perception TF authority、默认 placeholder
 baseline、stair dynamics 或 map / localization 范围。
 
-若后续要做 dedicated stair trajectory / wheel lock / body-height / gait tuning，必须另起独立任务单，
+若后续要做真实 gait tuning、hardware wheel lock 或 body-height actuator backend，必须另起独立任务单，
 重新声明 allowed / forbidden files，不得复用本节任务单。
 
 该任务完成后，再考虑：

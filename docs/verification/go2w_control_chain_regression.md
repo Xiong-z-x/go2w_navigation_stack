@@ -9,6 +9,7 @@ It verifies the currently repeatable control surfaces:
 - phase-aware `/stair_exec` fixture
 - mission checkpoint/resume recovery
 - explicit stair tuning override smoke test
+- focused stair trajectory command outlet check
 
 This is not a same-floor route-following gate, production Mission Orchestrator,
 real stair locomotion tuning, `map_server`, AMCL, elevation mapping,
@@ -73,6 +74,9 @@ go2w_control_chain_regression_result: PASS
   `MISSION_SUCCEEDED`.
 - `verify_phase4e_stair_tuning_overrides.sh` passed with explicit body height,
   foot raise, gait, speed, max velocity, and stair velocity overrides.
+- `verify_phase4e_stair_trajectory_outlet.sh` passed and confirmed every stair
+  phase produces a 12-joint target plus a standard `JointTrajectory` diagnostic
+  outlet summary.
 - A 2026-05-04 rerun of the wrapper passed again when executed serially after a
   concurrent run with the mission flat verifier had produced a flaky timeout.
 - A 2026-05-04 migration-seal rerun passed again with fresh evidence directories
@@ -89,6 +93,8 @@ go2w_control_chain_regression_result: PASS
   control-chain wrapper until a future task explicitly expands the gate.
 - This wrapper does not prove production route tracking against robot motion.
 - This wrapper does not prove real staircase dynamics or hardware gait tuning.
+- The trajectory outlet is a command/diagnostic skeleton; it does not switch the
+  controller baseline to `joint_trajectory_controller`.
 - The real-model path remains opt-in and does not replace the default
   placeholder simulation baseline.
 - Do not run this wrapper in parallel with

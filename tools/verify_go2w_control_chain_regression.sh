@@ -22,6 +22,9 @@ main() {
   "${SCRIPT_DIR}/verify_phase4e_stair_tuning_overrides.sh"
   print_kv "control_chain_regression_stair_tuning" "PASS"
 
+  "${SCRIPT_DIR}/verify_phase4e_stair_trajectory_outlet.sh"
+  print_kv "control_chain_regression_stair_trajectory_outlet" "PASS"
+
   print_kv "go2w_control_chain_regression_result" "PASS"
 }
 

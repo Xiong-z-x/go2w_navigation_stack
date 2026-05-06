@@ -48,6 +48,14 @@
   `execute_stairs` 的 body-height target；默认 stair baseline 不变。
   新增 `docs/verification/phase4e_stair_phase_targets.md` 与
   `tools/verify_phase4e_stair_phase_targets.sh`。
+- 2026-05-06：stair executor trajectory command outlet skeleton 最小闭环已完成。
+  每个 stair phase 现在生成 deterministic 12 关节目标，继续发布到当前
+  `/leg_position_controller/commands` position-command surface，并额外暴露标准
+  `trajectory_msgs/msg/JointTrajectory` 诊断/未来对接口
+  `/go2w/control/stair_leg_trajectory`。新增
+  `docs/verification/phase4e_stair_trajectory_outlet.md` 与
+  `tools/verify_phase4e_stair_trajectory_outlet.sh`。它仍不是 tuned gait、
+  hardware wheel-lock、body-height actuator 或物理楼梯动力学。
 - 2026-05-06：real-model `nav2_route` robot-motion route-tracking gate 已完成。
   新 verifier 启动 opt-in real-model、perception、FAST-LIO、real-model Nav2 和
   真实 `route_server`，从当前 perception odom 生成短 odom-frame route graph，
@@ -153,7 +161,7 @@
 - Phase 4 accepted：pre-handoff、Phase 4A/B/C/D runtime、build/test、test-result 聚合验收。
 - Phase 5A：受控 TF trajectory fixture 下的 live `nav2_route` route tracking observation。
 - Real-model baseline：opt-in 真实 Go2W 模型、四 foot wheel controller、leg controller、sensor topics、stand initializer。
-- Phase 4E：real-model stair fixture、mission recovery checkpoint/resume、stair tuning smoke、stair phase target diagnostics。
+- Phase 4E：real-model stair fixture、mission recovery checkpoint/resume、stair tuning smoke、stair phase target diagnostics、stair trajectory outlet diagnostics。
 - Stable control-chain regression：real-model baseline + stair fixture + mission recovery + stair tuning smoke。
 - Real-model same-floor route-following dedicated hardening：candidate selection、goal tolerance 和 stale-process cleanup 已修复，3 次 clean-domain PASS。
 - Real-model `nav2_route` robot-motion route tracking gate：动态 odom route graph、
@@ -177,7 +185,7 @@
 - Mission runtime real robot-motion flat execution gate 已完成，并可 opt-in 观察
   `ComputeAndTrackRoute` feedback；当前 flat executor 仍保留 verifier skeleton 作为
   deterministic 诊断路径。
-- 真实楼梯动力学、leg trajectory、hardware wheel lock、body-height actuator 控制和 gait tuning：尚未完成；当前只新增了 phase target diagnostics。
+- 真实楼梯动力学、hardware wheel lock、body-height actuator 控制和 gait tuning：尚未完成；当前只新增了 phase target diagnostics 和 trajectory command outlet skeleton。
 - 默认仿真基线切换到 real-model：尚未批准。
 - `map_server` / AMCL / `map -> odom` 定位链：尚未实现。
 - Elevation mapping、traversability、automatic stair detection / connector generation：尚未实现。
@@ -257,6 +265,7 @@ Definition of Done:
 | `./tools/verify_mission_api_assignment_policy.sh` | PASS | 2026-05-06 assignment policy focused verifier 通过 |
 | `./tools/verify_mission_api_workflow_backend.sh` | PASS | 2026-05-06 workflow event backend focused verifier 通过 |
 | `./tools/verify_phase4e_stair_phase_targets.sh` | PASS | 2026-05-06 stair phase target focused verifier 通过 |
+| `./tools/verify_phase4e_stair_trajectory_outlet.sh` | PASS | 2026-05-06 stair trajectory outlet focused verifier 通过 |
 | `./tools/verify_phase4e_stair_tuning_overrides.sh` | PASS | 2026-05-06 opt-in execute-body-height runtime smoke 通过 |
 | `./tools/verify_go2w_real_model_route_tracking.sh` | PASS | 2026-05-06 real-model `nav2_route` robot-motion route-tracking gate 通过 |
 | `./tools/verify_go2w_mission_real_flat_execution.sh` | PASS | 2026-05-06 Mission runtime real-model flat execution + route-tracking observation gate 通过 |

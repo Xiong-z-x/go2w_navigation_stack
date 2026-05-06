@@ -57,7 +57,8 @@
 - 不要把 Phase 4E real-model stair fixture 当成真实楼梯动力学。它只证明
   `/stair_exec` 在 opt-in real-model fixture 下能完成 phase-aware action 闭环、
   `flat/wheeled -> stair/legged -> flat/wheeled` 控制权交接、profile-limited
-  stair velocity、wheel-lock/body-height phase target 和 leg hold/release 诊断。
+  stair velocity、wheel-lock/body-height phase target、trajectory command outlet 和
+  leg hold/release 诊断。
 - 不要把 real-model regression wrapper 当成默认基线切换。它只是把 real-model
   baseline、same-floor route-following 和 Phase 4E stair fixture 串成 opt-in 回归。
 - 不要把 `nav2_route` 当成 3D 地形规划器。它不是自动楼梯识别或 traversability。
@@ -171,6 +172,11 @@ default real-model re-baseline。不要把下一步扩大为真实多楼层
 - `go2w_control` 的 `stair_executor` 现在还会报告 `wheel_lock_required`，并支持 opt-in
   `--stair-execute-body-height-m`。这只是 phase target diagnostics，不是硬件
   wheel-lock、body-height actuator 或真实 gait。
+- `go2w_control` 的 `stair_executor` 现在还会为每个 phase 生成 deterministic
+  12 关节目标，继续发布到 `/leg_position_controller/commands`，并额外发布
+  `/go2w/control/stair_leg_trajectory` `JointTrajectory` 诊断面。这是 trajectory
+  command outlet skeleton，不是已经调好的 stair gait，也没有切换 real-model
+  controller baseline。
 - Mission runtime real-model flat execution gate 的关键 launch 参数是
   `flat_behavior_tree:=__empty__`；不要再尝试传空的 `flat_behavior_tree:=`，ROS 2 launch
   会直接拒绝。
@@ -202,6 +208,9 @@ default real-model re-baseline。不要把下一步扩大为真实多楼层
 - Phase 4E stair tuning smoke test 是 `tools/verify_phase4e_stair_tuning_overrides.sh`。
   它复用同一 real-model fixture，但用环境变量覆盖 stair body height、foot raise、
   gait、speed 和 velocity 上限，确认默认 baseline 不变时仍能成功闭环。
+- Phase 4E stair trajectory outlet focused verifier 是
+  `tools/verify_phase4e_stair_trajectory_outlet.sh`。它验证所有 stair phases 均生成
+  12 关节 trajectory target 和 checksum；它不启动 Gazebo，也不证明物理楼梯运动学。
 - Phase 4E mission recovery verifier 是 `tools/verify_phase4e_mission_recovery.sh`。
   它先故意不启动 stair executor，使 mission 写入 `RECOVERABLE` checkpoint，再用同一
   state file 重启并从 stair segment 恢复到 `MISSION_SUCCEEDED`。

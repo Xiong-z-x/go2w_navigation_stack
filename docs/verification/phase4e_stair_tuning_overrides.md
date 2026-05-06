@@ -42,6 +42,8 @@ only a safe parameter-override smoke test.
 - `/stair_exec` was still available and accepted a goal.
 - The command gate still observed `flat/wheeled -> stair/legged -> flat/wheeled`.
 - The stair executor still emitted the full phase plan and succeeded.
+- The updated stair fixture also checks phase-level trajectory outlet
+  diagnostics when this wrapper delegates to it.
 
 ## Result Keys
 ```text

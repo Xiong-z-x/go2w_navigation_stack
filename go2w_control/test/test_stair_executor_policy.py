@@ -4,6 +4,8 @@ from go2w_control_runtime.stair_executor import (
     StairExecutionPolicy,
     build_stair_execution_state_text,
     build_leg_hold_command_data,
+    build_stair_phase_trajectory_command_data,
+    build_stair_phase_trajectory_message,
 )
 from go2w_control_runtime.motion_profiles import get_go2w_motion_profiles
 
@@ -130,3 +132,35 @@ def test_phase_plan_marks_wheel_lock_and_execute_body_height_target() -> None:
     assert phases["execute_stairs"].wheel_lock_required is True
     assert phases["body_height_transition_up"].wheel_lock_required is True
     assert phases["release"].wheel_lock_required is False
+
+
+def test_stair_phase_trajectory_command_uses_phase_target_metadata() -> None:
+    policy = StairExecutionPolicy(execute_body_height_m=0.29)
+    plan = policy.build_phase_plan(0.5, force_timeout=False)
+    phase = {item.name: item for item in plan.phases}["execute_stairs"]
+
+    command_data = build_stair_phase_trajectory_command_data(phase, policy.profile)
+
+    assert len(command_data) == 12
+    assert command_data != build_leg_hold_command_data(policy.profile)
+    assert command_data[1] == round(policy.profile.stand_pose[1] - 0.03, 6)
+    assert command_data[2] == round(policy.profile.stand_pose[2] + 0.03, 6)
+    assert command_data[4] == round(policy.profile.stand_pose[4] - 0.03, 6)
+    assert command_data[5] == round(policy.profile.stand_pose[5] + 0.03, 6)
+
+
+def test_stair_phase_trajectory_message_is_joint_trajectory() -> None:
+    policy = StairExecutionPolicy(execute_body_height_m=0.29)
+    phase = {item.name: item for item in policy.build_phase_plan(0.5, force_timeout=False).phases}[
+        "body_height_transition_down"
+    ]
+
+    msg = build_stair_phase_trajectory_message(phase, policy.profile)
+
+    assert msg.joint_names == list(policy.profile.leg_joints)
+    assert len(msg.points) == 1
+    assert tuple(msg.points[0].positions) == build_stair_phase_trajectory_command_data(
+        phase,
+        policy.profile,
+    )
+    assert msg.points[0].time_from_start.sec == int(phase.duration_sec)

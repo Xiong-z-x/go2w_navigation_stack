@@ -27,6 +27,21 @@ def build_leg_hold_command(profile: MotionModeProfile | None = None):
     return command
 
 
+def _duration_from_seconds(seconds: float):
+    from builtin_interfaces.msg import Duration
+
+    bounded_seconds = max(0.0, float(seconds))
+    duration = Duration()
+    duration.sec = int(bounded_seconds)
+    duration.nanosec = int(
+        round((bounded_seconds - duration.sec) * 1_000_000_000)
+    )
+    if duration.nanosec >= 1_000_000_000:
+        duration.sec += 1
+        duration.nanosec -= 1_000_000_000
+    return duration
+
+
 @dataclass(frozen=True)
 class StairExecutionPhase:
     name: str
@@ -47,6 +62,89 @@ class StairExecutionPlan:
         return tuple(phase.name for phase in self.phases)
 
 
+def build_stair_phase_trajectory_command_data(
+    phase: StairExecutionPhase,
+    profile: MotionModeProfile | None = None,
+) -> tuple[float, ...]:
+    resolved_profile = profile or get_go2w_motion_profiles().legged
+    target = list(resolved_profile.stand_pose)
+    nominal_height = max(0.01, resolved_profile.body_height_m)
+    height_delta = resolved_profile.body_height_m - phase.body_height_m
+    thigh_delta = round(height_delta * 1.0, 6)
+    calf_delta = round(-height_delta * 2.0, 6)
+    swing_delta = 0.0
+    if phase.name == "execute_stairs":
+        swing_delta = min(phase.foot_raise_height_m, 0.03)
+
+    for leg_index in range(4):
+        base = leg_index * 3
+        target[base + 1] = round(target[base + 1] + thigh_delta, 6)
+        target[base + 2] = round(target[base + 2] + calf_delta, 6)
+
+    if swing_delta > 0.0:
+        for leg_index in (0, 1):
+            base = leg_index * 3
+            target[base + 1] = round(
+                resolved_profile.stand_pose[base + 1] - swing_delta,
+                6,
+            )
+            target[base + 2] = round(
+                resolved_profile.stand_pose[base + 2] + swing_delta,
+                6,
+            )
+
+    # Keep the synthetic target inside a conservative envelope around the stand
+    # pose. This is a command outlet skeleton, not a tuned gait generator.
+    bounded = []
+    for value, stand_value in zip(target, resolved_profile.stand_pose, strict=True):
+        lower = stand_value - nominal_height
+        upper = stand_value + nominal_height
+        bounded.append(round(min(max(value, lower), upper), 6))
+    return tuple(bounded)
+
+
+def build_stair_phase_trajectory_command(
+    phase: StairExecutionPhase,
+    profile: MotionModeProfile | None = None,
+):
+    from std_msgs.msg import Float64MultiArray
+
+    command = Float64MultiArray()
+    command.data = list(build_stair_phase_trajectory_command_data(phase, profile))
+    return command
+
+
+def build_stair_phase_trajectory_message(
+    phase: StairExecutionPhase,
+    profile: MotionModeProfile | None = None,
+):
+    from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
+
+    resolved_profile = profile or get_go2w_motion_profiles().legged
+    point = JointTrajectoryPoint()
+    point.positions = list(
+        build_stair_phase_trajectory_command_data(phase, resolved_profile)
+    )
+    point.time_from_start = _duration_from_seconds(phase.duration_sec)
+
+    msg = JointTrajectory()
+    msg.joint_names = list(resolved_profile.leg_joints)
+    msg.points = [point]
+    return msg
+
+
+def summarize_stair_phase_trajectory(
+    phase: StairExecutionPhase,
+    profile: MotionModeProfile | None = None,
+) -> str:
+    command_data = build_stair_phase_trajectory_command_data(phase, profile)
+    checksum = sum(command_data)
+    return (
+        f"trajectory_joint_count={len(command_data)} "
+        f"trajectory_checksum={checksum:.6f}"
+    )
+
+
 def build_stair_execution_state_text(
     *,
     phase: StairExecutionPhase,
@@ -63,6 +161,7 @@ def build_stair_execution_state_text(
         f"cmd_vel_mps={phase.command_velocity_mps:.3f} "
         f"wheel_lock_required={str(phase.wheel_lock_required).lower()} "
         f"publish_leg_hold={str(phase.publish_leg_hold).lower()} "
+        f"{summarize_stair_phase_trajectory(phase, profile)} "
         f"progress={progress:.3f}"
     )
 
@@ -247,6 +346,7 @@ def main() -> None:
         def __init__(self) -> None:
             from std_msgs.msg import Float64MultiArray
             from std_msgs.msg import String
+            from trajectory_msgs.msg import JointTrajectory
 
             super().__init__("go2w_stair_executor")
             self._policy = StairExecutionPolicy(
@@ -274,6 +374,11 @@ def main() -> None:
             self._leg_hold_pub = self.create_publisher(
                 Float64MultiArray,
                 "/leg_position_controller/commands",
+                10,
+            )
+            self._trajectory_pub = self.create_publisher(
+                JointTrajectory,
+                "/go2w/control/stair_leg_trajectory",
                 10,
             )
             self._state_pub = self.create_publisher(
@@ -313,7 +418,7 @@ def main() -> None:
             )
             self._owner_pub.publish(_string_msg("stair"))
             self._publish_state(plan.phases[0], progress=0.0)
-            self._leg_hold_pub.publish(build_leg_hold_command(self._policy.profile))
+            self._publish_leg_target(plan.phases[0])
 
             elapsed = 0.0
             for phase in plan.phases:
@@ -351,9 +456,7 @@ def main() -> None:
                     else:
                         self._stair_cmd_pub.publish(_zero_twist())
                     if phase.publish_leg_hold:
-                        self._leg_hold_pub.publish(
-                            build_leg_hold_command(self._policy.profile)
-                        )
+                        self._publish_leg_target(phase)
                     self._publish_state(phase, progress=progress)
                     self._publish_phase_feedback(
                         goal_handle,
@@ -367,7 +470,7 @@ def main() -> None:
                 self._publish_state(phase, progress=min(1.0, elapsed / plan.total_duration_sec))
 
             self._stair_cmd_pub.publish(_zero_twist())
-            self._leg_hold_pub.publish(build_leg_hold_command(self._policy.profile))
+            self._publish_leg_target(plan.phases[-1])
             self._owner_pub.publish(_string_msg("flat"))
             self._publish_state(
                 plan.phases[-1],
@@ -415,6 +518,19 @@ def main() -> None:
             state_msg.data = state_text
             self._state_pub.publish(state_msg)
             self.get_logger().info(f"go2w_stair_executor_state: {state_text}")
+
+        def _publish_leg_target(self, phase: StairExecutionPhase) -> None:
+            self._leg_hold_pub.publish(
+                build_stair_phase_trajectory_command(phase, self._policy.profile)
+            )
+            self._trajectory_pub.publish(
+                build_stair_phase_trajectory_message(phase, self._policy.profile)
+            )
+            self.get_logger().info(
+                "go2w_stair_executor_trajectory: "
+                f"phase={phase.name} "
+                f"{summarize_stair_phase_trajectory(phase, self._policy.profile)}"
+            )
 
         def _publish_phase_feedback(
             self,

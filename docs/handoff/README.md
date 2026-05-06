@@ -67,8 +67,9 @@
 34. `docs/verification/go2w_real_model_regression.md`
 35. `docs/verification/phase4e_stair_tuning_overrides.md`
 36. `docs/verification/phase4e_stair_phase_targets.md`
-37. `docs/verification/phase4_runtime_acceptance.md`
-38. `docs/handoff/new_model_initialization_prompt.md`
+37. `docs/verification/phase4e_stair_trajectory_outlet.md`
+38. `docs/verification/phase4_runtime_acceptance.md`
+39. `docs/handoff/new_model_initialization_prompt.md`
 
 ## 本目录文件职责
 - `current_project_state.md`：当前真实状态总览。
@@ -302,6 +303,16 @@ Phase 4E stair phase target focused gate 可用以下命令复现：
 该 verifier 证明 stair phase plan 的 `wheel_lock_required` 诊断和 opt-in
 execute/body-height transition target；它仍不是硬件 wheel-lock、body-height actuator
 或真实 stair gait。
+
+Phase 4E stair trajectory outlet focused gate 可用以下命令复现：
+
+```bash
+./tools/verify_phase4e_stair_trajectory_outlet.sh
+```
+
+该 verifier 证明每个 stair phase 都生成 12 关节目标，并暴露标准
+`trajectory_msgs/msg/JointTrajectory` 诊断/未来对接口；它仍不是 tuned gait、
+hardware wheel-lock、body-height actuator 或物理楼梯动力学。
 
 Phase 4 总体验收可用以下命令复现：
 

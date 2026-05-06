@@ -367,6 +367,13 @@ main() {
   wait_for_text "go2w_stair_executor_state: phase=release .*wheel_lock_required=false" "${EVIDENCE_DIR}/stair_executor.log" 30
   wait_for_text "go2w_stair_executor_state: phase=release .* complete" "${EVIDENCE_DIR}/stair_executor.log" 30
   wait_for_text "go2w_stair_executor_state: phase=release" "${EVIDENCE_DIR}/stair_executor.log" 30
+  wait_for_text "go2w_stair_executor_trajectory: phase=prepare .*trajectory_joint_count=12" "${EVIDENCE_DIR}/stair_executor.log" 30
+  wait_for_text "go2w_stair_executor_trajectory: phase=wheel_lock .*trajectory_joint_count=12" "${EVIDENCE_DIR}/stair_executor.log" 30
+  wait_for_text "go2w_stair_executor_trajectory: phase=body_height_transition_down .*trajectory_joint_count=12" "${EVIDENCE_DIR}/stair_executor.log" 30
+  wait_for_text "go2w_stair_executor_trajectory: phase=execute_stairs .*trajectory_joint_count=12" "${EVIDENCE_DIR}/stair_executor.log" 30
+  wait_for_text "go2w_stair_executor_trajectory: phase=body_height_transition_up .*trajectory_joint_count=12" "${EVIDENCE_DIR}/stair_executor.log" 30
+  wait_for_text "go2w_stair_executor_trajectory: phase=release .*trajectory_joint_count=12" "${EVIDENCE_DIR}/stair_executor.log" 30
+  wait_for_text "go2w_stair_executor_state: phase=execute_stairs .*trajectory_joint_count=12 .*trajectory_checksum=" "${EVIDENCE_DIR}/stair_executor.log" 30
 
   print_kv "phase4e_stair_fixture_result" "PASS"
 }

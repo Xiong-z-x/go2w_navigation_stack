@@ -67,10 +67,11 @@
 | Post-Phase-4 mission task history | terminal mission record ledger、`MissionControl history/archive_history`、bounded retention | 已完成 | `docs/verification/mission_api_task_history.md`、`tools/verify_mission_api_task_history.sh` | 是长期 terminal history，不是多机器人调度优化或完整生产调度器。 |
 | Post-Phase-4 mission workflow policy | `MissionControl workflow`、workflow snapshot、available operator commands | 已完成 | `docs/verification/mission_api_workflow_policy.md`、`tools/verify_mission_api_workflow_policy.sh` | 是只读 workflow policy 视图，不是多机器人调度优化或 cross-robot goal transfer。 |
 | Post-Phase-4 mission workflow backend | bounded workflow event ledger、`MissionControl workflow_events` | 已完成 | `docs/verification/mission_api_workflow_backend.md`、`tools/verify_mission_api_workflow_backend.sh` | 是 workflow event backend，不是 fleet-level workflow engine 或 active preemption。 |
-| Phase 4E stair fixture | phase-aware `/stair_exec` fixture、wheel lock、body height transition、leg hold/release | 已完成 | `docs/verification/phase4e_stair_fixture.md`、`tools/verify_phase4e_stair_fixture.sh` | 仍是 control skeleton，不是实机楼梯动力学。 |
+| Phase 4E stair fixture | phase-aware `/stair_exec` fixture、wheel lock、body height transition、trajectory outlet、leg hold/release | 已完成 | `docs/verification/phase4e_stair_fixture.md`、`tools/verify_phase4e_stair_fixture.sh` | 仍是 control skeleton，不是实机楼梯动力学。 |
 | Phase 4E stair phase targets | `wheel_lock_required`、opt-in execute/body-height target | 已完成 | `docs/verification/phase4e_stair_phase_targets.md`、`tools/verify_phase4e_stair_phase_targets.sh` | 是 phase target diagnostics，不是硬件 wheel lock 或 body-height actuator。 |
+| Phase 4E stair trajectory outlet | deterministic 12 关节 phase target、`JointTrajectory` 诊断面 | 已完成 | `docs/verification/phase4e_stair_trajectory_outlet.md`、`tools/verify_phase4e_stair_trajectory_outlet.sh` | 是 command outlet skeleton，不是 tuned gait 或 controller baseline 切换。 |
 | Phase 4E mission recovery | JSON checkpoint、same-goal resume、有限 retry | 已完成 | `docs/verification/phase4e_mission_recovery.md`、`tools/verify_phase4e_mission_recovery.sh` | 是 production-style recovery skeleton，不是完整调度器。 |
-| Stable control-chain regression wrapper | real-model baseline + stair fixture + mission recovery + stair tuning smoke | 已完成 | `docs/verification/go2w_control_chain_regression.md`、`tools/verify_go2w_control_chain_regression.sh` | 保持 conservative 门禁，不包含 route-following smoke。 |
+| Stable control-chain regression wrapper | real-model baseline + stair fixture + mission recovery + stair tuning smoke + trajectory outlet check | 已完成 | `docs/verification/go2w_control_chain_regression.md`、`tools/verify_go2w_control_chain_regression.sh` | 保持 conservative 门禁，不包含 route-following smoke。 |
 | Opt-in real-model regression wrapper | real-model baseline + route-following + stair fixture | 已完成 | `docs/verification/go2w_real_model_regression.md`、`tools/verify_go2w_real_model_regression.sh` | 比 control-chain wrapper 更 route-state-sensitive，不能替代默认基线。 |
 
 ## 已解决事项
@@ -86,7 +87,7 @@
 ## 未解决事项
 - 生产级 Mission Orchestrator 仍未完成，但 bounded queueing、non-preemptive queued priority scheduling、local assignment policy、operator control service、operator-triggered durable queue replay、bounded terminal task history、workflow policy snapshot 和 workflow event backend 已经落地。
 - 最小 real-model `nav2_route` robot-motion route-tracking gate、mission flat-only route tracking integration 和 mission real-model flat/stair/flat integration gate 已完成；production cross-floor route tracking、真实 stair route operation plugin、真实楼梯动力学和完整 production flat/stair/flat autonomy 仍未完成。
-- 真实楼梯动力学、gait tuning、wheel lock/body-height 的物理控制仍未完成。
+- 真实楼梯动力学、gait tuning、wheel lock/body-height 的物理控制仍未完成；当前只有 phase target diagnostics 和 trajectory command outlet skeleton。
 - 默认仿真基线切换到 real-model 仍未批准。
 - `map_server` / AMCL / `map -> odom` 定位链仍未实现。
 - elevation mapping、traversability、automatic stair detection / connector generation 仍未实现。

@@ -54,12 +54,12 @@ go2w_real_model_baseline_result: PASS
 - The opt-in same-floor route-following verifier is documented separately in
   `docs/verification/go2w_real_model_route_following.md`.
 - `go2w_stair_executor` now reuses the same legged motion profile as its conservative stair-command baseline and clamps stair linear velocity to that profile ceiling. This keeps the control skeleton aligned with the motion-mode baseline, but it is still not a real stair controller.
-- `go2w_stair_executor` now also publishes a 12-joint leg hold command on `/leg_position_controller/commands` while stair ownership is active. This makes the posture outlet explicit, but it is still not a tuned stair gait controller.
+- `go2w_stair_executor` now also publishes a 12-joint phase target on `/leg_position_controller/commands` while stair ownership is active, and exposes the same target as a standard `JointTrajectory` diagnostic on `/go2w/control/stair_leg_trajectory`. This makes the posture/trajectory outlet explicit, but it is still not a tuned stair gait controller.
 - The legged stair baseline velocity now comes from the profile metadata (`default_stair_linear_velocity_mps=0.025`) rather than a hard-coded call-site constant, and the policy unit tests cover both the default and clamp paths.
 
 ## Open Validation Items
 - The real model path has not yet replaced the default placeholder path.
 - The current stand initializer only commands a static startup posture; it is not a gait controller.
 - The wheeled parameters are conservative baseline values and still need broader odometry-scale and controller-tuning validation against the real model.
-- `stair_exec` still does not perform real stair locomotion or leg trajectory control.
+- `stair_exec` still does not perform real stair locomotion or tuned leg trajectory control.
 - No production hardware Unitree SDK2 integration is included in this repository path yet.

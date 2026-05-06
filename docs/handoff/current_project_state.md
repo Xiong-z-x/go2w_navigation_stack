@@ -51,7 +51,8 @@ Gazebo GPU rendering 不是当前验收合同。RViz 可单独使用 WSLg/NVIDIA
   stair executor skeleton；当前 stair executor policy 复用了 legged motion profile、钳制 stair 线速度，在 stair owner 激活时发布 12 关节 leg hold command，并输出
   `prepare -> wheel_lock -> body_height_transition_down -> execute_stairs ->
   body_height_transition_up -> release` 的可诊断阶段状态；当前还暴露了显式 stair tuning
-  覆盖参数、`wheel_lock_required` 诊断和 opt-in execute/body-height phase target，
+  覆盖参数、`wheel_lock_required` 诊断、opt-in execute/body-height phase target
+  和每个 phase 的 12 关节 trajectory command outlet / `JointTrajectory` 诊断面，
   但尚未实现真实楼梯运动控制器。
   当前 real-model baseline 还把 `go2w_stand_initializer` 显式切到 `--motion-mode legged`，
   并把 profile 摘要和 controller-state 轮询写进验收证据，避免再依赖单条 spawner 日志。
@@ -184,6 +185,11 @@ Gazebo GPU rendering 不是当前验收合同。RViz 可单独使用 WSLg/NVIDIA
 - Phase 4E stair phase targets：通过 `tools/verify_phase4e_stair_phase_targets.sh`
   验证 phase plan 的 `wheel_lock_required` 诊断和 opt-in execute/body-height transition
   target；该能力仍不是真实 wheel-lock 或 body-height actuator backend。
+- Phase 4E stair trajectory outlet：通过 `tools/verify_phase4e_stair_trajectory_outlet.sh`
+  验证 `prepare,wheel_lock,body_height_transition_down,execute_stairs,
+  body_height_transition_up,release` 均生成 12 关节目标，并暴露标准
+  `trajectory_msgs/msg/JointTrajectory` 诊断/未来对接口；该能力仍不是真实 gait tuning、
+  hardware wheel-lock、body-height actuator 或物理楼梯动力学。
 - Go2W control-chain regression wrapper：通过
   `tools/verify_go2w_control_chain_regression.sh` 串联 real-model baseline、
   Phase 4E stair fixture、mission recovery 和 stair tuning smoke test；该 wrapper
@@ -211,7 +217,7 @@ Gazebo GPU rendering 不是当前验收合同。RViz 可单独使用 WSLg/NVIDIA
   flat/stair/flat integration 现在都有 dedicated hardening 证据，但不要把它们当作
   production cross-floor route tracking、真实 stair route operation plugin、真实楼梯
   动力学或完整 production Mission Orchestrator。
-- 未实现真实楼梯运动控制器和控制参数调优；当前 Phase 4E 只把 wheel lock、body height transition、leg hold、phase target diagnostics 和 release 做成可观察阶段骨架。
+- 未实现真实楼梯运动控制器和控制参数调优；当前 Phase 4E 只把 wheel lock、body height transition、leg hold、phase target diagnostics、trajectory outlet diagnostics 和 release 做成可观察阶段骨架。
 - 未实现真实跨楼层自主行为。
 - 未实现 `map_server` / AMCL / `map -> odom` 定位链。
 - 未实现 elevation mapping / traversability / automatic stair detection。

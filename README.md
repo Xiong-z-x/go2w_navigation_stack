@@ -28,6 +28,7 @@ simulation-first 路线推进。
 - `docs/verification/phase4e_mission_recovery.md`
 - `docs/verification/phase4e_stair_tuning_overrides.md`
 - `docs/verification/phase4e_stair_phase_targets.md`
+- `docs/verification/phase4e_stair_trajectory_outlet.md`
 - `docs/verification/mission_api_scheduling_policy.md`
 - `docs/verification/mission_api_priority_scheduling.md`
 - `docs/verification/mission_api_assignment_policy.md`
@@ -229,6 +230,10 @@ ros2 launch go2w_sim sim_go2w_real.launch.py use_gpu:=false headless:=true launc
 - stair phase target focused gate 现在验证 `wheel_lock_required` 诊断和 opt-in
   execute/body-height transition target，但仍不是真实 wheel-lock 或 body-height
   actuator backend
+- stair trajectory outlet focused gate 现在验证每个 stair phase 的 12 关节目标、
+  现有 `/leg_position_controller/commands` position-command outlet 和标准
+  `/go2w/control/stair_leg_trajectory` `JointTrajectory` 诊断面，但仍不是 tuned gait
+  或真实楼梯动力学
 
 同层 real-model route-following verifier 可重复验证短 `NavigateToPose` 目标：
 
@@ -296,7 +301,8 @@ operation plugin、真实楼梯动力学、production cross-floor route tracking
 ```
 
 该 wrapper 只串联 real-model baseline、Phase 4E stair fixture、mission
-recovery 和 stair tuning smoke test，不包含同层 route-following smoke。
+recovery、stair tuning smoke test 和 focused stair trajectory outlet check，
+不包含同层 route-following smoke。
 
 Phase 4E real-model stair fixture 可重复验证 `/stair_exec` Action 闭环、command
 gate `flat/wheeled -> stair/legged -> flat/wheeled`、阶段化 stair executor 状态和
@@ -331,6 +337,15 @@ stair phase target focused gate 可重复验证 phase plan 诊断：
 ```bash
 ./tools/verify_phase4e_stair_phase_targets.sh
 ```
+
+stair trajectory outlet focused gate 可重复验证 phase-level 12 关节目标：
+
+```bash
+./tools/verify_phase4e_stair_trajectory_outlet.sh
+```
+
+该 gate 不切换 real-model controller baseline，也不证明硬件 wheel-lock、
+body-height actuator 或真实 stair gait。
 
 如需在已启动仿真后检查 Phase 1 topic / TF 验收项：
 
