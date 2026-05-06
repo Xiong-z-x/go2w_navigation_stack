@@ -80,6 +80,25 @@
   `/tmp/go2w_mission_real_flat_stair_flat_48188`。它仍不是真实楼梯动力学、
   真实 stair route operation plugin、production cross-floor route tracking 或完整
   production Mission Orchestrator。
+- 2026-05-06：Phase 3A same-floor Nav2 verifier 已完成 hardening。`tools/verify_phase3a_nav2_same_floor.sh`
+  现在会按进程组清理 stale sim/perception/FAST-LIO/Nav2，先用
+  `ComputePathToPose` 选择 heading-relative 的首个可达短目标，再执行
+  `NavigateToPose`，并允许通过 `GO2W_PHASE3A_NAV2_PARAMS_FILE` 覆盖 Nav2 参数。
+  同时 `go2w_navigation/config/phase3a_nav2_same_floor.yaml` 的
+  `xy_goal_tolerance` 调整到 `0.08`，fresh PASS 证据目录为
+  `/tmp/go2w_phase3a_nav2_same_floor_66601`。这仍然只是同层 Nav2 闭环 hardening，
+  不是 `map -> odom` 定位链、`nav2_route` 生产路由或跨楼层自主。
+- 2026-05-06：Go2W real-model single-floor hospital gate 已完成。新增
+  `tools/verify_go2w_real_model_single_floor_hospital.sh`，默认启动
+  `sim_go2w_real.launch.py`、Phase 3C hospital world、FAST-LIO、real-model Nav2
+  和 `phase5_real_model_nav2_same_floor.yaml`，并通过最小规划路径长度门避免把
+  “规划成功但几乎不动”的超短目标误判成有效闭环。fresh PASS 证据目录为
+  `/tmp/go2w_real_model_single_floor_hospital_72042`。它证明 official Go2W-derived
+  real model 可在更正常的医院场景里完成 same-floor planning/control chain，但仍不是
+  `map -> odom`、production `nav2_route` 或跨楼层自主。
+- 2026-05-06：新增 `docs/handoff/restart_lessons_for_next_model.md`。该文件不新增
+  任何能力结论，只把本项目最容易误判的阶段边界、历史失败模式、谨慎模块、接手首检命令和
+  “最不该直接假设”的内容集中写给下一个新对话模型。
 - 2026-05-04：迁移前二次封板审计确认实际项目 Git 仓库根是
   `/home/xiongzx/go2w_ws/src/go2w_navigation_stack`。外层
   `/home/xiongzx/go2w_ws` 是工作区，不应用其 `git status` / `git log` 判断项目状态。
@@ -152,6 +171,9 @@
 - Phase 2：FAST-LIO 输入输出、perception-owned `odom -> base_link`、perception stability、
   Nav2 costmap consumer gate。
 - Phase 3A：最小同层 Nav2 planner/controller/BT 导航闭环。
+- Phase 3A hardening：same-floor verifier 现已具备 stale-process cleanup、
+  first-reachable heading-relative goal probing、`params_file` 覆盖入口和更稳的
+  `xy_goal_tolerance: 0.08`。
 - Phase 3B：最小 `nav2_route` / 手工 route graph baseline。
 - Phase 3C：FAST-LIO repo-local external cache、多楼层 route graph/map metadata、hospital world asset。
 - Phase 4A：最小 staircase connector detection、dedicated `/stair_exec` Action、控制权互斥和诊断。

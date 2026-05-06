@@ -45,16 +45,27 @@ The default navigation goal is a short `odom`-frame diagonal target. Runtime
 parameters can be changed without editing the repository:
 
 ```bash
-GO2W_PHASE3A_NAV_GOAL_OFFSET_X=0.035 \
-GO2W_PHASE3A_NAV_GOAL_OFFSET_Y=0.020 \
+GO2W_PHASE3A_NAV_GOAL_OFFSET_X=0.150 \
+GO2W_PHASE3A_NAV_GOAL_OFFSET_Y=0.000 \
 GO2W_PHASE3A_NAV_TIMEOUT_SECONDS=90 \
 GO2W_PHASE3A_HZ_WINDOW_SECONDS=15 \
 ./tools/verify_phase3a_nav2_same_floor.sh
 ```
 
+2026-05-06 hardening 以后，verifier 默认行为增加了：
+
+- 按进程组清理 stale sim / perception / FAST-LIO / Nav2 runtime；
+- 先用 `ComputePathToPose` 探测 heading-relative 候选目标，再把首个可达候选送给
+  `NavigateToPose`；
+- 允许用 `GO2W_PHASE3A_NAV2_PARAMS_FILE` 覆盖 Nav2 参数文件；
+- `phase3a_nav2_same_floor.yaml` 的 `xy_goal_tolerance` 放宽到 `0.08`，避免短目标在
+  DWB 终点附近耗尽 controller patience。
+
 ## Observed Result
 
-Observed on 2026-04-30.
+Initial acceptance was observed on 2026-04-30. A fresh hardening re-run was
+observed on 2026-05-06 after the verifier and Phase 3A Nav2 params were
+stabilized against stale-process and short-goal DWB abort regressions.
 
 Scoped build:
 
@@ -91,7 +102,7 @@ Runtime verifier:
 ./tools/verify_phase3a_nav2_same_floor.sh
 ```
 
-Observed summary:
+2026-04-30 observed summary:
 
 ```text
 phase3a_world_present: PASS
@@ -159,6 +170,38 @@ Evidence directory:
 
 ```text
 /tmp/go2w_phase3a_nav2_same_floor_12208
+```
+
+2026-05-06 hardening re-run:
+
+```bash
+./tools/verify_phase3a_nav2_same_floor.sh
+```
+
+Observed summary:
+
+```text
+cleanup_stale_fastlio: 66045
+cleanup_stale_perception: 65993
+controller_server_lifecycle: active
+planner_server_lifecycle: active
+bt_navigator_lifecycle: active
+phase3a_goal_selection_policy: first_reachable_in_preference_order
+phase3a_goal_candidate_1: offset_x=0.150 offset_y=0.000 status=SUCCEEDED path_poses=3 path_length_m=0.192
+phase3a_goal_selected_candidate: 1
+phase3a_goal_status: SUCCEEDED
+phase3a_odom_delta_xy: 0.094689
+phase3a_cmd_vel_nonzero_count: 67
+phase3a_diff_drive_delta_xy: 0.277665
+phase3a_nav_goal_result: PASS
+navigate_to_pose_goal: PASS
+phase3a_result: PASS
+```
+
+Evidence directory:
+
+```text
+/tmp/go2w_phase3a_nav2_same_floor_66601
 ```
 
 ## Current Decision

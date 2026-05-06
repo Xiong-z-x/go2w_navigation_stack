@@ -1,0 +1,32 @@
+laser_mapping:
+  ros__parameters:
+    use_sim_time: true
+    common.lid_topic: /fastlio/input/lidar_points
+    common.imu_topic: /imu
+    common.time_sync_en: false
+    common.time_offset_lidar_to_imu: 0.0
+    preprocess.lidar_type: 2
+    preprocess.scan_line: 16
+    preprocess.scan_rate: 10
+    preprocess.timestamp_unit: 2
+    preprocess.blind: 0.1
+    preprocess.point_filter_num: 1
+    preprocess.feature_extract_enable: false
+    mapping.acc_cov: 0.1
+    mapping.gyr_cov: 0.1
+    mapping.b_acc_cov: 0.0001
+    mapping.b_gyr_cov: 0.0001
+    mapping.fov_degree: 180.0
+    mapping.det_range: 100.0
+    mapping.extrinsic_est_en: true
+    mapping.extrinsic_T: [0.0, 0.0, 0.0]
+    mapping.extrinsic_R: [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
+    publish.path_en: true
+    publish.scan_publish_en: true
+    publish.dense_publish_en: true
+    publish.scan_bodyframe_pub_en: true
+    publish.map_en: true
+    publish.effect_map_en: false
+    publish.tf_publish_en: false
+    pcd_save.pcd_save_en: false
+    pcd_save.interval: -1

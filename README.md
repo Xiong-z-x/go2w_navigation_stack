@@ -16,6 +16,7 @@ simulation-first 路线推进。
 
 - `docs/handoff/README.md`
 - `docs/handoff/pre_migration_final_freeze_report.md`
+- `docs/handoff/restart_lessons_for_next_model.md`
 - `docs/handoff/project_state_audit.md`
 - `docs/verification/phase4d_route_tracking_feedback.md`
 - `docs/verification/phase5a_live_route_tracking.md`
@@ -71,6 +72,9 @@ simulation-first 路线推进。
 - Go2W real model / motion-mode baseline：真实 Go2W 模型、四足轮式 controller profile、
   wheeled/legged mode state、显式 `legged` startup profile 日志和启动站立初始化已作为 opt-in 路径完成验证；同层
   real-model route-following verifier 也已通过短 `NavigateToPose` 目标验证；real-model
+  single-floor hospital verifier 也已通过 official Go2W-derived real model +
+  Phase 3C hospital world 的单层闭环验证；
+  real-model
   `nav2_route` robot-motion route-tracking verifier 也已通过短 odom route graph +
   `ComputeAndTrackRoute` feedback + `NavigateToPose` 真实运动验证；Mission runtime
   flat-only gate 现在也可 opt-in 观察 `ComputeAndTrackRoute` feedback；Mission runtime
@@ -246,6 +250,16 @@ ros2 launch go2w_sim sim_go2w_real.launch.py use_gpu:=false headless:=true launc
 目标到达，不是 production route tracking，也不是楼梯动力学。2026-05-02
 dedicated hardening 已修复 DWB abort 路径并取得 3 次 clean-domain 连续 PASS；
 它现在是 opt-in regression 候选，但尚未自动纳入稳定 control-chain wrapper。
+
+如需在更正常的医院场景里验证单层闭环，可直接运行：
+
+```bash
+./tools/verify_go2w_real_model_single_floor_hospital.sh
+```
+
+该 wrapper 默认使用 official Go2W-derived real model、`phase3c_hospital_multifloor_world.sdf`、
+FAST-LIO `laser_map` 合同、same-floor Nav2 motion chain，以及最小规划路径长度门，
+避免“规划成功但几乎不动”的超短目标误判。它仍不是 `map -> odom` 或跨楼层自主。
 
 real-model `nav2_route` robot-motion route-tracking verifier 可重复验证真实运动驱动
 route feedback：
@@ -570,10 +584,23 @@ Phase 3A 已新增最小同层 Nav2 导航闭环：
 - 不发布临时 `map -> odom`
 - 不启动 `nav2_route`、route graph、mission、楼梯、多楼层、elevation 或
   traversability 节点
+- 2026-05-06 hardening：`tools/verify_phase3a_nav2_same_floor.sh` 现在会先清理 stale
+  sim/perception/FAST-LIO/Nav2 进程，再用 `ComputePathToPose` 选择 heading-relative
+  的首个可达短目标；`go2w_navigation/config/phase3a_nav2_same_floor.yaml` 的
+  `xy_goal_tolerance` 也已收口到 `0.08`
 
 验证命令：
 
 ```bash
+./tools/verify_phase3a_nav2_same_floor.sh
+```
+
+可选覆盖：
+
+```bash
+GO2W_PHASE3A_NAV_GOAL_OFFSET_X=0.150 \
+GO2W_PHASE3A_NAV_GOAL_OFFSET_Y=0.000 \
+GO2W_PHASE3A_NAV2_PARAMS_FILE=$PWD/go2w_navigation/config/phase3a_nav2_same_floor.yaml \
 ./tools/verify_phase3a_nav2_same_floor.sh
 ```
 

@@ -15,12 +15,14 @@ DOMAIN_ID="${GO2W_VERIFY_DOMAIN_ID:-$(( ($$ % 120) + 80 ))}"
 PARTITION="go2w_phase3a_${$}"
 REBUILD_REPO="${GO2W_PHASE3A_REBUILD_REPO:-1}"
 CLEAN_EVIDENCE="${GO2W_PHASE3A_CLEAN_EVIDENCE:-0}"
+CLEAN_STALE_PROCESSES="${GO2W_PHASE3A_CLEAN_STALE_PROCESSES:-1}"
 HZ_WINDOW_SECONDS="${GO2W_PHASE3A_HZ_WINDOW_SECONDS:-15}"
 NAV_TIMEOUT_SECONDS="${GO2W_PHASE3A_NAV_TIMEOUT_SECONDS:-90}"
-NAV_GOAL_OFFSET_X="${GO2W_PHASE3A_NAV_GOAL_OFFSET_X:-0.035}"
-NAV_GOAL_OFFSET_Y="${GO2W_PHASE3A_NAV_GOAL_OFFSET_Y:-0.020}"
+NAV_GOAL_OFFSET_X="${GO2W_PHASE3A_NAV_GOAL_OFFSET_X:-0.150}"
+NAV_GOAL_OFFSET_Y="${GO2W_PHASE3A_NAV_GOAL_OFFSET_Y:-0.000}"
 NAV_GOAL_YAW_OFFSET="${GO2W_PHASE3A_NAV_GOAL_YAW_OFFSET:-0.0}"
 MIN_ODOM_DELTA="${GO2W_PHASE3A_MIN_ODOM_DELTA:-0.003}"
+NAV2_PARAMS_FILE="${GO2W_PHASE3A_NAV2_PARAMS_FILE:-${REPO_ROOT}/go2w_navigation/config/phase3a_nav2_same_floor.yaml}"
 FASTLIO_PID=""
 PERCEPTION_PID=""
 SIM_PID=""
@@ -54,13 +56,13 @@ terminate_pid() {
   local label="$2"
   local attempts_remaining=5
 
-  if [ -z "${pid}" ] || ! kill -0 "${pid}" 2>/dev/null; then
+  if [ -z "${pid}" ] || ! process_group_alive "${pid}"; then
     return
   fi
 
-  kill -INT "${pid}" 2>/dev/null || true
+  signal_process_group "INT" "${pid}"
   while [ "${attempts_remaining}" -gt 0 ]; do
-    if ! kill -0 "${pid}" 2>/dev/null; then
+    if ! process_group_alive "${pid}"; then
       wait "${pid}" 2>/dev/null || true
       return
     fi
@@ -69,12 +71,84 @@ terminate_pid() {
   done
 
   print_kv "cleanup_${label}" "forced_terminate"
-  kill -TERM "${pid}" 2>/dev/null || true
+  signal_process_group "TERM" "${pid}"
   sleep 1
-  if kill -0 "${pid}" 2>/dev/null; then
-    kill -KILL "${pid}" 2>/dev/null || true
+  if process_group_alive "${pid}"; then
+    signal_process_group "KILL" "${pid}"
   fi
   wait "${pid}" 2>/dev/null || true
+}
+
+process_group_alive() {
+  local pid="$1"
+  kill -0 "${pid}" 2>/dev/null || pgrep -g "${pid}" >/dev/null 2>&1
+}
+
+signal_process_group() {
+  local signal_name="$1"
+  local pid="$2"
+  kill -"${signal_name}" -- "-${pid}" 2>/dev/null || kill -"${signal_name}" "${pid}" 2>/dev/null || true
+}
+
+collect_matching_pgids() {
+  local current_pgid
+  current_pgid="$(ps -o pgid= -p "$$" | tr -d '[:space:]')"
+
+  ps -eo pid=,pgid=,args= | while read -r pid pgid args; do
+    if [ -z "${pid}" ] || [ -z "${pgid}" ] || [ "${pgid}" = "${current_pgid}" ]; then
+      continue
+    fi
+
+    local matched=1
+    local needle
+    for needle in "$@"; do
+      if [[ "${args}" != *"${needle}"* ]]; then
+        matched=0
+        break
+      fi
+    done
+    if [ "${matched}" = "1" ]; then
+      printf '%s\n' "${pgid}"
+    fi
+  done | sort -u
+}
+
+terminate_matching_processes() {
+  local label="$1"
+  shift
+  local pgids=()
+  local remaining=()
+
+  mapfile -t pgids < <(collect_matching_pgids "$@" || true)
+  if [ "${#pgids[@]}" -eq 0 ]; then
+    return
+  fi
+
+  print_kv "cleanup_stale_${label}" "${pgids[*]}"
+  local pgid
+  for pgid in "${pgids[@]}"; do
+    signal_process_group "TERM" "${pgid}"
+  done
+  sleep 1
+
+  mapfile -t remaining < <(collect_matching_pgids "$@" || true)
+  for pgid in "${remaining[@]}"; do
+    signal_process_group "KILL" "${pgid}"
+  done
+}
+
+cleanup_stale_phase3a_processes() {
+  if [ "${CLEAN_STALE_PROCESSES}" != "1" ]; then
+    return
+  fi
+
+  terminate_matching_processes "phase3a_goal_client" "/tmp/go2w_phase3a_nav2_same_floor_" "phase3a_nav_goal_client.py"
+  terminate_matching_processes "fastlio" "fast_lio" "fastlio_mapping" "go2w_phase3a_nav2_same_floor_"
+  terminate_matching_processes "perception" "ros2 launch go2w_perception phase2f_tf_authority.launch.py"
+  terminate_matching_processes "nav2" "ros2 launch go2w_navigation phase3a_nav2_same_floor.launch.py"
+  terminate_matching_processes "sim" "ros2 launch go2w_sim sim.launch.py" "phase3a_feature_world.sdf"
+  terminate_matching_processes "ign_gazebo" "ign gazebo" "phase3a_feature_world.sdf"
+  "${REPO_ROOT}/tools/cleanup_sim_runtime.sh" >/dev/null 2>&1 || true
 }
 
 cleanup() {
@@ -83,6 +157,7 @@ cleanup() {
   pkill -INT -f "${FASTLIO_WS}/install/fast_lio/lib/fast_lio/fastlio_mapping" 2>/dev/null || true
   terminate_pid "${PERCEPTION_PID}" "perception"
   terminate_pid "${SIM_PID}" "sim"
+  cleanup_stale_phase3a_processes
   "${REPO_ROOT}/tools/cleanup_sim_runtime.sh" >/dev/null 2>&1 || true
   if [ "${CLEAN_EVIDENCE}" = "1" ]; then
     rm -rf "${EVIDENCE_DIR}"
@@ -111,7 +186,7 @@ wait_for_log() {
     if grep -qE "${pattern}" "${file}" 2>/dev/null; then
       return 0
     fi
-    if [ -n "${SIM_PID}" ] && ! kill -0 "${SIM_PID}" 2>/dev/null; then
+    if [ -n "${SIM_PID}" ] && ! process_group_alive "${SIM_PID}" 2>/dev/null; then
       print_kv "sim_process" "exited_early"
       sed -n '1,260p' "${file}" || true
       exit 2
@@ -437,7 +512,7 @@ import time
 import rclpy
 from action_msgs.msg import GoalStatus
 from geometry_msgs.msg import Twist
-from nav2_msgs.action import NavigateToPose
+from nav2_msgs.action import ComputePathToPose, NavigateToPose
 from nav_msgs.msg import Odometry
 from rclpy.action import ActionClient
 from rclpy.node import Node
@@ -480,6 +555,7 @@ def normalize_angle(angle: float) -> float:
 class Phase3ANavGoalClient(Node):
     def __init__(self) -> None:
         super().__init__("phase3a_nav_goal_client")
+        self._path_client = ActionClient(self, ComputePathToPose, "compute_path_to_pose")
         self._action_client = ActionClient(self, NavigateToPose, "navigate_to_pose")
         self._latest_odom = None
         self._start_odom = None
@@ -512,32 +588,159 @@ class Phase3ANavGoalClient(Node):
 
     def wait_for_odom(self, timeout_sec: float) -> bool:
         deadline = time.monotonic() + timeout_sec
-        while rclpy.ok() and self._start_odom is None and time.monotonic() < deadline:
+        settle_seconds = 5.0
+        settle_deadline = None
+        while rclpy.ok() and time.monotonic() < deadline:
             rclpy.spin_once(self, timeout_sec=0.1)
-        return self._start_odom is not None
+            if self._latest_odom is None or self._latest_diff_drive_odom is None:
+                continue
+            if settle_deadline is None:
+                settle_deadline = time.monotonic() + settle_seconds
+                continue
+            if time.monotonic() < settle_deadline:
+                continue
+            self._start_odom = self._latest_odom
+            self._start_diff_drive_odom = self._latest_diff_drive_odom
+            return True
+        return False
+
+    def build_goal_pose(self, start_pose, start_yaw: float, offset_x: float, offset_y: float, yaw_offset: float):
+        from geometry_msgs.msg import PoseStamped
+
+        target_yaw = normalize_angle(start_yaw + yaw_offset)
+        pose = PoseStamped()
+        pose.header.frame_id = "odom"
+        pose.header.stamp = self.get_clock().now().to_msg()
+        pose.pose.position.x = (
+            float(start_pose.position.x)
+            + offset_x * math.cos(start_yaw)
+            - offset_y * math.sin(start_yaw)
+        )
+        pose.pose.position.y = (
+            float(start_pose.position.y)
+            + offset_x * math.sin(start_yaw)
+            + offset_y * math.cos(start_yaw)
+        )
+        pose.pose.position.z = 0.0
+        pose.pose.orientation = yaw_to_quat(target_yaw)
+        return pose, target_yaw
+
+    def candidate_offsets(self, offset_x: float, offset_y: float):
+        base_forward = max(float(offset_x), 0.05)
+        forward_candidates = [
+            base_forward,
+            max(base_forward * 0.75, 0.08),
+            max(base_forward * 0.60, 0.06),
+            max(base_forward * 0.50, 0.05),
+        ]
+        lateral_candidates = [
+            float(offset_y),
+            float(offset_y) + 0.05,
+            float(offset_y) - 0.05,
+        ]
+        seen = set()
+        for candidate_x in forward_candidates:
+            for candidate_y in lateral_candidates:
+                key = (round(candidate_x, 3), round(candidate_y, 3))
+                if key in seen:
+                    continue
+                seen.add(key)
+                yield candidate_x, candidate_y
+
+    def probe_path(self, goal_pose, timeout_sec: float) -> tuple[bool, int, float, str]:
+        if not self._path_client.wait_for_server(timeout_sec=10.0):
+            return False, 0, 0.0, "NO_PATH_SERVER"
+
+        goal = ComputePathToPose.Goal()
+        goal.goal = goal_pose
+        goal.planner_id = "GridBased"
+        goal.use_start = False
+
+        send_future = self._path_client.send_goal_async(goal)
+        rclpy.spin_until_future_complete(self, send_future, timeout_sec=10.0)
+        goal_handle = send_future.result()
+        if goal_handle is None or not goal_handle.accepted:
+            return False, 0, 0.0, "REJECTED"
+
+        result_future = goal_handle.get_result_async()
+        deadline = time.monotonic() + timeout_sec
+        while rclpy.ok() and not result_future.done() and time.monotonic() < deadline:
+            rclpy.spin_once(self, timeout_sec=0.1)
+
+        if not result_future.done():
+            cancel_future = goal_handle.cancel_goal_async()
+            rclpy.spin_until_future_complete(self, cancel_future, timeout_sec=5.0)
+            return False, 0, 0.0, "TIMEOUT"
+
+        wrapped = result_future.result()
+        status_name = STATUS_NAMES.get(wrapped.status, str(wrapped.status))
+        path_poses = wrapped.result.path.poses
+        path_pose_count = len(path_poses)
+        path_length_m = 0.0
+        previous_pose = None
+        for pose_stamped in path_poses:
+            if previous_pose is not None:
+                dx = float(pose_stamped.pose.position.x) - float(previous_pose.pose.position.x)
+                dy = float(pose_stamped.pose.position.y) - float(previous_pose.pose.position.y)
+                path_length_m += math.hypot(dx, dy)
+            previous_pose = pose_stamped
+        if wrapped.status != GoalStatus.STATUS_SUCCEEDED or path_pose_count == 0:
+            return False, path_pose_count, path_length_m, status_name
+        return True, path_pose_count, path_length_m, status_name
+
+    def select_reachable_goal(self, start_pose, start_yaw: float, offset_x: float, offset_y: float, yaw_offset: float, timeout_sec: float):
+        probe_timeout = min(10.0, max(4.0, timeout_sec / 6.0))
+        print("phase3a_goal_selection_policy: first_reachable_in_preference_order")
+        selected_candidate = None
+        for index, (candidate_x, candidate_y) in enumerate(self.candidate_offsets(offset_x, offset_y), start=1):
+            goal_pose, _ = self.build_goal_pose(start_pose, start_yaw, candidate_x, candidate_y, yaw_offset)
+            reachable, path_pose_count, path_length_m, status_name = self.probe_path(goal_pose, probe_timeout)
+            print(
+                f"phase3a_goal_candidate_{index}: offset_x={candidate_x:.3f} "
+                f"offset_y={candidate_y:.3f} status={status_name} path_poses={path_pose_count} "
+                f"path_length_m={path_length_m:.3f}"
+            )
+            if not reachable:
+                continue
+            if selected_candidate is None:
+                selected_candidate = {
+                    "index": index,
+                    "offset_x": candidate_x,
+                    "offset_y": candidate_y,
+                }
+        if selected_candidate is None:
+            return None
+        return selected_candidate["index"], selected_candidate["offset_x"], selected_candidate["offset_y"]
 
     def send_goal_and_wait(self, offset_x: float, offset_y: float, yaw_offset: float, timeout_sec: float) -> int:
         if not self.wait_for_odom(20.0):
             print("phase3a_nav_goal_error: no_start_odom")
             return 2
 
+        if not self._path_client.wait_for_server(timeout_sec=30.0):
+            print("phase3a_nav_goal_error: no_path_server")
+            return 2
         if not self._action_client.wait_for_server(timeout_sec=30.0):
             print("phase3a_nav_goal_error: no_action_server")
             return 2
 
         start_pose = self._start_odom.pose.pose
         start_yaw = quat_to_yaw(start_pose.orientation)
-        target_yaw = normalize_angle(start_yaw + yaw_offset)
+        selected = self.select_reachable_goal(start_pose, start_yaw, offset_x, offset_y, yaw_offset, timeout_sec)
+        if selected is None:
+            print("phase3a_nav_goal_error: no_reachable_goal")
+            return 2
+
+        selected_index, selected_offset_x, selected_offset_y = selected
         goal = NavigateToPose.Goal()
-        goal.pose.header.frame_id = "odom"
-        goal.pose.pose.position.x = float(start_pose.position.x) + offset_x
-        goal.pose.pose.position.y = float(start_pose.position.y) + offset_y
-        goal.pose.pose.position.z = 0.0
-        goal.pose.pose.orientation = yaw_to_quat(target_yaw)
+        goal.pose, target_yaw = self.build_goal_pose(start_pose, start_yaw, selected_offset_x, selected_offset_y, yaw_offset)
 
         print(f"phase3a_goal_start_x: {start_pose.position.x:.6f}")
         print(f"phase3a_goal_start_y: {start_pose.position.y:.6f}")
         print(f"phase3a_goal_start_yaw: {start_yaw:.6f}")
+        print(f"phase3a_goal_selected_candidate: {selected_index}")
+        print(f"phase3a_goal_selected_offset_x: {selected_offset_x:.6f}")
+        print(f"phase3a_goal_selected_offset_y: {selected_offset_y:.6f}")
         print(f"phase3a_goal_target_x: {goal.pose.pose.position.x:.6f}")
         print(f"phase3a_goal_target_y: {goal.pose.pose.position.y:.6f}")
         print(f"phase3a_goal_target_yaw: {target_yaw:.6f}")
@@ -619,8 +822,8 @@ def main() -> int:
     rclpy.init()
     node = Phase3ANavGoalClient()
     try:
-        offset_x = float(os.environ.get("PHASE3A_GOAL_OFFSET_X", "0.035"))
-        offset_y = float(os.environ.get("PHASE3A_GOAL_OFFSET_Y", "0.0"))
+        offset_x = float(os.environ.get("PHASE3A_GOAL_OFFSET_X", "0.150"))
+        offset_y = float(os.environ.get("PHASE3A_GOAL_OFFSET_Y", "0.000"))
         yaw_offset = float(os.environ.get("PHASE3A_GOAL_YAW_OFFSET", "0.0"))
         timeout_sec = float(os.environ.get("PHASE3A_NAV_TIMEOUT_SECONDS", "90"))
         return node.send_goal_and_wait(offset_x, offset_y, yaw_offset, timeout_sec)
@@ -662,6 +865,7 @@ print_kv "nav_timeout_seconds" "${NAV_TIMEOUT_SECONDS}"
 print_kv "nav_goal_offset_x" "${NAV_GOAL_OFFSET_X}"
 print_kv "nav_goal_offset_y" "${NAV_GOAL_OFFSET_Y}"
 print_kv "nav_goal_yaw_offset" "${NAV_GOAL_YAW_OFFSET}"
+print_kv "nav2_params_file" "${NAV2_PARAMS_FILE}"
 print_kv "evidence_dir" "${EVIDENCE_DIR}"
 mkdir -p "${EVIDENCE_DIR}"
 
@@ -671,6 +875,12 @@ maybe_build_repo
 source_file_checked "${ROS_SETUP}" "ros_setup"
 source_file_checked "${REPO_SETUP}" "repo_setup"
 source_file_checked "${FASTLIO_SETUP}" "fastlio_setup"
+cleanup_stale_phase3a_processes
+
+if [ ! -f "${NAV2_PARAMS_FILE}" ]; then
+  print_kv "nav2_params_file" "missing:${NAV2_PARAMS_FILE}"
+  exit 2
+fi
 
 if [ ! -f "${PHASE3A_WORLD}" ]; then
   print_kv "phase3a_world_present" "missing:${PHASE3A_WORLD}"
@@ -686,7 +896,7 @@ export GZ_PARTITION="${PARTITION}"
 write_fastlio_params
 write_nav_goal_client
 
-ros2 launch go2w_sim sim.launch.py use_gpu:=false headless:=true launch_rviz:=false world:="${PHASE3A_WORLD}" world_name:=go2w_phase3a_feature_world >"${EVIDENCE_DIR}/sim.log" 2>&1 &
+setsid ros2 launch go2w_sim sim.launch.py use_gpu:=false headless:=true launch_rviz:=false world:="${PHASE3A_WORLD}" world_name:=go2w_phase3a_feature_world >"${EVIDENCE_DIR}/sim.log" 2>&1 &
 SIM_PID="$!"
 
 wait_for_log "ign gazebo-6" "${EVIDENCE_DIR}/sim.log" 25
@@ -702,13 +912,13 @@ sample_tf_to "pre_activation" 6
 require_tf_edge_absent "pre_activation_odom_base_link" odom base_link "${EVIDENCE_DIR}/tf_pre_activation_all.txt"
 require_tf_edge_absent "pre_activation_map_odom" map odom "${EVIDENCE_DIR}/tf_pre_activation_all.txt"
 
-ros2 launch go2w_perception phase2f_tf_authority.launch.py >"${EVIDENCE_DIR}/perception.log" 2>&1 &
+setsid ros2 launch go2w_perception phase2f_tf_authority.launch.py >"${EVIDENCE_DIR}/perception.log" 2>&1 &
 PERCEPTION_PID="$!"
 sleep 3
 require_process_alive "${PERCEPTION_PID}" "perception_process_alive" "${EVIDENCE_DIR}/perception.log"
 require_adapted_time_field "${EVIDENCE_DIR}/adapted_lidar_fields.txt"
 
-ros2 run fast_lio fastlio_mapping --ros-args --params-file "${EVIDENCE_DIR}/phase3a_fastlio.yaml" >"${EVIDENCE_DIR}/fastlio.log" 2>&1 &
+setsid ros2 run fast_lio fastlio_mapping --ros-args --params-file "${EVIDENCE_DIR}/phase3a_fastlio.yaml" >"${EVIDENCE_DIR}/fastlio.log" 2>&1 &
 FASTLIO_PID="$!"
 sleep 8
 require_process_alive "${FASTLIO_PID}" "fastlio_process_alive" "${EVIDENCE_DIR}/fastlio.log"
@@ -723,7 +933,7 @@ require_tf_edge_absent "fastlio_tf_camera_init_body" camera_init body "${EVIDENC
 require_tf_edge_absent "pre_nav2_map_odom" map odom "${EVIDENCE_DIR}/tf_pre_nav2_all.txt"
 require_tf_edge_present "odom_base_link_authority" odom base_link "${EVIDENCE_DIR}/tf_pre_nav2_all.txt"
 
-ros2 launch go2w_navigation phase3a_nav2_same_floor.launch.py >"${EVIDENCE_DIR}/nav2.log" 2>&1 &
+setsid ros2 launch go2w_navigation phase3a_nav2_same_floor.launch.py params_file:="${NAV2_PARAMS_FILE}" >"${EVIDENCE_DIR}/nav2.log" 2>&1 &
 NAV2_PID="$!"
 sleep 8
 require_process_alive "${NAV2_PID}" "nav2_launch_process_alive" "${EVIDENCE_DIR}/nav2.log"

@@ -21,7 +21,7 @@ simulation-first 的自主导航栈，最终实现：
   hardening 状态、workflow policy / backend 和实际 repo root 接手风险。
 - 2026-05-04 迁移前二次封板期间，`tools/verify_phase4_runtime_acceptance.sh` 与
   `tools/verify_go2w_control_chain_regression.sh` 又各自串行复验 PASS。
-- 当前状态：Phase 3A、Phase 3B、Phase 3C、Phase 4 迁移前封板、Phase 4A、Phase 4B-min、Phase 4C-min、Phase 4D-min、Phase 4 总体验收、Phase 5A live route tracking observation gate、opt-in Go2W real model / motion-mode baseline、opt-in real-model same-floor route-following verifier、opt-in real-model `nav2_route` robot-motion route-tracking verifier、mission-runtime real-model flat execution + opt-in route-tracking observation gate、mission-runtime real-model flat/stair/flat integration gate、Mission API scheduling / priority scheduling / assignment policy / operator control / queue replay / task history / workflow policy / workflow backend、Phase 4E real-model stair fixture、Phase 4E mission recovery、稳定 control-chain regression wrapper 和 opt-in real-model regression wrapper 均已有仓库内验收证据。
+- 当前状态：Phase 3A、Phase 3B、Phase 3C、Phase 4 迁移前封板、Phase 4A、Phase 4B-min、Phase 4C-min、Phase 4D-min、Phase 4 总体验收、Phase 5A live route tracking observation gate、opt-in Go2W real model / motion-mode baseline、opt-in real-model same-floor route-following verifier、opt-in real-model single-floor hospital verifier、opt-in real-model `nav2_route` robot-motion route-tracking verifier、mission-runtime real-model flat execution + opt-in route-tracking observation gate、mission-runtime real-model flat/stair/flat integration gate、Mission API scheduling / priority scheduling / assignment policy / operator control / queue replay / task history / workflow policy / workflow backend、Phase 4E real-model stair fixture、Phase 4E mission recovery、稳定 control-chain regression wrapper 和 opt-in real-model regression wrapper 均已有仓库内验收证据。2026-05-06 又补做了 Phase 3A same-floor verifier hardening：加入 stale-process cleanup、first-reachable heading-relative goal probing、`GO2W_PHASE3A_NAV2_PARAMS_FILE` 覆盖入口和 `xy_goal_tolerance: 0.08`，fresh evidence 见 `/tmp/go2w_phase3a_nav2_same_floor_66601`。
 - 更细的阶段完成度审计、权威源映射、已解决 / 未解决 / 风险和最终目标差距分析见 `docs/handoff/project_state_audit.md`。
 - 当前 Phase 4 accepted 范围：manual-connector runtime chain，覆盖楼梯 handoff、mission route segmentation、flat/stair/flat Action 调度、`ComputeAndTrackRoute` feedback observation，以及 pre-handoff、Phase 4A/4B/4C/4D runtime verifiers、构建和测试的聚合验收。
 - 下一步：只能在新的完整任务单或当前自主审批模式下的自批准任务单中推进 post-Phase-4 的最小单主题任务。当前已完成的 Phase 4E 硬化仍不等于真实楼梯动力学、完整 production Mission Orchestrator 或默认 real-model re-baseline。
@@ -88,7 +88,7 @@ Gazebo GPU rendering 不是当前验收合同。RViz 可单独使用 WSLg/NVIDIA
 - Phase 1：Gazebo + `gz_ros2_control` + `/cmd_vel` 底盘可控闭环。
 - Phase 2：FAST-LIO input/output plumbing、perception-owned `odom -> base_link`、
   stability baseline、Nav2 costmap consumer gate。
-- Phase 3A：最小同层 Nav2 planner/controller/BT 导航闭环。
+- Phase 3A：最小同层 Nav2 planner/controller/BT 导航闭环；2026-05-06 新增 same-floor verifier hardening，收口 stale process / short-goal DWB abort 回归。
 - Phase 3B：最小 `nav2_route` + 手工 route graph baseline。
 - Phase 3C：FAST-LIO repo-local external cache、floor-aware hospital route graph、
   hospital multi-floor world asset。
@@ -118,6 +118,12 @@ Gazebo GPU rendering 不是当前验收合同。RViz 可单独使用 WSLg/NVIDIA
   `tools/verify_go2w_real_model_route_following.sh` 验证 opt-in 真实模型上的短
   `NavigateToPose` 同层目标、`phase5_real_model_nav2_same_floor.yaml` 参数文件、
   perception-owned `odom -> base_link`、`/cmd_vel` 运动和 Nav2 生命周期。
+- Go2W real model single-floor hospital verifier：通过
+  `tools/verify_go2w_real_model_single_floor_hospital.sh` 验证 opt-in 真实模型在
+  `phase3c_hospital_multifloor_world.sdf` 中的单层 Nav2 闭环、FAST-LIO
+  `laser_map`、最小规划路径长度门、`/cmd_vel`、perception/diff-drive odom 运动和
+  perception-owned `odom -> base_link`；它仍是 same-floor gate，不是 `map -> odom`
+  或跨楼层自治。
 - Go2W real model `nav2_route` robot-motion route-tracking verifier：通过
   `tools/verify_go2w_real_model_route_tracking.sh` 验证 opt-in 真实模型、perception
   TF authority、FAST-LIO、real-model Nav2、真实 `route_server`、动态生成的

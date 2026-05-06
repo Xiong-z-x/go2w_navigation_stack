@@ -10,6 +10,9 @@
   <buildtool_depend>ament_cmake_python</buildtool_depend>
 
   <exec_depend>geometry_msgs</exec_depend>
+  <exec_depend>go2w_description</exec_depend>
+  <exec_depend>go2w_perception</exec_depend>
+  <exec_depend>go2w_sim</exec_depend>
   <exec_depend>launch</exec_depend>
   <exec_depend>launch_ros</exec_depend>
   <exec_depend>nav2_behavior_tree</exec_depend>
@@ -24,6 +27,7 @@
   <exec_depend>nav2_route</exec_depend>
   <exec_depend>nav_msgs</exec_depend>
   <exec_depend>rclpy</exec_depend>
+  <exec_depend>rviz2</exec_depend>
   <exec_depend>std_msgs</exec_depend>
 
   <test_depend>ament_cmake_pytest</test_depend>

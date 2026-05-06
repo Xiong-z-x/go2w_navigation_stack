@@ -41,35 +41,37 @@
 8. `docs/handoff/project_state_audit.md`
 9. `docs/handoff/phase4_migration_handoff_report.md`
 10. `docs/handoff/risk_cleanup_log.md`
-11. `docs/handoff/reading_order_and_file_map.md`
-12. `docs/handoff/next_agent_notes.md`
-13. `docs/verification/phase4a_stair_handoff_acceptance.md`
-14. `docs/verification/phase4b_mission_segment_runtime.md`
-15. `docs/verification/phase4c_flat_segment_gate.md`
-16. `docs/verification/phase4d_route_tracking_feedback.md`
-17. `docs/verification/phase5a_live_route_tracking.md`
-18. `docs/verification/go2w_real_model_motion_mode_baseline.md`
-19. `docs/verification/go2w_control_chain_regression.md`
-20. `docs/verification/go2w_real_model_route_following.md`
-21. `docs/verification/go2w_real_model_route_tracking.md`
-22. `docs/verification/go2w_mission_real_flat_execution.md`
-23. `docs/verification/go2w_mission_real_flat_stair_flat.md`
-24. `docs/verification/mission_api_scheduling_policy.md`
-25. `docs/verification/mission_api_priority_scheduling.md`
-26. `docs/verification/mission_api_assignment_policy.md`
-27. `docs/verification/mission_api_orchestrator_control.md`
-28. `docs/verification/mission_api_queue_replay.md`
-29. `docs/verification/mission_api_task_history.md`
-30. `docs/verification/mission_api_workflow_policy.md`
-31. `docs/verification/mission_api_workflow_backend.md`
-32. `docs/verification/phase4e_stair_fixture.md`
-33. `docs/verification/phase4e_mission_recovery.md`
-34. `docs/verification/go2w_real_model_regression.md`
-35. `docs/verification/phase4e_stair_tuning_overrides.md`
-36. `docs/verification/phase4e_stair_phase_targets.md`
-37. `docs/verification/phase4e_stair_trajectory_outlet.md`
-38. `docs/verification/phase4_runtime_acceptance.md`
-39. `docs/handoff/new_model_initialization_prompt.md`
+11. `docs/handoff/restart_lessons_for_next_model.md`
+12. `docs/handoff/reading_order_and_file_map.md`
+13. `docs/handoff/next_agent_notes.md`
+14. `docs/verification/phase4a_stair_handoff_acceptance.md`
+15. `docs/verification/phase4b_mission_segment_runtime.md`
+16. `docs/verification/phase4c_flat_segment_gate.md`
+17. `docs/verification/phase4d_route_tracking_feedback.md`
+18. `docs/verification/phase5a_live_route_tracking.md`
+19. `docs/verification/go2w_real_model_motion_mode_baseline.md`
+20. `docs/verification/go2w_control_chain_regression.md`
+21. `docs/verification/go2w_real_model_route_following.md`
+22. `docs/verification/go2w_real_model_single_floor_hospital.md`
+23. `docs/verification/go2w_real_model_route_tracking.md`
+24. `docs/verification/go2w_mission_real_flat_execution.md`
+25. `docs/verification/go2w_mission_real_flat_stair_flat.md`
+26. `docs/verification/mission_api_scheduling_policy.md`
+27. `docs/verification/mission_api_priority_scheduling.md`
+28. `docs/verification/mission_api_assignment_policy.md`
+29. `docs/verification/mission_api_orchestrator_control.md`
+30. `docs/verification/mission_api_queue_replay.md`
+31. `docs/verification/mission_api_task_history.md`
+32. `docs/verification/mission_api_workflow_policy.md`
+33. `docs/verification/mission_api_workflow_backend.md`
+34. `docs/verification/phase4e_stair_fixture.md`
+35. `docs/verification/phase4e_mission_recovery.md`
+36. `docs/verification/go2w_real_model_regression.md`
+37. `docs/verification/phase4e_stair_tuning_overrides.md`
+38. `docs/verification/phase4e_stair_phase_targets.md`
+39. `docs/verification/phase4e_stair_trajectory_outlet.md`
+40. `docs/verification/phase4_runtime_acceptance.md`
+41. `docs/handoff/new_model_initialization_prompt.md`
 
 ## 本目录文件职责
 - `current_project_state.md`：当前真实状态总览。
@@ -77,6 +79,7 @@
 - `risk_cleanup_log.md`：封板前风险识别、修复与剩余限制。
 - `phase4_migration_handoff_report.md`：迁移前总报告。
 - `pre_migration_final_freeze_report.md`：最终封板总自检、风险处理、后续路线和下一任务建议。
+- `restart_lessons_for_next_model.md`：面向重新开新对话/新项目模型的易错点、误判来源和接手首检清单。
 - `reading_order_and_file_map.md`：关键文件/目录阅读顺序与职责说明。
 - `next_agent_notes.md`：给下一个模型的易错点和警示。
 - `new_model_initialization_prompt.md`：可直接复制到新会话的初始化提示词。
@@ -142,6 +145,17 @@ Go2W real model same-floor route-following 独立 smoke 可用以下命令复现
 该 verifier 已完成 dedicated hardening，并取得 3 次 clean-domain 连续 PASS；
 它是 opt-in regression 候选，但仍不是 production route tracking、不是默认
 placeholder 基线替代，也尚未自动纳入稳定 control-chain wrapper。
+
+Go2W real model single-floor hospital gate 可用以下命令复现：
+
+```bash
+./tools/verify_go2w_real_model_single_floor_hospital.sh
+```
+
+该 wrapper 使用 official Go2W-derived real model、Phase 3C hospital world、
+FAST-LIO `laser_map` 合同、same-floor Nav2 motion chain 和最小规划路径长度门，
+证明在更正常的医院场景里可以完成单层 planning/control 闭环。它仍不是
+`map -> odom`、production `nav2_route` 或跨楼层自治。
 
 Go2W real model `nav2_route` robot-motion route-tracking gate 可用以下命令复现：
 

@@ -23,6 +23,9 @@ NAV_GOAL_OFFSET_Y="${GO2W_REAL_ROUTE_GOAL_OFFSET_Y:-0.000}"
 NAV_GOAL_YAW_OFFSET="${GO2W_REAL_ROUTE_GOAL_YAW_OFFSET:-0.0}"
 MIN_PERCEPTION_ODOM_DELTA="${GO2W_REAL_ROUTE_MIN_PERCEPTION_ODOM_DELTA:-0.003}"
 MIN_DIFF_DRIVE_ODOM_DELTA="${GO2W_REAL_ROUTE_MIN_DIFF_DRIVE_ODOM_DELTA:-0.003}"
+MIN_PLANNED_PATH_LENGTH_M="${GO2W_REAL_ROUTE_MIN_PLANNED_PATH_LENGTH_M:-0.000}"
+LIFECYCLE_TIMEOUT_SECONDS="${GO2W_REAL_ROUTE_LIFECYCLE_TIMEOUT_SECONDS:-45}"
+NAV2_STARTUP_GRACE_SECONDS="${GO2W_REAL_ROUTE_NAV2_STARTUP_GRACE_SECONDS:-8}"
 NAV2_PARAMS_FILE="${GO2W_REAL_ROUTE_NAV2_PARAMS_FILE:-${REPO_ROOT}/go2w_navigation/config/phase5_real_model_nav2_same_floor.yaml}"
 FASTLIO_PID=""
 PERCEPTION_PID=""
@@ -662,7 +665,9 @@ class RealRouteGoalClient(Node):
 
     def select_reachable_goal(self, start_pose, start_yaw: float, offset_x: float, offset_y: float, yaw_offset: float, timeout_sec: float):
         probe_timeout = min(10.0, max(4.0, timeout_sec / 6.0))
+        min_path_length = float(os.environ.get("GO2W_REAL_ROUTE_MIN_PLANNED_PATH_LENGTH_M", "0.0"))
         print("real_route_goal_selection_policy: first_reachable_in_preference_order")
+        print(f"real_route_goal_min_planned_path_length_m: {min_path_length:.3f}")
         selected_candidate = None
         for index, (candidate_x, candidate_y) in enumerate(self.candidate_offsets(offset_x, offset_y), start=1):
             goal_pose, _ = self.build_goal_pose(start_pose, start_yaw, candidate_x, candidate_y, yaw_offset)
@@ -673,6 +678,12 @@ class RealRouteGoalClient(Node):
                 f"path_length_m={path_length_m:.3f}"
             )
             if not reachable:
+                continue
+            if path_length_m + 1.0e-6 < min_path_length:
+                print(
+                    f"real_route_goal_candidate_{index}_rejected: "
+                    f"path_length_m={path_length_m:.3f}<min_planned_path_length_m={min_path_length:.3f}"
+                )
                 continue
             if selected_candidate is None:
                 selected_candidate = {
@@ -834,6 +845,9 @@ main() {
   print_kv "nav_goal_offset_x" "${NAV_GOAL_OFFSET_X}"
   print_kv "nav_goal_offset_y" "${NAV_GOAL_OFFSET_Y}"
   print_kv "nav_goal_yaw_offset" "${NAV_GOAL_YAW_OFFSET}"
+  print_kv "min_planned_path_length_m" "${MIN_PLANNED_PATH_LENGTH_M}"
+  print_kv "lifecycle_timeout_seconds" "${LIFECYCLE_TIMEOUT_SECONDS}"
+  print_kv "nav2_startup_grace_seconds" "${NAV2_STARTUP_GRACE_SECONDS}"
   print_kv "clean_stale_processes" "${CLEAN_STALE_PROCESSES}"
 
   source_file_checked "${ROS_SETUP}" "ros_setup"
@@ -900,6 +914,7 @@ main() {
   require_topic_once "contract_topic__odom" /go2w/perception/odom "${EVIDENCE_DIR}/contract_odom.txt" 20
   require_topic_once "contract_topic__cloud_body" /go2w/perception/cloud_body "${EVIDENCE_DIR}/contract_cloud_body.txt" 20
   require_topic_once "contract_topic__cloud_registered" /go2w/perception/cloud_registered "${EVIDENCE_DIR}/contract_cloud_registered.txt" 20
+  require_topic_once "contract_topic__laser_map" /go2w/perception/laser_map "${EVIDENCE_DIR}/contract_laser_map.txt" 20
   require_field_once "contract_cloud_body_frame" /go2w/perception/cloud_body header.frame_id base_link "${EVIDENCE_DIR}/contract_cloud_body_frame.txt" 15
 
   sample_tf_to "pre_nav2" 8
@@ -909,12 +924,12 @@ main() {
 
   setsid ros2 launch go2w_navigation phase3a_nav2_same_floor.launch.py params_file:="${NAV2_PARAMS_FILE}" >"${EVIDENCE_DIR}/nav2.log" 2>&1 &
   NAV2_PID="$!"
-  sleep 8
+  sleep "${NAV2_STARTUP_GRACE_SECONDS}"
   require_process_alive "${NAV2_PID}" "nav2_launch_process_alive" "${EVIDENCE_DIR}/nav2.log"
 
-  wait_for_lifecycle_active "controller_server_lifecycle" /controller_server "${EVIDENCE_DIR}/controller_server_lifecycle.txt" 45
-  wait_for_lifecycle_active "planner_server_lifecycle" /planner_server "${EVIDENCE_DIR}/planner_server_lifecycle.txt" 45
-  wait_for_lifecycle_active "bt_navigator_lifecycle" /bt_navigator "${EVIDENCE_DIR}/bt_navigator_lifecycle.txt" 45
+  wait_for_lifecycle_active "controller_server_lifecycle" /controller_server "${EVIDENCE_DIR}/controller_server_lifecycle.txt" "${LIFECYCLE_TIMEOUT_SECONDS}"
+  wait_for_lifecycle_active "planner_server_lifecycle" /planner_server "${EVIDENCE_DIR}/planner_server_lifecycle.txt" "${LIFECYCLE_TIMEOUT_SECONDS}"
+  wait_for_lifecycle_active "bt_navigator_lifecycle" /bt_navigator "${EVIDENCE_DIR}/bt_navigator_lifecycle.txt" "${LIFECYCLE_TIMEOUT_SECONDS}"
 
   require_action_server "${EVIDENCE_DIR}/action_list.txt"
   require_param_contains "controller_odom_topic" /controller_server odom_topic /go2w/perception/odom "${EVIDENCE_DIR}/controller_odom_topic.txt"
@@ -934,6 +949,7 @@ main() {
     GO2W_REAL_ROUTE_NAV_TIMEOUT_SECONDS="${NAV_TIMEOUT_SECONDS}" \
     GO2W_REAL_ROUTE_MIN_PERCEPTION_ODOM_DELTA="${MIN_PERCEPTION_ODOM_DELTA}" \
     GO2W_REAL_ROUTE_MIN_DIFF_DRIVE_ODOM_DELTA="${MIN_DIFF_DRIVE_ODOM_DELTA}" \
+    GO2W_REAL_ROUTE_MIN_PLANNED_PATH_LENGTH_M="${MIN_PLANNED_PATH_LENGTH_M}" \
     python3 "${EVIDENCE_DIR}/real_route_goal_client.py" >"${EVIDENCE_DIR}/nav_goal.txt" 2>&1
 
   grep -E '^real_route_' "${EVIDENCE_DIR}/nav_goal.txt" || true

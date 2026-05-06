@@ -15,7 +15,8 @@
 3. `docs/handoff/project_state_audit.md`：阶段完成度审计、权威源映射、风险与最终目标差距分析。
 4. `docs/handoff/phase4_migration_handoff_report.md`：迁移前总报告。
 5. `docs/handoff/risk_cleanup_log.md`：已修风险与剩余限制。
-6. `docs/handoff/next_agent_notes.md`：新模型最容易踩的坑。
+6. `docs/handoff/restart_lessons_for_next_model.md`：面向重新开新对话/新项目模型的易错点、误判来源和接手首检清单。
+7. `docs/handoff/next_agent_notes.md`：新模型最容易踩的坑。
 
 ## 第三层：运行和验收记录
 - `README.md`：操作入口和当前状态摘要，不是架构事实源。
@@ -31,6 +32,7 @@
 - `docs/verification/phase4e_mission_recovery.md`：Phase 4E mission checkpoint/recovery 验收。
 - `docs/verification/go2w_control_chain_regression.md`：稳定 real-model control-chain regression wrapper 验收。
 - `docs/verification/go2w_real_model_route_following.md`：Go2W real-model same-floor route-following dedicated hardening 证据；现在是 opt-in regression 候选，不是 production route tracking。
+- `docs/verification/go2w_real_model_single_floor_hospital.md`：Go2W real-model + hospital world same-floor autonomy 证据；验证更正常场景里的单层 Nav2/FAST-LIO/控制闭环。
 - `docs/verification/go2w_real_model_route_tracking.md`：Go2W real-model `nav2_route` robot-motion route-tracking 证据；验证真实运动触发 `ComputeAndTrackRoute` feedback，但不是跨楼层闭环或真实 stair route operation plugin。
 - `docs/verification/go2w_mission_real_flat_execution.md`：Mission runtime real-model flat execution + route-tracking observation gate 证据；证明 `RunMission` flat-only segment 可绕过 verifier-only flat executor、调用真实 Nav2 `/navigate_to_pose`，并观察 mission-side `ComputeAndTrackRoute` feedback。
 - `docs/verification/go2w_mission_real_flat_stair_flat.md`：Mission runtime real-model flat/stair/flat integration gate 证据；证明 `RunMission` 可在 opt-in real-model runtime 中用真实 Nav2 执行 flat segments、用 `/stair_exec` skeleton 执行 stair handoff，并观察 route feedback edges `10` / `20`、stair phase sequence 和 TF 边界。
@@ -86,6 +88,7 @@
 - `tools/verify_phase4e_mission_recovery.sh`：Phase 4E mission checkpoint/recovery gate。
 - `tools/verify_go2w_control_chain_regression.sh`：稳定 real-model control-chain regression gate。
 - `tools/verify_go2w_real_model_route_following.sh`：Go2W real-model same-floor route-following verifier；验证短 `NavigateToPose` 运动链。
+- `tools/verify_go2w_real_model_single_floor_hospital.sh`：Go2W real-model + hospital world single-floor verifier；验证同层 Nav2/FAST-LIO/控制链在医院场景里的闭环。
 - `tools/verify_go2w_real_model_route_tracking.sh`：Go2W real-model `nav2_route` robot-motion route-tracking verifier；验证真实运动驱动 `ComputeAndTrackRoute` feedback。
 - `tools/verify_go2w_mission_real_flat_execution.sh`：Mission runtime real-model flat execution + route-tracking observation gate；验证 `RunMission` flat-only segment 调用真实 Nav2 `/navigate_to_pose`，观察 mission-side `ComputeAndTrackRoute` feedback，且不启动 `go2w_flat_nav_executor`。
 - `tools/verify_go2w_mission_real_flat_stair_flat.sh`：Mission runtime real-model flat/stair/flat integration gate；验证 `RunMission` flat/stair/flat 任务中 flat segments 调用真实 Nav2，stair handoff 调用 `/stair_exec` skeleton，并观察 route feedback、stair phases、command gate 和 TF 边界。

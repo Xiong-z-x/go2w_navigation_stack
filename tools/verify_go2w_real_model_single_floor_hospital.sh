@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+set -eo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+
+export GO2W_REAL_ROUTE_EVIDENCE_DIR="${GO2W_REAL_ROUTE_EVIDENCE_DIR:-/tmp/go2w_real_model_single_floor_hospital_$$}"
+export GO2W_REAL_ROUTE_WORLD="${GO2W_REAL_ROUTE_WORLD:-${REPO_ROOT}/install/go2w_sim/share/go2w_sim/worlds/phase3c_hospital_multifloor_world.sdf}"
+export GO2W_REAL_ROUTE_WORLD_NAME="${GO2W_REAL_ROUTE_WORLD_NAME:-go2w_phase3c_hospital_multifloor_world}"
+export GO2W_REAL_ROUTE_GOAL_OFFSET_X="${GO2W_REAL_ROUTE_GOAL_OFFSET_X:-0.600}"
+export GO2W_REAL_ROUTE_GOAL_OFFSET_Y="${GO2W_REAL_ROUTE_GOAL_OFFSET_Y:-0.000}"
+export GO2W_REAL_ROUTE_NAV_TIMEOUT_SECONDS="${GO2W_REAL_ROUTE_NAV_TIMEOUT_SECONDS:-180}"
+export GO2W_REAL_ROUTE_MIN_PLANNED_PATH_LENGTH_M="${GO2W_REAL_ROUTE_MIN_PLANNED_PATH_LENGTH_M:-0.250}"
+export GO2W_REAL_ROUTE_LIFECYCLE_TIMEOUT_SECONDS="${GO2W_REAL_ROUTE_LIFECYCLE_TIMEOUT_SECONDS:-90}"
+export GO2W_REAL_ROUTE_NAV2_STARTUP_GRACE_SECONDS="${GO2W_REAL_ROUTE_NAV2_STARTUP_GRACE_SECONDS:-12}"
+export GO2W_REAL_ROUTE_REBUILD_REPO="${GO2W_REAL_ROUTE_REBUILD_REPO:-0}"
+
+printf '# Go2W Real Model Single-Floor Hospital Verification\n'
+"${SCRIPT_DIR}/verify_go2w_real_model_route_following.sh"

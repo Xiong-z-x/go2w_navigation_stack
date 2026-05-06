@@ -17,6 +17,7 @@ install(DIRECTORY
 
 install(PROGRAMS
   scripts/go2w_flat_nav_executor
+  scripts/go2w_rviz_goal_bridge
   scripts/go2w_route_tracking_feedback_executor
   DESTINATION lib/${PROJECT_NAME}
 )
@@ -34,6 +35,9 @@ if(BUILD_TESTING)
     APPEND_ENV PYTHONPATH=${CMAKE_CURRENT_SOURCE_DIR}
   )
   ament_add_pytest_test(test_real_model_route_tracking_verifier test/test_real_model_route_tracking_verifier.py
+    APPEND_ENV PYTHONPATH=${CMAKE_CURRENT_SOURCE_DIR}
+  )
+  ament_add_pytest_test(test_rviz_goal_bridge_demo test/test_rviz_goal_bridge_demo.py
     APPEND_ENV PYTHONPATH=${CMAKE_CURRENT_SOURCE_DIR}
   )
 endif()

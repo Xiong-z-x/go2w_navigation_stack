@@ -1,5 +1,10 @@
 # 给下一个模型的注意事项与经验总结
 
+## 重启项目前必读
+如果这是重新开始的新对话，或准备以新模型重新接手机器狗项目，先读
+`docs/handoff/restart_lessons_for_next_model.md`。该文档把本项目最容易造成误判的
+阶段边界、历史失败模式、谨慎模块、接手首检命令和“最不该直接假设”的内容集中写出。
+
 ## 审计硬规则
 - 无证据不判完成。计划、TODO、注释、README 摘要和旧日志都不能单独当作完成证据。
 - 阶段审计必须输出四种状态：`已完成`、`部分完成`、`未完成`、`无法确认`。
@@ -78,8 +83,15 @@
 - `docs/superpowers/` 是历史任务记录，不一定代表最新默认。
 - 早期验证文档中的 `/tmp/...` 是证据目录，不一定是当前工具默认。
 - Phase 3A 的 `odom` frame Nav2 闭环不是长期 `map -> odom` 定位方案。
+- Phase 3A same-floor verifier 现在不再依赖固定 world-axis 短目标。当前
+  `tools/verify_phase3a_nav2_same_floor.sh` 会先做 stale-process cleanup，再用
+  `ComputePathToPose` 探测 heading-relative 的首个可达候选目标；如果你看到旧日志里
+  还是 `0.035 / 0.020` 固定目标，不要把它当成当前默认。
 - Phase 3C 的 `map` frame route graph 不代表 AMCL/map_server 已启用。
 - Hospital world 资产可启动，不代表真实楼梯运动学已验证。
+- 如果任务是“真实 Go2W + 正常医院场景 + 单层自主导航”，优先用
+  `tools/verify_go2w_real_model_single_floor_hospital.sh`，不要再从 placeholder world
+  或 Phase 4 verifier 手工拼链。
 
 ## 接手后最应该先确认
 - 先进入实际项目仓库根：`/home/xiongzx/go2w_ws/src/go2w_navigation_stack`。外层
@@ -165,6 +177,10 @@ default real-model re-baseline。不要把下一步扩大为真实多楼层
   `use_sim_time:=false` 模式。一次尝试把 route_server 切到 `use_sim_time:=true` 时，
   lifecycle configure 出现 `/route_server/change_state` response timeout；不要把这个
   症状误判成 route graph 或 Nav2 controller 问题。
+- 医院 world 下的 same-floor 真实模型 gate 现在还有一个额外约束：相对目标太短时，
+  `NavfnPlanner tolerance=0.25` 会把计划路径收缩到几乎不需要运动。当前收口是
+  `GO2W_REAL_ROUTE_MIN_PLANNED_PATH_LENGTH_M`。医院 wrapper 默认设为 `0.250`，并在
+  candidate probe 中拒绝过短路径。
 - `go2w_control` 的 `stair_executor` 现在会读取 legged motion profile 并钳制 stair 线速度。
   这只是让 skeleton 和 motion baseline 对齐，不是已经调好的真实楼梯步态。
 - `go2w_control` 的 `stair_executor` 现在还会在 stair owner 激活时发布 12 关节 leg hold command。
@@ -187,6 +203,11 @@ default real-model re-baseline。不要把下一步扩大为真实多楼层
   route operation plugin。
 - Mission real-flat verifier 依赖在 mission API ready 后重新生成并 reload route graph；
   不要删掉这一步，否则 perception odom 漂移后更容易把 stale graph 当成 Nav2 问题。
+- Phase 3A same-floor verifier 也已遇到类似问题：固定超短目标在当前 world 中会让
+  DWB 报 `No valid trajectories out of 251` / `Controller patience exceeded`。当前
+  收口是 `xy_goal_tolerance: 0.08`、默认 `0.150m` 短目标、heading-relative 首个可达
+ 候选，以及按进程组清理 stale sim/perception/FAST-LIO/Nav2。fresh PASS 证据目录是
+  `/tmp/go2w_phase3a_nav2_same_floor_66601`。
 - Mission real-flat verifier 曾出现一次 Nav2 lifecycle configure 超时：`bt_navigator/change_state`
   response timeout 后外层看到 `controller_server_lifecycle: inactive [2]`。这类失败先看
   evidence dir 的 `nav2.log`，清理 orphaned sim/perception/FAST-LIO/Nav2 进程并换新
