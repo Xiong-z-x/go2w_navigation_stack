@@ -9,10 +9,13 @@ from go2w_mission.mission_api import (
     MissionGoalSpec,
     classify_mission_result,
     configure_flat_goal_behavior_tree,
+    flat_route_tracking_node_ids,
     normalize_flat_behavior_tree,
     parse_args,
     validate_mission_goal,
 )
+from go2w_mission.phase4a_route_graph import Phase4ARouteGraph, RouteEdge, RouteNode
+from go2w_mission.phase4b_mission_segments import MissionSegment
 
 
 def test_validate_mission_goal_accepts_expected_request() -> None:
@@ -75,6 +78,38 @@ def test_mission_api_accepts_empty_flat_behavior_tree_argument() -> None:
     assert normalize_flat_behavior_tree("__empty__") == ""
 
 
+def test_mission_api_route_tracking_action_is_opt_in() -> None:
+    args, _ = parse_args(["--graph-file", "graph.geojson"])
+    assert args.route_tracking_action == ""
+
+    args, _ = parse_args([
+        "--graph-file",
+        "graph.geojson",
+        "--route-tracking-action",
+        "/compute_and_track_route",
+    ])
+    assert args.route_tracking_action == "/compute_and_track_route"
+
+
+def test_flat_route_tracking_node_ids_use_segment_boundaries() -> None:
+    graph = Phase4ARouteGraph(
+        nodes={
+            100: RouteNode(100, 0.0, 0.0, {}),
+            101: RouteNode(101, 1.0, 0.0, {}),
+            102: RouteNode(102, 2.0, 0.0, {}),
+        },
+        edges={
+            10: RouteEdge(10, 100, 101, [(0.0, 0.0), (1.0, 0.0)], {}),
+            11: RouteEdge(11, 101, 102, [(1.0, 0.0), (2.0, 0.0)], {}),
+        },
+    )
+
+    assert flat_route_tracking_node_ids(
+        graph,
+        MissionSegment(segment_type="flat", edge_ids=(10, 11)),
+    ) == (100, 102)
+
+
 def test_mission_api_low_level_mission_lock_guard_is_non_blocking() -> None:
     runtime = object.__new__(MissionApiRuntime)
     runtime._mission_lock = threading.Lock()
@@ -134,4 +169,7 @@ def test_mission_real_flat_execution_verifier_contract() -> None:
     assert "launch_flat_nav_executor:=false" in content
     assert "launch_stair_executor:=false" in content
     assert "flat_behavior_tree:=__empty__" in content
+    assert "route_tracking_action:=/compute_and_track_route" in content
+    assert "mission_route_tracking_result: PASS" in content
+    assert "mission_route_tracking_feedback_edge: 10" in content
     assert "/go2w_flat_nav_executor" in content

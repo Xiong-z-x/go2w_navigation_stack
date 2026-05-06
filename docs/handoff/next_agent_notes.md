@@ -170,6 +170,11 @@ default real-model re-baseline。不要把下一步扩大为真实多楼层
 - Mission runtime real-model flat execution gate 的关键 launch 参数是
   `flat_behavior_tree:=__empty__`；不要再尝试传空的 `flat_behavior_tree:=`，ROS 2 launch
   会直接拒绝。
+- Mission runtime real-model flat execution gate 现在还显式使用
+  `route_tracking_action:=/compute_and_track_route`，证明 mission runtime 可观察
+  flat segment 的 real `ComputeAndTrackRoute` feedback edge `10`。这仍不是完整
+  production Mission Orchestrator、跨楼层 production route tracking 或真实 stair
+  route operation plugin。
 - Mission real-flat verifier 依赖在 mission API ready 后重新生成并 reload route graph；
   不要删掉这一步，否则 perception odom 漂移后更容易把 stale graph 当成 Nav2 问题。
 - Mission real-flat verifier 曾出现一次 Nav2 lifecycle configure 超时：`bt_navigator/change_state`

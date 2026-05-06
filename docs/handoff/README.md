@@ -153,7 +153,7 @@ Go2W real model `nav2_route` robot-motion route-tracking gate 可用以下命令
 motion 可以驱动 route tracking feedback；它仍不是跨楼层真实闭环、真实 stair route
 operation plugin、Phase 5 自动连接器或默认 baseline 替代。
 
-Mission runtime real-model flat execution gate 可用以下命令复现：
+Mission runtime real-model flat execution + route-tracking observation gate 可用以下命令复现：
 
 ```bash
 ./tools/verify_go2w_mission_real_flat_execution.sh
@@ -161,8 +161,10 @@ Mission runtime real-model flat execution gate 可用以下命令复现：
 
 该 verifier 启动 real-model、perception、FAST-LIO、real-model Nav2 和 mission API，
 并在 `launch_flat_nav_executor:=false` 下证明 `RunMission` flat-only segment 可调用
-真实 `/navigate_to_pose`。它仍不是 production Mission Orchestrator、真实 `nav2_route`
-robot-motion route tracking 或跨楼层真实闭环。
+真实 `/navigate_to_pose`，同时在显式
+`route_tracking_action:=/compute_and_track_route` 下观察 mission-side route feedback
+edge `10`。它仍不是 production Mission Orchestrator、真实 stair route operation
+plugin、production cross-floor route tracking 或跨楼层真实闭环。
 
 Mission API bounded FIFO scheduling policy 可用以下命令复现：
 

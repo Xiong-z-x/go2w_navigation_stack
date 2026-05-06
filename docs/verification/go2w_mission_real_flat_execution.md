@@ -7,10 +7,33 @@ This document records the post-Phase-4 hardening gate that connects the
 
 This replaces the verifier-only flat executor for this opt-in flat-only mission
 fixture by launching the mission API with `launch_flat_nav_executor:=false`.
+The fixture now also enables the opt-in mission-side
+`ComputeAndTrackRoute` observation path with
+`route_tracking_action:=/compute_and_track_route`, so the same real Nav2 flat
+motion drives route-tracking feedback through the Mission runtime.
+
 It does not remove the Phase 4C verifier skeleton, and it is not production
-Mission Orchestrator, multi-floor autonomy, real `nav2_route` tracking against
-robot motion, stair dynamics, AMCL, `map_server`, or `map -> odom`
-localization.
+Mission Orchestrator, multi-floor autonomy, production cross-floor
+`nav2_route` tracking, a real stair route-operation plugin, stair dynamics,
+AMCL, `map_server`, or `map -> odom` localization.
+
+## Upstream Interface Boundary Checked
+- Nav2 Route Server Humble documentation describes `compute_and_track_route` as
+  the route action that tracks route operations and progress while returning
+  feedback containing current state and triggered operations:
+  <https://api.nav2.org/nav2-humble/html/md_nav2_route_README.html>.
+- Nav2 `ComputeAndTrackRoute` documentation exposes `start_id`, `goal_id`,
+  `use_start`, and `use_poses`, which matches this verifier's node-id based
+  request:
+  <https://docs.nav2.org/configuration/packages/bt-plugins/actions/ComputeAndTrackRoute.html>.
+- ROS Humble `nav2_msgs/action/ComputeAndTrackRoute` action documentation exposes
+  feedback fields including `current_edge_id` and `operations_triggered`, which
+  are the fields asserted by the mission runtime logs:
+  <https://docs.ros.org/en/humble/p/nav2_msgs/action/ComputeAndTrackRoute.html>.
+- Nav2 AMCL documentation keeps `global_frame_id=map`, `odom_frame_id=odom`,
+  and `tf_broadcast` as localization concerns. This gate therefore keeps
+  `map -> odom` absent and leaves localization for a separate task:
+  <https://docs.nav2.org/configuration/packages/configuring-amcl.html>.
 
 ## Implemented Runtime Surface
 - `go2w_mission.mission_api` now accepts `--flat-behavior-tree`.
@@ -19,6 +42,12 @@ localization.
 - The sentinel value `__empty__` is converted to an empty
   `NavigateToPose.Goal.behavior_tree`, allowing real Nav2 BT Navigator to use
   its configured default behavior tree.
+- `go2w_mission.mission_api` now accepts opt-in `--route-tracking-action`.
+  The default is empty, preserving existing mission API behavior. When set,
+  each flat segment starts `ComputeAndTrackRoute` before sending the real
+  `NavigateToPose` goal, records route feedback edges, and fails with
+  diagnostic `MISSION_ROUTE_TRACKING_*` results if the action is unavailable
+  or the expected edge is not observed.
 - `tools/verify_go2w_mission_real_flat_execution.sh` starts:
   - opt-in real Go2W simulation,
   - perception TF authority,
@@ -31,7 +60,7 @@ localization.
   `RunMission` goal from node `100` to node `101`.
 
 ## Verification Run
-- Date: `2026-05-02`
+- Date: `2026-05-06`
 - Command:
 
 ```bash
@@ -41,7 +70,7 @@ localization.
 - Evidence directory:
 
 ```text
-/tmp/go2w_mission_real_flat_execution_8114
+/tmp/go2w_mission_real_flat_execution_34593
 ```
 
 - Result:
@@ -57,6 +86,9 @@ mission_real_flat_goal_status: SUCCEEDED
 mission_real_flat_goal_result_code: MISSION_SUCCEEDED
 mission_real_flat_goal_message: mission_succeeded
 mission_real_flat_segment_summary: flat:10
+mission_real_flat_cmd_vel_nonzero_count: 7
+mission_route_tracking_feedback_edge: 10
+mission_route_tracking_result: PASS
 mission_real_flat_execution_result: PASS
 go2w_mission_real_flat_execution_result: PASS
 ```
@@ -195,8 +227,11 @@ go2w_mission_real_flat_execution_result: PASS
 - `controller_server.odom_topic` was `/go2w/perception/odom`.
 - Local and global costmaps published in `odom`.
 - Mission API started without `go2w_flat_nav_executor`.
+- Mission API was launched with `route_tracking_action:=/compute_and_track_route`.
 - `/route_server/set_route_graph` successfully reloaded the generated flat-only
   route graph immediately before the mission goal.
+- Mission runtime accepted a `ComputeAndTrackRoute` goal for the flat segment
+  and observed feedback edge `10`.
 - `RunMission` returned `MISSION_SUCCEEDED` with segment summary `flat:10`.
 - `/cmd_vel` was nonzero during execution.
 - Perception odometry and diff-drive odometry both changed.
@@ -206,15 +241,18 @@ go2w_mission_real_flat_execution_result: PASS
 ## Key Result Lines
 ```text
 node_/go2w_flat_nav_executor: ABSENT
+action_/compute_and_track_route: PRESENT
 set_route_graph: PASS
 mission_real_flat_goal_status: SUCCEEDED
 mission_real_flat_goal_success: True
 mission_real_flat_goal_result_code: MISSION_SUCCEEDED
 mission_real_flat_segment_count: 1
 mission_real_flat_segment_summary: flat:10
-mission_real_flat_perception_odom_delta_xy: 0.092673
-mission_real_flat_diff_drive_odom_delta_xy: 0.118375
-mission_real_flat_cmd_vel_nonzero_count: 21
+mission_real_flat_perception_odom_delta_xy: 0.058698
+mission_real_flat_diff_drive_odom_delta_xy: 0.039629
+mission_real_flat_cmd_vel_nonzero_count: 7
+mission_route_tracking_feedback_edge: 10
+mission_route_tracking_result: PASS
 mission_real_flat_execution_result: PASS
 post_mission_map_odom: ABSENT
 post_mission_odom_base_link_authority: PRESENT
@@ -247,8 +285,9 @@ go2w_mission_real_flat_execution_result: PASS
 ## Open Validation Items
 - This verifies a flat-only mission fixture, not a complete flat/stair/flat
   cross-floor real-motion mission.
-- It uses `NavigateToPose`, not production `nav2_route` robot-motion route
-  tracking.
+- It observes real `ComputeAndTrackRoute` feedback for one flat-only mission
+  edge, but it is not production cross-floor `nav2_route` tracking or a real
+  stair route-operation plugin.
 - The real Go2W path remains opt-in and does not replace the default
   `sim.launch.py` placeholder baseline.
 - Stair traversal and real stair dynamics remain open.

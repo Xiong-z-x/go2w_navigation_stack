@@ -13,7 +13,7 @@ EVIDENCE_DIR="${GO2W_MISSION_REAL_FLAT_EVIDENCE_DIR:-/tmp/go2w_mission_real_flat
 ROUTE_WORLD="${GO2W_MISSION_REAL_FLAT_WORLD:-${REPO_ROOT}/install/go2w_sim/share/go2w_sim/worlds/phase3a_feature_world.sdf}"
 ROUTE_WORLD_NAME="${GO2W_MISSION_REAL_FLAT_WORLD_NAME:-go2w_phase3a_feature_world}"
 DOMAIN_ID="${GO2W_VERIFY_DOMAIN_ID:-$(( ($$ % 90) + 130 ))}"
-PARTITION="go2w_mission_real_flat_${$}"
+PARTITION="go2w_mission_real_flat_$$"
 REBUILD_REPO="${GO2W_MISSION_REAL_FLAT_REBUILD_REPO:-1}"
 CLEAN_EVIDENCE="${GO2W_MISSION_REAL_FLAT_CLEAN_EVIDENCE:-0}"
 CLEAN_STALE_PROCESSES="${GO2W_MISSION_REAL_FLAT_CLEAN_STALE_PROCESSES:-1}"
@@ -157,7 +157,7 @@ cleanup() {
   terminate_pid "${MISSION_PID}" "mission_api"
   terminate_pid "${NAV2_PID}" "nav2"
   terminate_pid "${FASTLIO_PID}" "fastlio"
-  pkill -INT -f "${FASTLIO_WS}/install/fast_lio/lib/fast_lio/fastlio_mapping" 2>/dev/null || true
+  terminate_matching_processes "fastlio_binary" "${FASTLIO_WS}/install/fast_lio/lib/fast_lio/fastlio_mapping"
   terminate_pid "${PERCEPTION_PID}" "perception"
   terminate_pid "${SIM_PID}" "sim"
   cleanup_stale_processes
@@ -985,6 +985,7 @@ main() {
     launch_flat_nav_executor:=false \
     launch_stair_executor:=false \
     flat_behavior_tree:=__empty__ \
+    route_tracking_action:=/compute_and_track_route \
     mission_state_file:="${MISSION_STATE_FILE}" \
     mission_retry_limit:=0 \
     log_level:=info \
@@ -997,6 +998,7 @@ main() {
   require_node_absent "/go2w_flat_nav_executor" "${EVIDENCE_DIR}/node_list_no_fake_flat_executor.txt"
   wait_for_lifecycle_active "route_server_lifecycle" /route_server "${EVIDENCE_DIR}/route_server_lifecycle.txt" 60
   wait_for_action "/compute_route" 60
+  wait_for_action "/compute_and_track_route" 60
   wait_for_action "/go2w/mission/run" 60
   wait_for_action "/navigate_to_pose" 5
 
@@ -1019,12 +1021,20 @@ main() {
   local mission_client_status="$?"
   set -e
   grep -E '^mission_real_flat_' "${EVIDENCE_DIR}/mission_goal.txt" || true
+  grep -E 'mission_route_tracking_' "${EVIDENCE_DIR}/mission_api.log" || true
   if [ "${mission_client_status}" -ne 0 ] \
     || ! grep -q "mission_real_flat_execution_result: PASS" "${EVIDENCE_DIR}/mission_goal.txt"; then
     print_kv "mission_real_flat_execution_result" "FAIL"
     sed -n '1,260p' "${EVIDENCE_DIR}/mission_goal.txt" || true
     exit 2
   fi
+  if ! grep -q "mission_route_tracking_result: PASS" "${EVIDENCE_DIR}/mission_api.log" \
+    || ! grep -q "mission_route_tracking_feedback_edge: 10" "${EVIDENCE_DIR}/mission_api.log"; then
+    print_kv "mission_route_tracking_result" "FAIL"
+    sed -n '1,260p' "${EVIDENCE_DIR}/mission_api.log" || true
+    exit 2
+  fi
+  print_kv "mission_route_tracking_result" "PASS"
 
   require_log_absent "sim_runtime_exception_count" "Segmentation fault|Aborted|terminate called|Traceback|Caught exception" "${EVIDENCE_DIR}/sim.log"
   require_log_absent "perception_runtime_exception_count" "Segmentation fault|Aborted|terminate called|Traceback|Caught exception" "${EVIDENCE_DIR}/perception.log"

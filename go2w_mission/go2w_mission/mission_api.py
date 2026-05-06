@@ -161,6 +161,15 @@ def summarize_segments(segments: list[MissionSegment]) -> str:
     return ";".join(formatted)
 
 
+def flat_route_tracking_node_ids(
+    graph: Phase4ARouteGraph,
+    segment: MissionSegment,
+) -> tuple[int, int]:
+    first_edge = graph.edges[segment.edge_ids[0]]
+    last_edge = graph.edges[segment.edge_ids[-1]]
+    return int(first_edge.start_id), int(last_edge.end_id)
+
+
 class MissionApiRuntime:
     def __init__(
         self,
@@ -180,19 +189,26 @@ class MissionApiRuntime:
         mission_retry_backoff_sec: float,
         mission_recovery_enabled: bool,
         flat_behavior_tree: str,
+        route_tracking_action: str,
         mission_queue_capacity: int,
         mission_robot_id: str,
     ) -> None:
-        from nav2_msgs.action import ComputeRoute, NavigateToPose
+        from nav2_msgs.action import ComputeAndTrackRoute, ComputeRoute, NavigateToPose
         from rclpy.action import ActionClient
 
         from go2w_control.action import StairExec
 
         self.node = node
         self.compute_route_type = ComputeRoute
+        self.compute_and_track_route_type = ComputeAndTrackRoute
         self.navigate_to_pose_type = NavigateToPose
         self.stair_exec_type = StairExec
         self.compute_route_client = ActionClient(node, ComputeRoute, compute_route_action)
+        self.route_tracking_client = (
+            ActionClient(node, ComputeAndTrackRoute, route_tracking_action)
+            if route_tracking_action.strip()
+            else None
+        )
         self.navigate_to_pose_client = ActionClient(node, NavigateToPose, flat_nav_action)
         self.stair_exec_client = ActionClient(node, StairExec, stair_exec_action)
         state_path = (
@@ -205,6 +221,7 @@ class MissionApiRuntime:
         self.mission_retry_backoff_sec = max(0.0, float(mission_retry_backoff_sec))
         self.mission_recovery_enabled = bool(mission_recovery_enabled)
         self.flat_behavior_tree = str(flat_behavior_tree)
+        self.route_tracking_action = str(route_tracking_action).strip()
         self.mission_robot_id = normalize_robot_id(mission_robot_id)
         self.mission_scheduler = MissionScheduleGate(
             capacity=mission_queue_capacity,
@@ -1761,8 +1778,24 @@ class MissionApiRuntime:
         )
         configure_flat_goal_behavior_tree(goal, self.flat_behavior_tree)
 
+        route_tracking_goal_handle = None
+        route_tracking_expected_edge_id = None
+        route_tracking_edges_seen: list[int] = []
+        if self.route_tracking_client is not None:
+            route_tracking_result = self._start_flat_route_tracking(
+                graph,
+                segment,
+                goal_spec,
+                route_tracking_edges_seen,
+            )
+            if not route_tracking_result["success"]:
+                return route_tracking_result
+            route_tracking_goal_handle = route_tracking_result["goal_handle"]
+            route_tracking_expected_edge_id = route_tracking_result["expected_edge_id"]
+
         send_future = self.navigate_to_pose_client.send_goal_async(goal)
         if not _spin_until(self.node, send_future, 10.0):
+            self._cancel_route_tracking_goal(route_tracking_goal_handle)
             return {
                 "success": False,
                 "result_code": "MISSION_FLAT_FAILED",
@@ -1771,6 +1804,7 @@ class MissionApiRuntime:
             }
         child_goal_handle = send_future.result()
         if child_goal_handle is None or not child_goal_handle.accepted:
+            self._cancel_route_tracking_goal(route_tracking_goal_handle)
             return {
                 "success": False,
                 "result_code": "MISSION_FLAT_FAILED",
@@ -1787,6 +1821,7 @@ class MissionApiRuntime:
             ),
         )
         if wait_status == "CANCELED":
+            self._cancel_route_tracking_goal(route_tracking_goal_handle)
             child_goal_handle.cancel_goal_async()
             return {
                 "success": False,
@@ -1795,6 +1830,7 @@ class MissionApiRuntime:
                 "recoverable": False,
             }
         if wait_status == "TIMEOUT":
+            self._cancel_route_tracking_goal(route_tracking_goal_handle)
             child_goal_handle.cancel_goal_async()
             return {
                 "success": False,
@@ -1806,6 +1842,7 @@ class MissionApiRuntime:
         from action_msgs.msg import GoalStatus
 
         if wrapped.status == GoalStatus.STATUS_CANCELED:
+            self._cancel_route_tracking_goal(route_tracking_goal_handle)
             return {
                 "success": False,
                 "result_code": "MISSION_CANCELED",
@@ -1813,18 +1850,130 @@ class MissionApiRuntime:
                 "recoverable": False,
             }
         if wrapped.status != GoalStatus.STATUS_SUCCEEDED:
+            self._cancel_route_tracking_goal(route_tracking_goal_handle)
             return {
                 "success": False,
                 "result_code": "MISSION_FLAT_FAILED",
                 "message": "flat_failed",
                 "recoverable": True,
             }
+        route_tracking_validation = self._finish_flat_route_tracking(
+            route_tracking_goal_handle,
+            route_tracking_expected_edge_id,
+            route_tracking_edges_seen,
+        )
+        if route_tracking_validation is not None:
+            return route_tracking_validation
         return {
             "success": True,
             "result_code": "MISSION_SUCCEEDED",
             "message": "flat_succeeded",
             "recoverable": False,
         }
+
+    def _start_flat_route_tracking(
+        self,
+        graph: Phase4ARouteGraph,
+        segment: MissionSegment,
+        goal_spec: MissionGoalSpec,
+        edges_seen: list[int],
+    ) -> dict[str, Any]:
+        if self.route_tracking_client is None:
+            return {"success": True, "goal_handle": None, "expected_edge_id": None}
+        if not self.route_tracking_client.wait_for_server(timeout_sec=5.0):
+            return {
+                "success": False,
+                "result_code": "MISSION_ROUTE_TRACKING_UNAVAILABLE",
+                "message": "route_tracking_unavailable",
+                "recoverable": True,
+            }
+
+        start_id, goal_id = flat_route_tracking_node_ids(graph, segment)
+        goal = self.compute_and_track_route_type.Goal()
+        goal.start_id = start_id
+        goal.goal_id = goal_id
+        goal.use_start = False
+        goal.use_poses = False
+
+        def _feedback_callback(feedback_msg):
+            edge_id = int(feedback_msg.feedback.current_edge_id)
+            edges_seen.append(edge_id)
+            self.node.get_logger().info(f"mission_route_tracking_feedback_edge: {edge_id}")
+            operations = list(feedback_msg.feedback.operations_triggered)
+            if operations:
+                self.node.get_logger().info(
+                    "mission_route_tracking_feedback_operations: "
+                    + ",".join(str(operation) for operation in operations)
+                )
+
+        send_future = self.route_tracking_client.send_goal_async(
+            goal,
+            feedback_callback=_feedback_callback,
+        )
+        if not _spin_until(self.node, send_future, 10.0):
+            return {
+                "success": False,
+                "result_code": "MISSION_ROUTE_TRACKING_FAILED",
+                "message": "route_tracking_goal_response_timeout",
+                "recoverable": True,
+            }
+        goal_handle = send_future.result()
+        if goal_handle is None or not goal_handle.accepted:
+            return {
+                "success": False,
+                "result_code": "MISSION_ROUTE_TRACKING_FAILED",
+                "message": "route_tracking_goal_rejected",
+                "recoverable": True,
+            }
+        self.node.get_logger().info("mission_route_tracking_goal: ACCEPTED")
+        return {
+            "success": True,
+            "goal_handle": goal_handle,
+            "expected_edge_id": int(segment.edge_ids[-1]),
+        }
+
+    def _finish_flat_route_tracking(
+        self,
+        goal_handle,
+        expected_edge_id: int | None,
+        edges_seen: list[int],
+    ) -> dict[str, Any] | None:
+        if goal_handle is None or expected_edge_id is None:
+            return None
+        for _ in range(20):
+            import rclpy
+
+            rclpy.spin_once(self.node, timeout_sec=0.1)
+            if expected_edge_id in edges_seen:
+                break
+        self._cancel_route_tracking_goal(goal_handle)
+        unique_edges: list[int] = []
+        for edge_id in edges_seen:
+            if edge_id not in unique_edges:
+                unique_edges.append(edge_id)
+        self.node.get_logger().info(
+            "mission_route_tracking_feedback_edges: "
+            + ",".join(str(edge_id) for edge_id in unique_edges)
+        )
+        self.node.get_logger().info(
+            f"mission_route_tracking_expected_edge_id: {expected_edge_id}"
+        )
+        if expected_edge_id not in edges_seen:
+            self.node.get_logger().info("mission_route_tracking_result: FAIL")
+            return {
+                "success": False,
+                "result_code": "MISSION_ROUTE_TRACKING_FAILED",
+                "message": "route_tracking_missing_expected_edge",
+                "recoverable": True,
+            }
+        self.node.get_logger().info("mission_route_tracking_result: PASS")
+        return None
+
+    def _cancel_route_tracking_goal(self, goal_handle) -> None:
+        if goal_handle is None:
+            return
+        cancel_future = goal_handle.cancel_goal_async()
+        _spin_until(self.node, cancel_future, 5.0)
 
     def _execute_stair_segment(
         self,
@@ -2018,6 +2167,7 @@ def parse_args(argv: list[str]) -> tuple[argparse.Namespace, list[str]]:
     parser.add_argument("--mission-retry-backoff-sec", type=float, default=0.5)
     parser.add_argument("--mission-recovery-enabled", type=_parse_bool, default=True)
     parser.add_argument("--flat-behavior-tree", default="success")
+    parser.add_argument("--route-tracking-action", default="")
     parser.add_argument("--mission-queue-capacity", type=int, default=2)
     parser.add_argument("--mission-robot-id", default="go2w_local")
     parser.add_argument("--action-name", default="/go2w/mission/run")
@@ -2063,6 +2213,7 @@ def main(argv: list[str] | None = None) -> int:
                 mission_retry_backoff_sec=args.mission_retry_backoff_sec,
                 mission_recovery_enabled=args.mission_recovery_enabled,
                 flat_behavior_tree=args.flat_behavior_tree,
+                route_tracking_action=args.route_tracking_action,
                 mission_queue_capacity=args.mission_queue_capacity,
                 mission_robot_id=args.mission_robot_id,
             )

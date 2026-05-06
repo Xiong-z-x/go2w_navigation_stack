@@ -21,7 +21,7 @@ simulation-first 的自主导航栈，最终实现：
   hardening 状态、workflow policy / backend 和实际 repo root 接手风险。
 - 2026-05-04 迁移前二次封板期间，`tools/verify_phase4_runtime_acceptance.sh` 与
   `tools/verify_go2w_control_chain_regression.sh` 又各自串行复验 PASS。
-- 当前状态：Phase 3A、Phase 3B、Phase 3C、Phase 4 迁移前封板、Phase 4A、Phase 4B-min、Phase 4C-min、Phase 4D-min、Phase 4 总体验收、Phase 5A live route tracking observation gate、opt-in Go2W real model / motion-mode baseline、opt-in real-model same-floor route-following verifier、opt-in real-model `nav2_route` robot-motion route-tracking verifier、mission-runtime real-model flat execution gate、Mission API scheduling / priority scheduling / assignment policy / operator control / queue replay / task history / workflow policy / workflow backend、Phase 4E real-model stair fixture、Phase 4E mission recovery、稳定 control-chain regression wrapper 和 opt-in real-model regression wrapper 均已有仓库内验收证据。
+- 当前状态：Phase 3A、Phase 3B、Phase 3C、Phase 4 迁移前封板、Phase 4A、Phase 4B-min、Phase 4C-min、Phase 4D-min、Phase 4 总体验收、Phase 5A live route tracking observation gate、opt-in Go2W real model / motion-mode baseline、opt-in real-model same-floor route-following verifier、opt-in real-model `nav2_route` robot-motion route-tracking verifier、mission-runtime real-model flat execution + opt-in route-tracking observation gate、Mission API scheduling / priority scheduling / assignment policy / operator control / queue replay / task history / workflow policy / workflow backend、Phase 4E real-model stair fixture、Phase 4E mission recovery、稳定 control-chain regression wrapper 和 opt-in real-model regression wrapper 均已有仓库内验收证据。
 - 更细的阶段完成度审计、权威源映射、已解决 / 未解决 / 风险和最终目标差距分析见 `docs/handoff/project_state_audit.md`。
 - 当前 Phase 4 accepted 范围：manual-connector runtime chain，覆盖楼梯 handoff、mission route segmentation、flat/stair/flat Action 调度、`ComputeAndTrackRoute` feedback observation，以及 pre-handoff、Phase 4A/4B/4C/4D runtime verifiers、构建和测试的聚合验收。
 - 下一步：只能在新的完整任务单或当前自主审批模式下的自批准任务单中推进 post-Phase-4 的最小单主题任务。当前已完成的 Phase 4E 硬化仍不等于真实楼梯动力学、完整 production Mission Orchestrator 或默认 real-model re-baseline。
@@ -73,7 +73,8 @@ Gazebo GPU rendering 不是当前验收合同。RViz 可单独使用 WSLg/NVIDIA
   `MissionControl` pause/resume/status/cancel_active/replay_queue/history/archive_history/workflow/workflow_events
   控制面、durable queue replay ledger、bounded terminal task-history ledger，以及
   非抢占式 queued priority scheduling、local assignment policy、operator workflow-policy snapshot 和 workflow event backend；当前 priority 只影响 waiting queue，不抢占 active mission；
-  opt-in real-model flat-only execution gate。
+  opt-in real-model flat-only execution gate，并可在显式 `route_tracking_action`
+  配置下让 flat segment 同步观察真实 `ComputeAndTrackRoute` feedback。
   该 gate 在不启动 `go2w_flat_nav_executor` 的情况下把 mission flat
   segment 送到真实 Nav2 `/navigate_to_pose`，并通过共享 `mission_pose` helper 保留
   route graph 的目标 yaw。它仍不是完整 production Mission Orchestrator。
@@ -118,12 +119,13 @@ Gazebo GPU rendering 不是当前验收合同。RViz 可单独使用 WSLg/NVIDIA
   odom route graph、`ComputeAndTrackRoute` feedback edge `10`、`NavigateToPose`
   success、`/cmd_vel`、perception odom motion、diff-drive odom motion，以及
   absent `map -> odom`。
-- Mission runtime real-model flat execution gate：通过
+- Mission runtime real-model flat execution + route-tracking observation gate：通过
   `tools/verify_go2w_mission_real_flat_execution.sh` 验证 `RunMission` flat-only
   segment 可以在不启动 `go2w_flat_nav_executor` 的情况下调用真实 Nav2
-  `/navigate_to_pose`，保留 route graph 目标 yaw，并观察到 `MISSION_SUCCEEDED`、
-  非零 `/cmd_vel`、perception odom motion、diff-drive odom motion 和
-  perception-owned `odom -> base_link`。
+  `/navigate_to_pose`，同时启用 mission-side `/compute_and_track_route`
+  observation 并观察 edge `10`；该 gate 保留 route graph 目标 yaw，并观察到
+  `MISSION_SUCCEEDED`、非零 `/cmd_vel`、perception odom motion、diff-drive odom
+  motion 和 perception-owned `odom -> base_link`。
 - Mission API bounded FIFO scheduling policy：通过 focused unit test 验证并发 `RunMission`
   goal 现在会进入 one-active-plus-one-queued 模式；队列满时返回 `MISSION_BUSY` /
   `mission_queue_full`，queued goal 可在激活前取消返回 `MISSION_CANCELED` /
@@ -190,9 +192,9 @@ Gazebo GPU rendering 不是当前验收合同。RViz 可单独使用 WSLg/NVIDIA
 - 未实现完整 production Mission Orchestrator 的多机器人调度优化和 cross-robot goal transfer；当前 assignment policy 只是本机 admission gate，workflow backend 只是 bounded event ledger，不是 fleet-level workflow engine。
 - Phase 4C-min 的 flat executor 仍作为 deterministic verifier skeleton 保留；mission API
   现在已有 opt-in real-model flat-only gate 可绕过该 skeleton 并调用真实 Nav2
-  `/navigate_to_pose`。
+  `/navigate_to_pose`，也可显式启用 `/compute_and_track_route` observation。
 - 同层 real-model route-following、real-model route-tracking observation 和 mission
-  real-model flat execution 现在都有 dedicated hardening 证据，但不要把它们当作
+  real-model flat execution / route-tracking observation 现在都有 dedicated hardening 证据，但不要把它们当作
   production cross-floor route tracking、真实 stair route operation plugin 或完整
   production Mission Orchestrator。
 - 未实现真实楼梯运动控制器和控制参数调优；当前 Phase 4E 只把 wheel lock、body height transition、leg hold、phase target diagnostics 和 release 做成可观察阶段骨架。
@@ -221,8 +223,9 @@ mission records 也可通过 bounded task-history ledger 查询和裁剪。
   诊断，opt-in real-model flat gate 用于真实 Nav2 flat motion 证据。
 - 不允许顺带切换默认仿真基线、重构 perception TF、做 stair dynamics、引入
   AMCL/map_server、elevation、traversability 或 automatic connector。
-- Mission integration of real `nav2_route` robot-motion route tracking 应作为后续独立任务处理，
-  不要和 production Mission Orchestrator 调度策略、stair dynamics 或 Phase 5 自动连接器混在同一实现窗口。
+- Mission flat-only integration of real `nav2_route` robot-motion route tracking 已完成；
+  production cross-floor route tracking 仍应作为后续独立任务处理，不要和 production
+  Mission Orchestrator 调度策略、stair dynamics 或 Phase 5 自动连接器混在同一实现窗口。
 
 ## 当前默认 FAST-LIO 外部依赖位置
 Phase 3C 后，当前工具默认不再使用 `/tmp` 作为 FAST-LIO source/workspace：

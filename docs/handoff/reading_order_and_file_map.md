@@ -32,7 +32,7 @@
 - `docs/verification/go2w_control_chain_regression.md`：稳定 real-model control-chain regression wrapper 验收。
 - `docs/verification/go2w_real_model_route_following.md`：Go2W real-model same-floor route-following dedicated hardening 证据；现在是 opt-in regression 候选，不是 production route tracking。
 - `docs/verification/go2w_real_model_route_tracking.md`：Go2W real-model `nav2_route` robot-motion route-tracking 证据；验证真实运动触发 `ComputeAndTrackRoute` feedback，但不是跨楼层闭环或真实 stair route operation plugin。
-- `docs/verification/go2w_mission_real_flat_execution.md`：Mission runtime real-model flat execution gate 证据；证明 `RunMission` flat-only segment 可绕过 verifier-only flat executor 并调用真实 Nav2 `/navigate_to_pose`。
+- `docs/verification/go2w_mission_real_flat_execution.md`：Mission runtime real-model flat execution + route-tracking observation gate 证据；证明 `RunMission` flat-only segment 可绕过 verifier-only flat executor、调用真实 Nav2 `/navigate_to_pose`，并观察 mission-side `ComputeAndTrackRoute` feedback。
 - `docs/verification/mission_api_scheduling_policy.md`：Mission API bounded FIFO scheduling policy 证据；证明 `RunMission` 可重复验证 queue-full reject 与 queued cancel。
 - `docs/verification/mission_api_priority_scheduling.md`：Mission API non-preemptive priority scheduling 证据；证明 queued mission 按 `priority DESC, ticket ASC` 激活且同 priority 保持 FIFO。
 - `docs/verification/mission_api_assignment_policy.md`：Mission API assignment policy 证据；证明 `RunMission` 显式 `assigned_robot_id`、本机 admission gate 和 assignment diagnostics。
@@ -62,7 +62,7 @@
 - `go2w_perception/`：FAST-LIO adapters、TF authority、patch、external lock。
 - `go2w_navigation/`：Nav2 configs、BT、route graph、maps、Phase 4C-min flat navigation executor skeleton、Phase 4D-min route tracking feedback executor skeleton、real-model route-following 和 route-tracking verifiers。
 - `go2w_control/`：Phase 4A 起承载 `StairExec` Action、command gate 和最小 stair executor skeleton；Phase 4E 起输出 phase-aware stair execution plan/state、wheel-lock diagnostics 和 opt-in execute/body-height phase target。
-- `go2w_mission/`：Phase 4A 起承载 handoff demo；Phase 4B-min 起承载 one-shot mission segment runtime；Phase 4C-min 起通过 `NavigateToPose` gate 调度 flat segments；Phase 4D-min 起承载 route tracking feedback observer；Phase 4E 起提供 mission checkpoint/recovery skeleton；当前已能在 opt-in flat-only gate 中调用真实 Nav2 `/navigate_to_pose`，并且现在还具备 bounded queueing、non-preemptive priority scheduling、local assignment policy、operator control、durable queue replay、bounded terminal task history、workflow policy snapshot 和 workflow event backend，但尚不是完整 production Mission Orchestrator。
+- `go2w_mission/`：Phase 4A 起承载 handoff demo；Phase 4B-min 起承载 one-shot mission segment runtime；Phase 4C-min 起通过 `NavigateToPose` gate 调度 flat segments；Phase 4D-min 起承载 route tracking feedback observer；Phase 4E 起提供 mission checkpoint/recovery skeleton；当前已能在 opt-in flat-only gate 中调用真实 Nav2 `/navigate_to_pose` 并观察 mission-side `ComputeAndTrackRoute` feedback，并且现在还具备 bounded queueing、non-preemptive priority scheduling、local assignment policy、operator control、durable queue replay、bounded terminal task history、workflow policy snapshot 和 workflow event backend，但尚不是完整 production Mission Orchestrator。
 
 ## 关键工具
 - `tools/prepare_phase2d_fastlio_external.sh`：准备 pinned FAST-LIO external cache。
@@ -85,7 +85,7 @@
 - `tools/verify_go2w_control_chain_regression.sh`：稳定 real-model control-chain regression gate。
 - `tools/verify_go2w_real_model_route_following.sh`：Go2W real-model same-floor route-following verifier；验证短 `NavigateToPose` 运动链。
 - `tools/verify_go2w_real_model_route_tracking.sh`：Go2W real-model `nav2_route` robot-motion route-tracking verifier；验证真实运动驱动 `ComputeAndTrackRoute` feedback。
-- `tools/verify_go2w_mission_real_flat_execution.sh`：Mission runtime real-model flat execution gate；验证 `RunMission` flat-only segment 调用真实 Nav2 `/navigate_to_pose`，且不启动 `go2w_flat_nav_executor`。
+- `tools/verify_go2w_mission_real_flat_execution.sh`：Mission runtime real-model flat execution + route-tracking observation gate；验证 `RunMission` flat-only segment 调用真实 Nav2 `/navigate_to_pose`，观察 mission-side `ComputeAndTrackRoute` feedback，且不启动 `go2w_flat_nav_executor`。
 - `tools/verify_mission_api_scheduling_policy.sh`：Mission API bounded FIFO scheduling policy gate；验证 `RunMission` queue-full reject 与 queued cancel。
 - `tools/verify_mission_api_priority_scheduling.sh`：Mission API priority scheduling gate；验证 `RunMission` 显式 priority、queued priority order 和同 priority FIFO。
 - `tools/verify_mission_api_assignment_policy.sh`：Mission API assignment policy gate；验证 `RunMission` 显式 assigned robot、本机 admission gate 和 assignment diagnostics。

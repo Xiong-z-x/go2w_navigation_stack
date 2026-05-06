@@ -38,6 +38,7 @@ def generate_launch_description():
     mission_retry_backoff_sec = LaunchConfiguration("mission_retry_backoff_sec")
     mission_recovery_enabled = LaunchConfiguration("mission_recovery_enabled")
     flat_behavior_tree = LaunchConfiguration("flat_behavior_tree")
+    route_tracking_action = LaunchConfiguration("route_tracking_action")
     mission_queue_capacity = LaunchConfiguration("mission_queue_capacity")
     mission_robot_id = LaunchConfiguration("mission_robot_id")
     mission_control_service_name = LaunchConfiguration("mission_control_service_name")
@@ -159,6 +160,15 @@ def generate_launch_description():
             ),
         ),
         DeclareLaunchArgument(
+            "route_tracking_action",
+            default_value="",
+            description=(
+                "Optional ComputeAndTrackRoute action name for mission flat "
+                "segment route-tracking observation. Empty disables this "
+                "opt-in path."
+            ),
+        ),
+        DeclareLaunchArgument(
             "mission_queue_capacity",
             default_value="2",
             description="Bounded outstanding mission capacity for RunMission.",
@@ -264,6 +274,8 @@ def generate_launch_description():
                 mission_recovery_enabled,
                 "--flat-behavior-tree",
                 flat_behavior_tree,
+                "--route-tracking-action",
+                route_tracking_action,
                 "--mission-queue-capacity",
                 mission_queue_capacity,
                 "--mission-robot-id",

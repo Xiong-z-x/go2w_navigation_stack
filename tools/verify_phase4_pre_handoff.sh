@@ -177,6 +177,7 @@ require_contains "docs/verification/phase4_runtime_acceptance.md" 'phase4_runtim
 require_contains "docs/verification/go2w_control_chain_regression.md" 'go2w_control_chain_regression_result: PASS' "control_chain_regression_evidence"
 require_contains "docs/verification/go2w_real_model_route_following.md" 'three consecutive clean-domain PASS' "route_following_hardened_regression_candidate"
 require_contains "docs/verification/go2w_real_model_route_tracking.md" 'go2w_real_model_route_tracking_result: PASS' "real_model_route_tracking_evidence"
+require_contains "docs/verification/go2w_mission_real_flat_execution.md" 'mission_route_tracking_result: PASS' "mission_real_flat_route_tracking_evidence"
 require_contains "docs/verification/mission_api_priority_scheduling.md" 'mission_priority_scheduling_result: PASS' "mission_priority_scheduling_evidence"
 require_contains "docs/verification/mission_api_assignment_policy.md" 'mission_assignment_policy_result: PASS' "mission_assignment_policy_evidence"
 require_contains "docs/verification/mission_api_task_history.md" 'mission_task_history_result: PASS' "mission_task_history_evidence"

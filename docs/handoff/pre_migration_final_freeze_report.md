@@ -56,6 +56,12 @@
   `docs/verification/go2w_real_model_route_tracking.md` 与
   `tools/verify_go2w_real_model_route_tracking.sh`。它仍不是跨楼层真实闭环、
   真实 stair route operation plugin 或 Phase 5 automatic connector。
+- 2026-05-06：Mission runtime real-model flat execution gate 已扩展为 opt-in
+  route-tracking observation gate。`RunMission` 可在不启动 `go2w_flat_nav_executor`
+  的情况下调用真实 Nav2 `/navigate_to_pose`，并通过显式
+  `route_tracking_action:=/compute_and_track_route` 观察 flat edge `10` feedback。
+  它仍不是 production cross-floor route tracking、真实 stair route operation plugin
+  或完整 production Mission Orchestrator。
 - 2026-05-04：迁移前二次封板审计确认实际项目 Git 仓库根是
   `/home/xiongzx/go2w_ws/src/go2w_navigation_stack`。外层
   `/home/xiongzx/go2w_ws` 是工作区，不应用其 `git status` / `git log` 判断项目状态。
@@ -149,10 +155,12 @@
   local assignment admission policy、
   operator control service、operator-triggered durable queue replay、bounded terminal
   task history、workflow policy snapshot 和 workflow event backend，仍不是完整长生命周期调度器。
-- 真实机器人运动上的最小 `nav2_route` route tracking gate 已完成；production
-  cross-floor route tracking、真实 stair route operation plugin 和 Mission runtime
-  integration 尚未完成。
-- Mission runtime real robot-motion flat execution gate 已完成；当前 flat executor 仍保留 verifier skeleton 作为 deterministic 诊断路径。
+- 真实机器人运动上的最小 `nav2_route` route tracking gate 和 mission flat-only integration
+  已完成；production cross-floor route tracking、真实 stair route operation plugin 和
+  flat/stair/flat production integration 仍未完成。
+- Mission runtime real robot-motion flat execution gate 已完成，并可 opt-in 观察
+  `ComputeAndTrackRoute` feedback；当前 flat executor 仍保留 verifier skeleton 作为
+  deterministic 诊断路径。
 - 真实楼梯动力学、leg trajectory、hardware wheel lock、body-height actuator 控制和 gait tuning：尚未完成；当前只新增了 phase target diagnostics。
 - 默认仿真基线切换到 real-model：尚未批准。
 - `map_server` / AMCL / `map -> odom` 定位链：尚未实现。
@@ -235,6 +243,7 @@ Definition of Done:
 | `./tools/verify_phase4e_stair_phase_targets.sh` | PASS | 2026-05-06 stair phase target focused verifier 通过 |
 | `./tools/verify_phase4e_stair_tuning_overrides.sh` | PASS | 2026-05-06 opt-in execute-body-height runtime smoke 通过 |
 | `./tools/verify_go2w_real_model_route_tracking.sh` | PASS | 2026-05-06 real-model `nav2_route` robot-motion route-tracking gate 通过 |
+| `./tools/verify_go2w_mission_real_flat_execution.sh` | PASS | 2026-05-06 Mission runtime real-model flat execution + route-tracking observation gate 通过 |
 | `./tools/verify_phase4_pre_handoff.sh` | PASS | 2026-05-04 二次封板起点复验，交接包最低一致性通过 |
 | `./tools/verify_phase4_runtime_acceptance.sh` | PASS | 2026-05-04 串行复验，Phase 4A/B/C/D、build/test/test-result 再次通过 |
 | `./tools/verify_go2w_control_chain_regression.sh` | PASS | 2026-05-04 串行复验，real-model baseline、stair fixture、mission recovery、stair tuning 再次通过 |

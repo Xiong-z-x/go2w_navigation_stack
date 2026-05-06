@@ -71,7 +71,8 @@ simulation-first 路线推进。
   wheeled/legged mode state、显式 `legged` startup profile 日志和启动站立初始化已作为 opt-in 路径完成验证；同层
   real-model route-following verifier 也已通过短 `NavigateToPose` 目标验证；real-model
   `nav2_route` robot-motion route-tracking verifier 也已通过短 odom route graph +
-  `ComputeAndTrackRoute` feedback + `NavigateToPose` 真实运动验证；Phase 4E
+  `ComputeAndTrackRoute` feedback + `NavigateToPose` 真实运动验证；Mission runtime
+  flat-only gate 现在也可 opt-in 观察 `ComputeAndTrackRoute` feedback；Phase 4E
   real-model stair fixture、稳定 control-chain regression wrapper 和 opt-in real-model
   regression wrapper 也已通过；mission-runtime real-model flat execution gate 现在也已
   验证 `RunMission` flat-only segment 可在不启动 `go2w_flat_nav_executor` 的情况下调用真实
@@ -253,8 +254,8 @@ route feedback：
 真实 stair route operation plugin、Phase 5 automatic connector 或默认 baseline
 替代。
 
-Mission runtime real-model flat execution gate 可重复验证 `RunMission` flat-only
-segment 调用真实 Nav2 `/navigate_to_pose`，并且不启动 Phase 4C 的
+Mission runtime real-model flat execution + route-tracking observation gate 可重复验证
+`RunMission` flat-only segment 调用真实 Nav2 `/navigate_to_pose`，并且不启动 Phase 4C 的
 `go2w_flat_nav_executor`：
 
 ```bash
@@ -263,9 +264,12 @@ segment 调用真实 Nav2 `/navigate_to_pose`，并且不启动 Phase 4C 的
 
 该脚本启动 opt-in real model、perception、FAST-LIO、real-model Nav2 和 mission API，
 动态生成 odom-frame flat-only route graph，reload `/route_server/set_route_graph`，
-再发送 `RunMission` goal。它证明 mission flat segment 可接入真实 robot-motion flat
-execution surface；它仍不是 production Mission Orchestrator、真实 `nav2_route`
-robot-motion route tracking、跨楼层真实闭环或楼梯动力学。
+再发送 `RunMission` goal，并通过显式
+`route_tracking_action:=/compute_and_track_route` 观察 mission-side route feedback
+edge `10`。它证明 mission flat segment 可接入真实 robot-motion flat execution
+surface 和 route-tracking observation；它仍不是 production Mission Orchestrator、
+production cross-floor route tracking、真实 stair route operation plugin、跨楼层真实闭环
+或楼梯动力学。
 
 稳定的 real-model control-chain 回归门禁可使用：
 

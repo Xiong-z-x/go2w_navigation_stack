@@ -135,7 +135,9 @@ simulation-first 路线构建 Go2W 跨楼层自主导航巡检系统：
   串联 real-model baseline、Phase 4E stair fixture、mission recovery 和 stair tuning smoke。
 - Mission-runtime real-model flat execution gate：`RunMission` 的 flat-only segment
   已可在不启动 `go2w_flat_nav_executor` 的情况下调用真实 Nav2 `/navigate_to_pose`，
-  保留 route graph 目标 yaw，并保持 perception-owned `odom -> base_link`。
+  保留 route graph 目标 yaw，并保持 perception-owned `odom -> base_link`；当前还可
+  通过显式 `route_tracking_action:=/compute_and_track_route` 观察 flat edge `10`
+  的 mission-side `ComputeAndTrackRoute` feedback。
 - Production Mission Orchestrator 当前窄范围：`RunMission` 已有 bounded queueing、
   non-preemptive queued priority scheduling、local assignment policy、operator-state snapshot、
   `MissionControl` pause/resume/status/cancel_active/replay_queue/history/archive_history/workflow/workflow_events、
@@ -147,9 +149,10 @@ simulation-first 路线构建 Go2W 跨楼层自主导航巡检系统：
 - Production Mission Orchestrator 尚未完成；当前只是 mission API / recovery skeleton
   加上 bounded queueing、queued priority scheduling、assignment policy、operator control、queue replay、task history、
   workflow policy snapshot 和 workflow event backend。
-- 最小 real-model `nav2_route` robot-motion route-tracking gate 已完成；但它只是短程
-  opt-in verification gate，不是 production cross-floor route tracking、真实 stair route
-  operation plugin、Mission runtime integration 或完整生产路线跟踪。
+- 最小 real-model `nav2_route` robot-motion route-tracking gate 已完成，且 Mission runtime
+  flat-only gate 已可 opt-in 观察 `ComputeAndTrackRoute` feedback；但它们仍只是短程
+  opt-in verification gates，不是 production cross-floor route tracking、真实 stair route
+  operation plugin、flat/stair/flat production integration 或完整生产路线跟踪。
 - Real-model same-floor route-following 已完成 dedicated hardening：DWB abort 复现后通过
   candidate selection、`xy_goal_tolerance: 0.08` 和 stale-process cleanup 修复，并取得
   3 次 clean-domain 连续 PASS。它是 opt-in regression 候选，不是 production route tracking。
@@ -268,6 +271,8 @@ ros2 launch go2w_sim sim.launch.py use_gpu:=false headless:=true launch_rviz:=fa
 - 不要把 real-model nav2_route robot-motion route tracking gate 当成跨楼层自主闭环、
   真实 stair route operation plugin、Mission runtime route tracking 或 Phase 5 automatic
   connector generation。
+- 不要把 Mission runtime flat-only route-tracking observation gate 当成跨楼层 production
+  route tracking、真实 stair route operation plugin 或完整 production Mission Orchestrator。
 - 不要把 real-model same-floor route-following regression candidate 当成 production
   `nav2_route` route tracking 或默认仿真基线。
 - 不要把 stable control-chain wrapper 当成完整机器人自主导航；它只证明控制链可重复门禁。
@@ -327,8 +332,7 @@ baseline、stair dynamics 或 map / localization 范围。
 
 1. dedicated stair trajectory / wheel lock / body-height / gait tuning 的真实控制器任务。
 2. 判断 real-model path 是否能扩展为默认 baseline。
-3. Mission integration of real `nav2_route` robot-motion route tracking 或跨楼层 production
-   route tracking，但必须另起独立任务单。
+3. 跨楼层 production route tracking 或 flat/stair/flat mission integration，但必须另起独立任务单。
 4. Phase 5 terrain-aware connector discovery、elevation mapping、traversability。
 
 不要把已完成的 priority scheduling、assignment policy、workflow policy snapshot 或 workflow event backend 重复当成下一步。当前 mission scheduling / priority /
