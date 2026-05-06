@@ -37,6 +37,7 @@ nav2_route / Mission / Stair Control 项目的专业执行者、架构一致性�
 - docs/verification/go2w_real_model_motion_mode_baseline.md
 - docs/verification/go2w_control_chain_regression.md
 - docs/verification/go2w_real_model_route_following.md
+- docs/verification/go2w_real_model_route_tracking.md
 - docs/verification/go2w_real_model_regression.md
 - docs/verification/go2w_mission_real_flat_execution.md
 - docs/verification/phase4e_stair_fixture.md
@@ -115,6 +116,11 @@ simulation-first 路线构建 Go2W 跨楼层自主导航巡检系统：
   Phase 4A/4B/4C/4D、build/test 和 `colcon test-result --verbose`。
 - Phase 5A follow-up：live `nav2_route` route_server / `ComputeAndTrackRoute` observation
   gate，在受控 TF trajectory fixture 下观察 edge `500` 和 operation metadata。
+- Real-model nav2_route robot-motion route tracking gate：opt-in verifier 在真实模型
+  Nav2 运动链中动态生成短 odom route graph，reload `/route_server/set_route_graph`，
+  发送 `ComputeAndTrackRoute`，再用真实 `/navigate_to_pose` 运动驱动反馈，已观察
+  feedback edge `10`、`/cmd_vel`、perception odom、diff-drive odom、absent `map -> odom`
+  和 perception-owned `odom -> base_link`。
 - Opt-in Go2W real model / motion-mode baseline：真实模型资产、四 foot wheel
   `diff_drive_controller`、12 关节 leg position controller、sensor topics、`flat -> wheeled`
   / `stair -> legged` state 和启动站立初始化。
@@ -141,7 +147,9 @@ simulation-first 路线构建 Go2W 跨楼层自主导航巡检系统：
 - Production Mission Orchestrator 尚未完成；当前只是 mission API / recovery skeleton
   加上 bounded queueing、queued priority scheduling、assignment policy、operator control、queue replay、task history、
   workflow policy snapshot 和 workflow event backend。
-- 真实机器人运动上的 `nav2_route` route tracking 尚未稳定完成。
+- 最小 real-model `nav2_route` robot-motion route-tracking gate 已完成；但它只是短程
+  opt-in verification gate，不是 production cross-floor route tracking、真实 stair route
+  operation plugin、Mission runtime integration 或完整生产路线跟踪。
 - Real-model same-floor route-following 已完成 dedicated hardening：DWB abort 复现后通过
   candidate selection、`xy_goal_tolerance: 0.08` 和 stale-process cleanup 修复，并取得
   3 次 clean-domain 连续 PASS。它是 opt-in regression 候选，不是 production route tracking。
@@ -257,6 +265,9 @@ ros2 launch go2w_sim sim.launch.py use_gpu:=false headless:=true launch_rviz:=fa
 - 不要把 hospital world asset 当成真实楼梯运动学验证。
 - 不要把 Phase 4A/B/C/D verifier skeleton 当成 production mission 或真实机器人运动 route tracking。
 - 不要把 Phase 5A live route tracking observation gate 当成真实机器人运动 route tracking。
+- 不要把 real-model nav2_route robot-motion route tracking gate 当成跨楼层自主闭环、
+  真实 stair route operation plugin、Mission runtime route tracking 或 Phase 5 automatic
+  connector generation。
 - 不要把 real-model same-floor route-following regression candidate 当成 production
   `nav2_route` route tracking 或默认仿真基线。
 - 不要把 stable control-chain wrapper 当成完整机器人自主导航；它只证明控制链可重复门禁。
@@ -316,7 +327,8 @@ baseline、stair dynamics 或 map / localization 范围。
 
 1. dedicated stair trajectory / wheel lock / body-height / gait tuning 的真实控制器任务。
 2. 判断 real-model path 是否能扩展为默认 baseline。
-3. 真实机器人运动上的稳定 `nav2_route` route tracking。
+3. Mission integration of real `nav2_route` robot-motion route tracking 或跨楼层 production
+   route tracking，但必须另起独立任务单。
 4. Phase 5 terrain-aware connector discovery、elevation mapping、traversability。
 
 不要把已完成的 priority scheduling、assignment policy、workflow policy snapshot 或 workflow event backend 重复当成下一步。当前 mission scheduling / priority /

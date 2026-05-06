@@ -23,6 +23,7 @@ simulation-first 路线推进。
 - `docs/verification/go2w_control_chain_regression.md`
 - `docs/verification/go2w_mission_real_flat_execution.md`
 - `docs/verification/go2w_real_model_regression.md`
+- `docs/verification/go2w_real_model_route_tracking.md`
 - `docs/verification/phase4e_stair_fixture.md`
 - `docs/verification/phase4e_mission_recovery.md`
 - `docs/verification/phase4e_stair_tuning_overrides.md`
@@ -68,7 +69,9 @@ simulation-first 路线推进。
 - `Phase 5A` 证据门：live route tracking observation gate 已完成并验收，作为 Phase 4D-min 之外的 live route-server-backed 观察证据
 - Go2W real model / motion-mode baseline：真实 Go2W 模型、四足轮式 controller profile、
   wheeled/legged mode state、显式 `legged` startup profile 日志和启动站立初始化已作为 opt-in 路径完成验证；同层
-  real-model route-following verifier 也已通过短 `NavigateToPose` 目标验证；Phase 4E
+  real-model route-following verifier 也已通过短 `NavigateToPose` 目标验证；real-model
+  `nav2_route` robot-motion route-tracking verifier 也已通过短 odom route graph +
+  `ComputeAndTrackRoute` feedback + `NavigateToPose` 真实运动验证；Phase 4E
   real-model stair fixture、稳定 control-chain regression wrapper 和 opt-in real-model
   regression wrapper 也已通过；mission-runtime real-model flat execution gate 现在也已
   验证 `RunMission` flat-only segment 可在不启动 `go2w_flat_nav_executor` 的情况下调用真实
@@ -235,6 +238,20 @@ ros2 launch go2w_sim sim_go2w_real.launch.py use_gpu:=false headless:=true launc
 目标到达，不是 production route tracking，也不是楼梯动力学。2026-05-02
 dedicated hardening 已修复 DWB abort 路径并取得 3 次 clean-domain 连续 PASS；
 它现在是 opt-in regression 候选，但尚未自动纳入稳定 control-chain wrapper。
+
+real-model `nav2_route` robot-motion route-tracking verifier 可重复验证真实运动驱动
+route feedback：
+
+```bash
+./tools/verify_go2w_real_model_route_tracking.sh
+```
+
+该脚本启动 opt-in real model、perception、FAST-LIO、real-model Nav2 和真实
+`route_server`，从当前 perception odom 生成短 odom-frame route graph，reload
+`/route_server/set_route_graph`，发送 `ComputeAndTrackRoute`，并通过
+`NavigateToPose` 真实运动观察 route feedback edge。它仍不是跨楼层真实闭环、
+真实 stair route operation plugin、Phase 5 automatic connector 或默认 baseline
+替代。
 
 Mission runtime real-model flat execution gate 可重复验证 `RunMission` flat-only
 segment 调用真实 Nav2 `/navigate_to_pose`，并且不启动 Phase 4C 的

@@ -91,6 +91,7 @@ required_files=(
   "docs/verification/go2w_real_model_motion_mode_baseline.md"
   "docs/verification/go2w_control_chain_regression.md"
   "docs/verification/go2w_real_model_route_following.md"
+  "docs/verification/go2w_real_model_route_tracking.md"
   "docs/verification/go2w_mission_real_flat_execution.md"
   "docs/verification/mission_api_scheduling_policy.md"
   "docs/verification/mission_api_priority_scheduling.md"
@@ -114,6 +115,7 @@ required_files=(
   "tools/verify_go2w_real_model_baseline.sh"
   "tools/verify_go2w_control_chain_regression.sh"
   "tools/verify_go2w_real_model_route_following.sh"
+  "tools/verify_go2w_real_model_route_tracking.sh"
   "tools/verify_go2w_mission_real_flat_execution.sh"
   "tools/verify_mission_api_scheduling_policy.sh"
   "tools/verify_mission_api_priority_scheduling.sh"
@@ -174,6 +176,7 @@ require_contains "docs/verification/phase4d_route_tracking_feedback.md" 'phase4d
 require_contains "docs/verification/phase4_runtime_acceptance.md" 'phase4_runtime_acceptance_result: PASS' "phase4_runtime_acceptance_evidence"
 require_contains "docs/verification/go2w_control_chain_regression.md" 'go2w_control_chain_regression_result: PASS' "control_chain_regression_evidence"
 require_contains "docs/verification/go2w_real_model_route_following.md" 'three consecutive clean-domain PASS' "route_following_hardened_regression_candidate"
+require_contains "docs/verification/go2w_real_model_route_tracking.md" 'go2w_real_model_route_tracking_result: PASS' "real_model_route_tracking_evidence"
 require_contains "docs/verification/mission_api_priority_scheduling.md" 'mission_priority_scheduling_result: PASS' "mission_priority_scheduling_evidence"
 require_contains "docs/verification/mission_api_assignment_policy.md" 'mission_assignment_policy_result: PASS' "mission_assignment_policy_evidence"
 require_contains "docs/verification/mission_api_task_history.md" 'mission_task_history_result: PASS' "mission_task_history_evidence"
@@ -183,6 +186,7 @@ require_contains "docs/verification/phase4e_stair_phase_targets.md" 'phase4e_sta
 require_contains "docs/verification/go2w_real_model_regression.md" 'not be treated as the stable control-chain migration gate' "real_model_regression_boundary"
 require_contains "docs/handoff/README.md" 'verify_go2w_control_chain_regression.sh' "handoff_readme_control_chain_entry"
 require_contains "docs/handoff/new_model_initialization_prompt.md" 'Real-model same-floor route-following 已完成 dedicated hardening' "new_model_prompt_route_following_hardened"
+require_contains "docs/handoff/new_model_initialization_prompt.md" 'real-model nav2_route robot-motion route tracking' "new_model_prompt_real_route_tracking"
 require_contains "docs/handoff/new_model_initialization_prompt.md" 'task history' "new_model_prompt_task_history"
 require_contains "docs/handoff/new_model_initialization_prompt.md" 'workflow policy' "new_model_prompt_workflow_policy"
 require_contains "docs/handoff/new_model_initialization_prompt.md" 'workflow event backend' "new_model_prompt_workflow_backend"
@@ -235,6 +239,7 @@ bash -n \
   "${ROOT_DIR}/tools/verify_phase4c_flat_segment_gate.sh" \
   "${ROOT_DIR}/tools/verify_phase4d_route_tracking_feedback.sh" \
   "${ROOT_DIR}/tools/verify_go2w_control_chain_regression.sh" \
+  "${ROOT_DIR}/tools/verify_go2w_real_model_route_tracking.sh" \
   "${ROOT_DIR}/tools/verify_go2w_mission_real_flat_execution.sh" \
   "${ROOT_DIR}/tools/verify_mission_api_scheduling_policy.sh" \
   "${ROOT_DIR}/tools/verify_mission_api_priority_scheduling.sh" \

@@ -48,6 +48,14 @@
   `execute_stairs` 的 body-height target；默认 stair baseline 不变。
   新增 `docs/verification/phase4e_stair_phase_targets.md` 与
   `tools/verify_phase4e_stair_phase_targets.sh`。
+- 2026-05-06：real-model `nav2_route` robot-motion route-tracking gate 已完成。
+  新 verifier 启动 opt-in real-model、perception、FAST-LIO、real-model Nav2 和
+  真实 `route_server`，从当前 perception odom 生成短 odom-frame route graph，
+  reload `/route_server/set_route_graph`，发送 `ComputeAndTrackRoute`，并用
+  `NavigateToPose` 真实运动触发 route feedback edge `10`。新增
+  `docs/verification/go2w_real_model_route_tracking.md` 与
+  `tools/verify_go2w_real_model_route_tracking.sh`。它仍不是跨楼层真实闭环、
+  真实 stair route operation plugin 或 Phase 5 automatic connector。
 - 2026-05-04：迁移前二次封板审计确认实际项目 Git 仓库根是
   `/home/xiongzx/go2w_ws/src/go2w_navigation_stack`。外层
   `/home/xiongzx/go2w_ws` 是工作区，不应用其 `git status` / `git log` 判断项目状态。
@@ -131,6 +139,9 @@
 - Phase 4E：real-model stair fixture、mission recovery checkpoint/resume、stair tuning smoke、stair phase target diagnostics。
 - Stable control-chain regression：real-model baseline + stair fixture + mission recovery + stair tuning smoke。
 - Real-model same-floor route-following dedicated hardening：candidate selection、goal tolerance 和 stale-process cleanup 已修复，3 次 clean-domain PASS。
+- Real-model `nav2_route` robot-motion route tracking gate：动态 odom route graph、
+  route_server reload、`ComputeAndTrackRoute` feedback edge `10`、真实 Nav2
+  `NavigateToPose` 运动、perception/diff-drive odom motion 和 TF 边界均已验证。
 
 ## 当前未完成能力
 - Production Mission Orchestrator：当前只是 mission API / checkpoint / retry / resume
@@ -138,7 +149,9 @@
   local assignment admission policy、
   operator control service、operator-triggered durable queue replay、bounded terminal
   task history、workflow policy snapshot 和 workflow event backend，仍不是完整长生命周期调度器。
-- 真实机器人运动上的稳定 `nav2_route` route tracking：尚未完成。
+- 真实机器人运动上的最小 `nav2_route` route tracking gate 已完成；production
+  cross-floor route tracking、真实 stair route operation plugin 和 Mission runtime
+  integration 尚未完成。
 - Mission runtime real robot-motion flat execution gate 已完成；当前 flat executor 仍保留 verifier skeleton 作为 deterministic 诊断路径。
 - 真实楼梯动力学、leg trajectory、hardware wheel lock、body-height actuator 控制和 gait tuning：尚未完成；当前只新增了 phase target diagnostics。
 - 默认仿真基线切换到 real-model：尚未批准。
@@ -207,8 +220,8 @@ Definition of Done:
 
 | 命令 | 结果 | 说明 |
 | --- | --- | --- |
-| `bash -n tools/verify_phase4_pre_handoff.sh tools/verify_go2w_control_chain_regression.sh tools/verify_phase4_runtime_acceptance.sh tools/verify_go2w_real_model_route_following.sh` | PASS | 核心 shell 入口语法通过 |
-| `shellcheck tools/verify_phase4_pre_handoff.sh tools/verify_go2w_control_chain_regression.sh tools/verify_phase4_runtime_acceptance.sh tools/verify_go2w_real_model_route_following.sh` | PASS | 本机 `/usr/bin/shellcheck` 可用且无诊断输出 |
+| `bash -n tools/verify_phase4_pre_handoff.sh tools/verify_go2w_control_chain_regression.sh tools/verify_phase4_runtime_acceptance.sh tools/verify_go2w_real_model_route_following.sh tools/verify_go2w_real_model_route_tracking.sh` | PASS | 核心 shell 入口语法通过 |
+| `shellcheck tools/verify_phase4_pre_handoff.sh tools/verify_go2w_control_chain_regression.sh tools/verify_phase4_runtime_acceptance.sh tools/verify_go2w_real_model_route_following.sh tools/verify_go2w_real_model_route_tracking.sh` | PASS | 本机 `/usr/bin/shellcheck` 可用且无诊断输出 |
 | `git diff --check` | PASS | 无尾随空白或 patch 格式问题 |
 | `./tools/verify_phase4_pre_handoff.sh` | PASS | 已纳入本最终封板报告检查 |
 | `colcon test --packages-select go2w_navigation go2w_control go2w_mission --event-handlers console_direct+` | PASS | 3 个包测试通过 |
@@ -221,6 +234,7 @@ Definition of Done:
 | `./tools/verify_mission_api_workflow_backend.sh` | PASS | 2026-05-06 workflow event backend focused verifier 通过 |
 | `./tools/verify_phase4e_stair_phase_targets.sh` | PASS | 2026-05-06 stair phase target focused verifier 通过 |
 | `./tools/verify_phase4e_stair_tuning_overrides.sh` | PASS | 2026-05-06 opt-in execute-body-height runtime smoke 通过 |
+| `./tools/verify_go2w_real_model_route_tracking.sh` | PASS | 2026-05-06 real-model `nav2_route` robot-motion route-tracking gate 通过 |
 | `./tools/verify_phase4_pre_handoff.sh` | PASS | 2026-05-04 二次封板起点复验，交接包最低一致性通过 |
 | `./tools/verify_phase4_runtime_acceptance.sh` | PASS | 2026-05-04 串行复验，Phase 4A/B/C/D、build/test/test-result 再次通过 |
 | `./tools/verify_go2w_control_chain_regression.sh` | PASS | 2026-05-04 串行复验，real-model baseline、stair fixture、mission recovery、stair tuning 再次通过 |

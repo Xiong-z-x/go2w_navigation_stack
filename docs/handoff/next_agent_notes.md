@@ -29,6 +29,10 @@
 - 不要把 real-model same-floor route-following regression candidate 当成 production
   route tracking。它已完成 dedicated hardening 并三次 clean-domain 通过，但仍只是
   opt-in 短 `NavigateToPose` 运动链验证；稳定 control-chain regression 仍刻意把它拆出。
+- 不要把 real-model `nav2_route` robot-motion route-tracking gate 当成跨楼层自主或真实
+  stair route operation plugin。它证明真实运动能触发短 odom route graph 的
+  `ComputeAndTrackRoute` feedback，但仍不包含楼梯段、mission flat/stair/flat 集成或
+  Phase 5 自动连接器。
 - 不要把 `go2w_mission` 的 `RunMission` skeleton 当成 production Mission
   Orchestrator。它只是把 route compute、flat/stair dispatch 和诊断结果码串起来，
   当前虽已新增 JSON checkpoint、同一 goal resume 和有限 retry，仍依赖现有
@@ -151,6 +155,11 @@ default real-model re-baseline。不要把下一步扩大为真实多楼层
   `z_voxels` 提到 16 以上。2026-05-02 dedicated hardening 曾复现
   `ComputePathToPose` 非空但 `NavigateToPose` DWB abort；当前修复是首个可达候选策略、
   `xy_goal_tolerance: 0.08` 和 stale-process cleanup，随后 3 次 clean-domain PASS。
+- Real-model route-tracking verifier 是 `tools/verify_go2w_real_model_route_tracking.sh`。
+  它同时启动真实 `route_server` 和 real-model Nav2 motion chain；route_server 维持既有
+  `use_sim_time:=false` 模式。一次尝试把 route_server 切到 `use_sim_time:=true` 时，
+  lifecycle configure 出现 `/route_server/change_state` response timeout；不要把这个
+  症状误判成 route graph 或 Nav2 controller 问题。
 - `go2w_control` 的 `stair_executor` 现在会读取 legged motion profile 并钳制 stair 线速度。
   这只是让 skeleton 和 motion baseline 对齐，不是已经调好的真实楼梯步态。
 - `go2w_control` 的 `stair_executor` 现在还会在 stair owner 激活时发布 12 关节 leg hold command。

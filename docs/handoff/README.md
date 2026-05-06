@@ -51,22 +51,23 @@
 18. `docs/verification/go2w_real_model_motion_mode_baseline.md`
 19. `docs/verification/go2w_control_chain_regression.md`
 20. `docs/verification/go2w_real_model_route_following.md`
-21. `docs/verification/go2w_mission_real_flat_execution.md`
-22. `docs/verification/mission_api_scheduling_policy.md`
-23. `docs/verification/mission_api_priority_scheduling.md`
-24. `docs/verification/mission_api_assignment_policy.md`
-25. `docs/verification/mission_api_orchestrator_control.md`
-26. `docs/verification/mission_api_queue_replay.md`
-27. `docs/verification/mission_api_task_history.md`
-28. `docs/verification/mission_api_workflow_policy.md`
-29. `docs/verification/mission_api_workflow_backend.md`
-30. `docs/verification/phase4e_stair_fixture.md`
-31. `docs/verification/phase4e_mission_recovery.md`
-32. `docs/verification/go2w_real_model_regression.md`
-33. `docs/verification/phase4e_stair_tuning_overrides.md`
-34. `docs/verification/phase4e_stair_phase_targets.md`
-35. `docs/verification/phase4_runtime_acceptance.md`
-36. `docs/handoff/new_model_initialization_prompt.md`
+21. `docs/verification/go2w_real_model_route_tracking.md`
+22. `docs/verification/go2w_mission_real_flat_execution.md`
+23. `docs/verification/mission_api_scheduling_policy.md`
+24. `docs/verification/mission_api_priority_scheduling.md`
+25. `docs/verification/mission_api_assignment_policy.md`
+26. `docs/verification/mission_api_orchestrator_control.md`
+27. `docs/verification/mission_api_queue_replay.md`
+28. `docs/verification/mission_api_task_history.md`
+29. `docs/verification/mission_api_workflow_policy.md`
+30. `docs/verification/mission_api_workflow_backend.md`
+31. `docs/verification/phase4e_stair_fixture.md`
+32. `docs/verification/phase4e_mission_recovery.md`
+33. `docs/verification/go2w_real_model_regression.md`
+34. `docs/verification/phase4e_stair_tuning_overrides.md`
+35. `docs/verification/phase4e_stair_phase_targets.md`
+36. `docs/verification/phase4_runtime_acceptance.md`
+37. `docs/handoff/new_model_initialization_prompt.md`
 
 ## 本目录文件职责
 - `current_project_state.md`：当前真实状态总览。
@@ -139,6 +140,18 @@ Go2W real model same-floor route-following 独立 smoke 可用以下命令复现
 该 verifier 已完成 dedicated hardening，并取得 3 次 clean-domain 连续 PASS；
 它是 opt-in regression 候选，但仍不是 production route tracking、不是默认
 placeholder 基线替代，也尚未自动纳入稳定 control-chain wrapper。
+
+Go2W real model `nav2_route` robot-motion route-tracking gate 可用以下命令复现：
+
+```bash
+./tools/verify_go2w_real_model_route_tracking.sh
+```
+
+该 verifier 启动 opt-in real-model、perception、FAST-LIO、real-model Nav2 和真实
+`route_server`，从当前 perception odom 生成短 odom-frame route graph，并用
+`NavigateToPose` 真实运动触发 `ComputeAndTrackRoute` feedback。它证明 real-model
+motion 可以驱动 route tracking feedback；它仍不是跨楼层真实闭环、真实 stair route
+operation plugin、Phase 5 自动连接器或默认 baseline 替代。
 
 Mission runtime real-model flat execution gate 可用以下命令复现：
 
